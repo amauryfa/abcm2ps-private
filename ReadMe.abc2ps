@@ -35,9 +35,8 @@ subs.c		general routines
 util.c		more general routines
 parse.c		routines to parse input lines
 music.c		routines to typeset music 
-style.h		link to a style file (defaults to style.std)
+style.h		parameters for music layout (standard)
 style.pure	alternative style file for "puristic" layout
-style.std	parameters for music layout (standard)
 <others>.abc	sample input and test files
 
 
@@ -63,9 +62,6 @@ Possible problems:
 By default, the generated PostScript is level 2 since it uses
 the operator "selectfont". If you want level 1 output instead, set 
 macro PS_LEVEL to 1 in abc2ps.h.
-
-On Win32, untaring the distribution does not create a valid 'style.h' file.
-On such a system, you must copy 'style.std' to 'style.h' before compiling.
 
 ----- Program structure -----
 
@@ -132,9 +128,6 @@ In practice, this is equivalent to automatic line breaking.
 
 To control line breaking, the following flags are available:
 
- -b    break at all line ends, even if they end with the
-       continuation symbol '\'.
-
  -c    consider the input as one long line, ie., implicitly append 
        the continuation symbol '\' to every line of music.
       
@@ -187,16 +180,16 @@ when the breaks are chosen by hand.
 
 Basically, the usage is:   
 
-   abc2ps file1 file2.. 
+   abc2ps [options] file1 [file1_options] file2 [file2_options] ...
 
-where file1, file2.. are the abc input files. This will generate
+where file1, file2, .. are the abc input files. This will generate
 Postscript output.
 
-Most flags (see below) can be used in any sequence.
+Most options (see below) can be used in any sequence.
 
-Flags can be contracted together if the meaning is clear, 
-and a numerical argument for the last flag can be appended.
-That is,  '-b -s 0.7 -v 1' can be contracted to '-bs0.7 -v1'.
+Options can be contracted together if the meaning is clear, 
+and a numerical argument for the last option can be appended.
+That is, '-c -s 0.7 -v 1' can be contracted to '-cs0.7 -v1'.
 
 
 ----- Tune selection -----
@@ -293,17 +286,19 @@ These flags change the output appearance:
 
    -B n    format with n bars on every staff
 
-   -b	   forces a staff break at the end of each line, even if
-	   the line has the continuation symbol \ at the end.
-
    -c	   append the continuation symbol to all music lines, 
 	   which amounts to automatic line breaking.
 
    -a x    set the maximal allowed shrinkage to x, where x lies
 	   between 0.0 and 1.0
 
-   -j nn  Number the measures every nn bars or on the left side of
-	  the staff when 0.
+   -j nn  Number the measures every nn bars or on the left side of the
+	  staff when 0. The letter 'b' may appear at the end of nn
+	  in which case the measure numbers are drawn in a box.
+
+   -k nn  Same as '-j'.
+
+   -f nn  Start measure numbering from nn.
 
 
 ----- On-line help  -----
@@ -316,6 +311,8 @@ Flags for on-line help:
    -v n    sets the verbosity for output to the screen to n.
            Hereby -v0 gives very little, -v1,v2,v3.. show successively 
            more information. Verbosity >= 10 is for debugging.
+	   This option works only when abcm2ps is compiled with the
+	   -DDEBUG option.
 
    -V      shows the version number.
 
@@ -369,12 +366,12 @@ For examples, see file sample.abc.
          u   up-bow
          v   down-bow
       The non standard ones are:
-         ~   turn
+         ~   turn or roll (compilation option)
          J   slide
          R   roll 
       When the flag '-u' is set, the decorations are those defined by
       abc2ps. The differences are:
-         M   bar (M='em-phasis' = tenuto)
+         M   bar (M='em-phasis' = tenuto) instead of default lowermordent.
 
 
    -  Escape sequences: embedding a string between square brackets ([])
@@ -398,7 +395,7 @@ For examples, see file sample.abc.
       at all here; it is only relevant for programs which play the music.
       
 
-   -  Chords: The program accepts only the square brackets notation:
+   -  Chords: abcm2ps accepts only the square brackets notation:
 
           [ace][adf] 
 
@@ -424,7 +421,7 @@ For examples, see file sample.abc.
       and similar slurs-below-slurs. To connect three or four notes 
       by ties (e.g., for a note held over several bars) use
 
-          (a(b)c)  or by ties   a-b-c
+          (a(a)a)  or by ties   a-a-a
 
       The rule is that any note alone within brackets like (b) 
       terminates a previous slur and at the same time starts a new one.

@@ -12,6 +12,67 @@
 #include "abcparse.h"
 #include "abc2ps.h"
 
+struct FORMAT cfmt;		/* current format for output */
+
+/* format table */
+struct format {
+	char *name;
+	short type;
+#define FORMAT_I 0	/* int */
+#define FORMAT_F 1	/* float */
+#define FORMAT_S 2	/* font spec */
+#define FORMAT_U 3	/* float with unit */
+#define FORMAT_B 4	/* boolean */
+	short subtype;
+	void *v;
+} format_tb[] = {
+	{"pageheight", FORMAT_U, 0, &cfmt.pageheight},
+	{"staffwidth", FORMAT_U, 0, &cfmt.staffwidth},
+	{"topmargin", FORMAT_U, 0, &cfmt.topmargin},
+	{"botmargin", FORMAT_U, 0, &cfmt.botmargin},
+	{"leftmargin", FORMAT_U, 0, &cfmt.leftmargin},
+	{"topspace", FORMAT_U, 0, &cfmt.topspace},
+	{"wordsspace", FORMAT_U, 0, &cfmt.wordsspace},
+	{"titlespace", FORMAT_U, 0, &cfmt.titlespace},
+	{"subtitlespace", FORMAT_U, 0, &cfmt.subtitlespace},
+	{"composerspace", FORMAT_U, 0, &cfmt.composerspace},
+	{"musicspace", FORMAT_U, 0, &cfmt.musicspace},
+	{"partsspace", FORMAT_U, 0, &cfmt.partsspace},
+	{"staffsep", FORMAT_U, 0, &cfmt.staffsep},
+	{"vocalspace", FORMAT_U, 0, &cfmt.vocalspace},
+	{"textspace", FORMAT_U, 0, &cfmt.textspace},
+	{"indent", FORMAT_U, 0, &cfmt.indent},
+	{"scale", FORMAT_F, 0, &cfmt.scale},
+	{"maxshrink", FORMAT_F, 0, &cfmt.maxshrink},
+	{"lineskipfac", FORMAT_F, 0, &cfmt.lineskipfac},
+	{"parskipfac", FORMAT_F, 0, &cfmt.parskipfac},
+	{"barsperstaff", FORMAT_I, 0, &cfmt.barsperstaff},
+	{"measurenb", FORMAT_I, 0, &cfmt.measurenb},
+	{"measurebox", FORMAT_I, 0, &cfmt.measurebox},
+	{"measurefirst", FORMAT_I, 0, &cfmt.measurefirst},
+	{"encoding", FORMAT_I, 1, &cfmt.encoding},
+	{"titleleft", FORMAT_B, 0, &cfmt.titleleft},
+	{"titlecaps", FORMAT_B, 0, &cfmt.titlecaps},
+	{"landscape", FORMAT_B, 0, &cfmt.landscape},
+	{"musiconly", FORMAT_B, 0, &cfmt.musiconly},
+	{"stretchstaff", FORMAT_B, 0, &cfmt.stretchstaff},
+	{"stretchlast", FORMAT_B, 0, &cfmt.stretchlast},
+	{"continueall", FORMAT_B, 0, &cfmt.continueall},
+	{"writehistory", FORMAT_B, 0, &cfmt.writehistory},
+	{"withxrefs", FORMAT_B, 0, &cfmt.withxrefs},
+	{"oneperpage", FORMAT_B, 0, &cfmt.oneperpage},
+	{"titlefont", FORMAT_S, 0, &cfmt.titlefont},
+	{"subtitlefont", FORMAT_S, 0, &cfmt.subtitlefont},
+	{"vocalfont", FORMAT_S, 0, &cfmt.vocalfont},
+	{"partsfont", FORMAT_S, 1, &cfmt.partsfont},
+	{"tempofont", FORMAT_S, 0, &cfmt.tempofont},
+	{"textfont", FORMAT_S, 0, &cfmt.textfont},
+	{"composerfont", FORMAT_S, 0, &cfmt.composerfont},
+	{"wordsfont", FORMAT_S, 0, &cfmt.wordsfont},
+	{"gchordfont", FORMAT_S, 0, &cfmt.gchordfont},
+	{0, 0, 0, 0}		/* end of table */
+};
+
 /*  subroutines connected with page layout  */
 
 /* -- fontspec -- */
@@ -42,22 +103,29 @@ static int add_font(struct FONTSPEC *f)
 			return fnum;		/* already there */
 
 	if (nfontnames >= MAXFONTS) {
-		fprintf(stderr, "++++ Too many fonts\n");
+		printf("++++ Too many fonts\n");
 		exit(1);
 	}
 	fnum = nfontnames;
 	strcpy(fontnames[fnum], f->name);
+#ifdef DEBUG
 	if (verbose >= 10)
 		printf("New font %s at %d\n", f->name, fnum);
+#endif
 	nfontnames++;
 	return fnum;
 }
 
 /* -- make_font_list -- */
-void make_font_list(struct FORMAT *f)
+void make_font_list(void)
 {
+	struct FORMAT *f;
+
+	f = &cfmt;
+#ifdef DEBUG
 	if (verbose >= 10)
 		printf("Adding fonts from format..\n");
+#endif
 	add_font(&f->titlefont);
 	add_font(&f->subtitlefont);
 	add_font(&f->composerfont);
@@ -69,8 +137,11 @@ void make_font_list(struct FORMAT *f)
 }
 
 /* -- set_standard_format -- */
-void set_standard_format(struct FORMAT *f)
+void set_standard_format(void)
 {
+	struct FORMAT *f;
+
+	f = &cfmt;
 	memset(f, 0, sizeof *f);
 	strcpy(f->name, "standard");
 	f->pageheight	= PAGEHEIGHT;
@@ -96,7 +167,6 @@ void set_standard_format(struct FORMAT *f)
 	f->stretchstaff	= 1;
 /*	f->stretchlast	= 0; */
 /*	f->continueall	= 0; */
-/*	f->breakall	= 0; */
 /*	f->writehistory	= 0; */
 /*	f->withxrefs	= 0; */
 /*	f->oneperpage	= 0; */
@@ -106,6 +176,9 @@ void set_standard_format(struct FORMAT *f)
 /*	f->encoding	= 0; */
 	f->lineskipfac	= 1.1;
 	f->parskipfac	= 0.4;
+	f->measurenb = -1;
+/*	f->measurebox = 0; */
+	f->measurefirst = 1;
 	fontspec(&f->titlefont,	"Times-Roman", 15.0);
 	fontspec(&f->subtitlefont, "Times-Roman", 12.0);
 	fontspec(&f->composerfont, "Times-Italic", 11.0);
@@ -115,13 +188,18 @@ void set_standard_format(struct FORMAT *f)
 	fontspec(&f->textfont,	"Times-Roman", 12.0);
 	fontspec(&f->wordsfont,	"Times-Roman", 12.0);
 	fontspec(&f->gchordfont, "Helvetica", 12.0);
+#ifdef DEBUG
 	if (verbose >= 10)
 		printf("Loading format \"%s\"\n", f->name);
+#endif
 }
 
 /* -- set_pretty_format -- */
-void set_pretty_format(struct FORMAT *f)
+void set_pretty_format(void)
 {
+	struct FORMAT *f;
+
+	f = &cfmt;
 	memset(f, 0, sizeof *f);
 	strcpy(f->name, "pretty");
 	f->pageheight	= PAGEHEIGHT;
@@ -147,7 +225,6 @@ void set_pretty_format(struct FORMAT *f)
 	f->stretchstaff = 1;
 /*	f->stretchlast	= 0; */
 /*	f->continueall	= 0; */
-/*	f->breakall	= 0; */
 /*	f->writehistory	= 0; */
 /*	f->withxrefs	= 0; */
 /*	f->oneperpage	= 0; */
@@ -157,6 +234,9 @@ void set_pretty_format(struct FORMAT *f)
 /*	f->encoding	= 0; */
 	f->lineskipfac	= 1.1;
 	f->parskipfac	= 0.1;
+	f->measurenb = -1;
+/*	f->measurebox = 0; */
+	f->measurefirst = 1;
 	fontspec(&f->titlefont,	"Times-Roman", 18.0);
 	fontspec(&f->subtitlefont,  "Times-Roman", 15.0);
 	fontspec(&f->composerfont,  "Times-Italic", 12.0);
@@ -169,8 +249,11 @@ void set_pretty_format(struct FORMAT *f)
 }
 
 /* -- set_pretty2_format -- */
-void set_pretty2_format(struct FORMAT *f)
+void set_pretty2_format(void)
 {
+	struct FORMAT *f;
+
+	f = &cfmt;
 	memset(f, 0, sizeof *f);
 	strcpy(f->name, "pretty2");
 	f->pageheight	= PAGEHEIGHT;
@@ -196,7 +279,6 @@ void set_pretty2_format(struct FORMAT *f)
 	f->stretchstaff	= 1;
 /*	f->stretchlast	= 0; */
 /*	f->continueall	= 0; */
-/*	f->breakall	= 0; */
 /*	f->writehistory = 0; */
 /*	f->withxrefs	= 0; */
 /*	f->oneperpage	= 0; */
@@ -206,6 +288,9 @@ void set_pretty2_format(struct FORMAT *f)
 /*	f->encoding	= 0; */
 	f->lineskipfac	= 1.1;
 	f->parskipfac	= 0.1;
+	f->measurenb = -1;
+/*	f->measurebox = 0; */
+	f->measurefirst = 1;
 	fontspec(&f->titlefont,	"Helvetica-Bold", 16.0);
 	fontspec(&f->subtitlefont, "Helvetica-Bold", 13.0);
 	fontspec(&f->composerfont, "Helvetica",	10.0);
@@ -218,55 +303,59 @@ void set_pretty2_format(struct FORMAT *f)
 }
 
 /* -- print_format -- */
-void print_format(struct FORMAT *f)
+void print_format(void)
 {
-	char yn[2][5]={"no","yes"};
+	struct format *fd;
+static char yn[2][5]={"no","yes"};
 
-	printf("\nFormat \"%s\":\n", f->name);
-	printf("  pageheight    %.2fcm\n", f->pageheight/CM);
-	printf("  staffwidth    %.2fcm\n", f->staffwidth/CM);
-	printf("  topmargin     %.2fcm\n", f->topmargin/CM);
-	printf("  botmargin     %.2fcm\n", f->botmargin/CM);
-	printf("  leftmargin    %.2fcm\n", f->leftmargin/CM);
-	printf("  topspace      %.2fcm\n", f->topspace/CM);
-	printf("  titlespace    %.2fcm\n", f->titlespace/CM);
-	printf("  subtitlespace %.2fcm\n", f->subtitlespace/CM);
-	printf("  composerspace %.2fcm\n", f->composerspace/CM);
-	printf("  musicspace    %.2fcm\n", f->musicspace/CM);
-	printf("  partsspace    %.2fcm\n", f->partsspace/CM);
-	printf("  wordsspace    %.2fcm\n", f->wordsspace/CM);
-	printf("  textspace     %.2fcm\n", f->textspace/CM);
-	printf("  indent        %.2fcm\n", f->indent/CM);
-	printf("  vocalspace    %.1fpt\n", f->vocalspace);
-	printf("  staffsep      %.1fpt\n", f->staffsep);
-	printf("  scale         %.2f\n",  f->scale);
-	printf("  maxshrink     %.2f\n",  f->maxshrink);
-	printf("  titlefont     %s %.1f\n", f->titlefont.name, f->titlefont.size);
-	printf("  subtitlefont  %s %.1f\n", f->subtitlefont.name, f->subtitlefont.size);
-	printf("  composerfont  %s %.1f\n", f->composerfont.name, f->composerfont.size);
-	printf("  partsfont     %s %.1f\n", f->partsfont.name, f->partsfont.size);
-	printf("  tempofont     %s %.1f\n", f->tempofont.name, f->tempofont.size);
-	printf("  vocalfont     %s %.1f\n", f->vocalfont.name, f->vocalfont.size);
-	printf("  gchordfont    %s %.1f\n", f->gchordfont.name, f->gchordfont.size);
-	printf("  textfont      %s %.1f\n", f->textfont.name, f->textfont.size);
-	printf("  wordsfont     %s %.1f\n", f->wordsfont.name, f->wordsfont.size);
-	printf("  lineskipfac   %.1f\n", f->lineskipfac);
-	printf("  parskipfac    %.1f\n", f->parskipfac);
-	printf("  barsperstaff  %d\n",	f->barsperstaff);
-	if (f->encoding != 0)
-		printf("  encoding      ISOLatin%d\n", f->encoding);
-	else	printf("  encoding      ASCII\n");
-	printf("  landscape     %s\n", yn[f->landscape]);
-	printf("  titleleft     %s\n", yn[f->titleleft]);
-	printf("  titlecaps     %s\n", yn[f->titlecaps]);
-	printf("  musiconly     %s\n", yn[f->musiconly]);
-	printf("  stretchstaff  %s\n", yn[f->stretchstaff]);
-	printf("  stretchlast   %s\n", yn[f->stretchlast]);
-	printf("  writehistory  %s\n", yn[f->writehistory]);
-	printf("  continueall   %s\n", yn[f->continueall]);
-	printf("  breakall      %s\n", yn[f->breakall]);
-	printf("  oneperpage    %s\n", yn[f->oneperpage]);
-	printf("  withxrefs     %s\n", yn[f->withxrefs]);
+	printf("Format \"%s\":\n", cfmt.name);
+	for (fd = format_tb; fd->name; fd++) {
+		switch (fd->type) {
+		case FORMAT_I:
+			switch (fd->subtype) {
+			case 0:
+				printf("  %-13s %d\n",
+				       fd->name,
+				       *((int *) fd->v));
+				break;
+			case 1:
+				if (*((int *) fd->v) != 0)
+					printf("  encoding      ISOLatin%d\n",
+					       *((int *) fd->v));
+				else	printf("  encoding      ASCII\n");
+				break;
+			}
+			break;
+		case FORMAT_F:
+			printf("  %-13s %.2f\n",
+			       fd->name,
+			       *((float *) fd->v));
+			break;
+		case FORMAT_S: {
+			struct FONTSPEC *s;
+
+			s = (struct FONTSPEC *) fd->v;
+			if (fd->subtype == 0
+			    || !cfmt.partsbox)
+				printf("  %-13s %s %.1f\n",
+				       fd->name,
+				       s->name, s->size);
+			else	printf("  %-13s %s %.1f box\n",
+				       fd->name,
+				       s->name, s->size);
+			break;
+		}
+		case FORMAT_U:
+			printf("  %-13s %.2fcm\n",
+			       fd->name,
+			       *((float *) fd->v) / CM);
+			break;
+		case FORMAT_B:
+			printf("  %-13s %s\n",
+			       fd->name,
+			       yn[*((int *) fd->v)]);
+		}
+	}
 }
 
 /* -- g_logv: read a logical variable -- */
@@ -282,7 +371,7 @@ static int g_logv(char *l)
 	if (!strcmp(t, "0") || !strcmp(t, "no") || !strcmp(t, "false"))
 		return 0;
 	printf("++++ Unknown logical \"%s\" in line: %s\n", t, l);
-	exit(3);
+	exit(1);
 }
 
 /* -- g_fltv: read a float variable, no units -- */
@@ -323,9 +412,9 @@ static void g_fspc(char *l,
 }
 
 /* -- read a line with a format directive, set in format struct f -- */
-int interpret_format_line(char *l,
-			  struct FORMAT *f)
+int interpret_format_line(char *l)
 {
+	struct format *fd;
 	char *p;
 	char w[81];
 
@@ -333,64 +422,46 @@ int interpret_format_line(char *l,
 	if (w[0] == '\0'
 	    || w[0] == '%')
 		return 0;
+#ifdef DEBUG
 	if (verbose >= 6)
 		printf("Interpret format line: %s\n", l);
+#endif
 	if (!strcmp(w, "end"))
 		return 1;
 
-	if	(!strcmp(w, "pageheight"))	f->pageheight = scan_u(p);
-	else if (!strcmp(w, "staffwidth"))	f->staffwidth = scan_u(p);
-	else if (!strcmp(w, "topmargin"))	f->topmargin = scan_u(p);
-	else if (!strcmp(w, "botmargin"))	f->botmargin = scan_u(p);
-	else if (!strcmp(w, "leftmargin"))	f->leftmargin = scan_u(p);
-	else if (!strcmp(w, "topspace"))	f->topspace = scan_u(p);
-	else if (!strcmp(w, "wordsspace"))	f->wordsspace = scan_u(p);
-	else if (!strcmp(w, "titlespace"))	f->titlespace = scan_u(p);
-	else if (!strcmp(w, "subtitlespace"))	f->subtitlespace = scan_u(p);
-	else if (!strcmp(w, "composerspace"))	f->composerspace = scan_u(p);
-	else if (!strcmp(w, "musicspace"))	f->musicspace = scan_u(p);
-	else if (!strcmp(w, "partsspace"))	f->partsspace = scan_u(p);
-	else if (!strcmp(w, "staffsep"))	f->staffsep = scan_u(p);
-	else if (!strcmp(w, "vocalspace"))	f->vocalspace = scan_u(p);
-	else if (!strcmp(w, "textspace"))	f->textspace = scan_u(p);
-	else if (!strcmp(w, "indent"))		f->indent = scan_u(p);
-
-	else if (!strcmp(w, "scale"))		f->scale = g_fltv(p);
-	else if (!strcmp(w, "maxshrink"))	f->maxshrink = g_fltv(p);
-	else if (!strcmp(w, "lineskipfac"))	f->lineskipfac = g_fltv(p);
-	else if (!strcmp(w, "parskipfac"))	f->parskipfac = g_fltv(p);
-
-	else if (!strcmp(w, "barsperstaff"))	f->barsperstaff = g_intv(p);
-	else if (!strcmp(w, "encoding")) {
-		f->encoding = g_intv(p);
-		if (f->encoding < 0 || f->encoding > 6) {
-			printf("++++ Bad encoding value %d - changed to 0\n",
-				f->encoding);
-			f->encoding = 0;
+	for (fd = format_tb; fd->name; fd++)
+		if (strcmp(w, fd->name) == 0)
+			break;
+	if (fd->name) {
+		switch (fd->type) {
+		case FORMAT_I:
+			*((int *) fd->v) = g_intv(p);
+			if (fd->subtype == 1
+			    && (cfmt.encoding < 0 || cfmt.encoding > 6)) {
+				ERROR(("Bad encoding value %d - changed to 0",
+				       cfmt.encoding));
+				cfmt.encoding = 0;
+			}
+			return 0;
+		case FORMAT_F:
+			*((float *) fd->v) = g_fltv(p);
+			return 0;
+		case FORMAT_S:
+			g_fspc(p, (struct FONTSPEC *) fd->v);
+			if (fd->subtype == 1
+			    && strstr(p, "box") != 0)
+				cfmt.partsbox = 1;
+			return 0;
+		case FORMAT_U:
+			*((float *) fd->v) = scan_u(p);
+			return 0;
+		case FORMAT_B:
+			*((int *) fd->v) = g_logv(p);
+			return 0;
 		}
-	} else if (!strcmp(w, "titleleft"))	f->titleleft = g_logv(p);
-	else if (!strcmp(w, "titlecaps"))	f->titlecaps = g_logv(p);
-	else if (!strcmp(w, "landscape"))	f->landscape = g_logv(p);
-	else if (!strcmp(w, "musiconly"))	f->musiconly = g_logv(p);
-	else if (!strcmp(w, "stretchstaff"))	f->stretchstaff = g_logv(p);
-	else if (!strcmp(w, "stretchlast"))	f->stretchlast = g_logv(p);
-	else if (!strcmp(w, "continueall"))	f->continueall = g_logv(p);
-	else if (!strcmp(w, "breakall"))	f->breakall = g_logv(p);
-	else if (!strcmp(w, "writehistory"))	f->writehistory = g_logv(p);
-	else if (!strcmp(w, "withxrefs"))	f->withxrefs = g_logv(p);
-	else if (!strcmp(w, "oneperpage"))	f->oneperpage = g_logv(p);
+	}
 
-	else if (!strcmp(w, "titlefont"))	g_fspc(p, &f->titlefont);
-	else if (!strcmp(w, "subtitlefont"))	g_fspc(p, &f->subtitlefont);
-	else if (!strcmp(w, "vocalfont"))	g_fspc(p, &f->vocalfont);
-	else if (!strcmp(w, "partsfont"))	g_fspc(p, &f->partsfont);
-	else if (!strcmp(w, "tempofont"))	g_fspc(p, &f->tempofont);
-	else if (!strcmp(w, "textfont"))	g_fspc(p, &f->textfont);
-	else if (!strcmp(w, "composerfont"))	g_fspc(p, &f->composerfont);
-	else if (!strcmp(w, "wordsfont"))	g_fspc(p, &f->wordsfont);
-	else if (!strcmp(w, "gchordfont"))	g_fspc(p, &f->gchordfont);
-
-	else if (!strcmp(w, "font")) {
+	if (!strcmp(w, "font")) {
 		struct FONTSPEC tempfont;
 		int fnum;
 
@@ -401,53 +472,52 @@ int interpret_format_line(char *l,
 		}
 		if (fnum < 0) {
 			if (file_initialized) {
-				printf("++++ Cannot predefine when output file open: %s\n",
-				       l);
-				exit(3);
+				ERROR(("Cannot predefine when output file open: %s",
+				       l));
+				exit(1);
 			}
 			tempfont.size = 12.0;
 			g_fspc(p, &tempfont);
 		}
-	} else {
-		if (verbose >= 5)
-			printf("Ignore format line: %s\n", l);
-		return 2;
+		return 0;
 	}
-	return 0;
+#ifdef DEBUG
+	if (verbose >= 5)
+		printf("Ignore format line: %s\n", l);
+#endif
+	return 2;
 }
 
 /* -- read_fmt_file -- */
-int read_fmt_file(char filename[],
-		  char dirname[],
-		  struct FORMAT *f)
+int read_fmt_file(char *filename,
+		  char *dirname)
 {
 	FILE *fp;
-	char line[BSIZE], fname[201];
+	char fname[201];
 
 	strcpy(fname, filename);
-	if ((fp = fopen(fname, "r")) == NULL) {
-		if (dirname[0] == '\0')
-			return 0;
-#ifdef WIN32
-                sprintf(fname, "%s\\%s", dirname, filename);
-#else
-                sprintf(fname, "%s/%s", dirname, filename);
-#endif
-		if ((fp = fopen(fname, "r")) == NULL)
-			return 0;
+	if ((fp = fopen(fname, "r")) == 0) {
+
+		if (*dirname == '\0')
+			return -1;
+                sprintf(fname, "%s%c%s", dirname, DIRSEP, filename);
+		if ((fp = fopen(fname, "r")) == 0)
+			return -1;
 	}
 
+#ifdef DEBUG
 	if (verbose >= 4)
 		printf("Reading format file %s:\n", fname);
-/*	printf("%s .. ", fname);*/
+#endif
 	for (;;) {
-		line[0] = '\0';
+		char line[BSIZE];
+
 		if (!fgets(line, BSIZE, fp))
 			break;
-		line[strlen(line) - 1] = '\0';
-		if (interpret_format_line(line, f))
+		line[strlen(line) - 1] = '\0';	/* remove '\n' */
+		if (interpret_format_line(line))
 			break;
 	}
 	fclose(fp);
-	return 1;
+	return 0;
 }

@@ -7,10 +7,10 @@
 
 #define MAXHD	8	/* max heads on one stem */
 #define MAXGR	30	/* max grace notes */
-#define MAXDC	10	/* max decorations */
+#define MAXDC	8	/* max decorations */
 #define MAXLY	8	/* max number of lyrics */
 
-#define BASE_LEN 1536	/* basic note length (whole note - same for MIDI) */
+#define BASE_LEN 1536	/* basic note length (semibreve or whole note - same as MIDI) */
 
 /* accidentals */
 enum accidentals {
@@ -24,14 +24,15 @@ enum accidentals {
 
 /* bar types */
 enum bar_type {			/* codes for different types of bars */
-	B_INVIS,		/* invisible; for endings without bars */
+	B_INVIS,		/* invisible; for endings without bars and [|] */
 	B_SINGLE,		/* |	single bar */
 	B_DOUBLE,		/* ||	thin double bar */
 	B_THIN_THICK,		/* |]   thick at section end  */
 	B_THICK_THIN,		/* [|   thick at section start */
 	B_LREP,			/* |:	left repeat bar */
 	B_RREP,			/* :|	right repeat bar */
-	B_DREP			/* ::	double repeat bar */
+	B_DREP,			/* ::	double repeat bar */
+	B_DASH			/* :    dashed bar */
 };
 
 /* clefs */
@@ -129,12 +130,11 @@ struct note {		/* note or rest */
 	char sl2[MAXHD];	/* which slur ends on this head */
 	char ti1[MAXHD];	/* flag to start tie here */
 	char ti2[MAXHD];	/* flag to end tie here */
-	short p_plet, q_plet, r_plet; /* data for n-plets */
 	unsigned invis:1;	/* invisible rest */
 	unsigned word_end:1;	/* 1 if word ends here */
 	unsigned stemless:1;	/* note with no stem (black note) */
-	unsigned eoln:1;	/* end of line */
-	unsigned char nhd;	/* number of notes in chord - 1 */
+	char nhd;		/* number of notes in chord - 1 */
+	char p_plet, q_plet, r_plet; /* data for n-plets */
 	char slur_st; 		/* how many slurs start here */
 	char slur_end;		/* how many slurs end here */
 	struct grace *gr;	/* grace notes */
@@ -156,6 +156,8 @@ struct abcsym {
 #define ABC_T_NOTE 4
 #define ABC_T_REST 5
 #define ABC_T_BAR 6
+#define ABC_T_EOLN 7
+#define ABC_T_INFO2 8		/* (info without header - H:) */
 	char state;		/* symbol state in file/tune */
 #define ABC_S_GLOBAL 0			/* global definition */
 #define ABC_S_HEAD 1			/* header definition (after X:) */
@@ -185,7 +187,7 @@ struct abcsym {
 		struct {		/* Q: info */
 			char *str;
 			int length;
-			int value;
+			int value;		/* (0: no tempo) */
 		} tempo;
 		struct {		/* V: info */
 			char *name;		/* name */
@@ -196,7 +198,6 @@ struct abcsym {
 		struct {		/* bar */
 			struct deco dc;		/* decorations */
 			enum bar_type type;
-			char eoln;
 		} bar;
 		struct {		/* clef */
 			char clef;
@@ -207,6 +208,18 @@ struct abcsym {
 			unsigned char symbol;
 			unsigned char value;
 		} user;
+		struct staff_s {	/* %%staves */
+			char voice;
+			char flags;
+#define OPEN_BRACE 0x01
+#define CLOSE_BRACE 0x02
+#define OPEN_BRACKET 0x04
+#define CLOSE_BRACKET 0x08
+#define OPEN_PARENTH 0x10
+#define CLOSE_PARENTH 0x20
+#define STOP_BAR 0x40
+			char *name;
+		} staves[MAXVOICE];
 	} u;
 };
 
@@ -219,10 +232,10 @@ struct abctune {
 	int client_data;	/* client data */
 };
 
-extern char *deco_tb[];
 #if defined(__cplusplus)
 extern "C" {
 #endif
+extern char *deco_tb[];
 void abc_delete(struct abcsym *as);
 void abc_free(struct abctune *first_tune);
 void abc_init(void *alloc_f_api(int size),

@@ -13,15 +13,20 @@
 
 #define BUFFLN	100		/* max number of lines in output buffer */
 
-static int ln_num;		       /* number of lines in buffer */
-static float ln_pos[BUFFLN];	       /* vertical positions of buffered lines */
-static int ln_buf[BUFFLN];	       /* buffer location of buffered lines */
-static char buf[BUFFSZ];	       /* output buffer.. should hold one tune */
-int nbuf;			       /* number of bytes buffered */
+static int ln_num;		/* number of lines in buffer */
+static float ln_pos[BUFFLN];	/* vertical positions of buffered lines */
+static int ln_buf[BUFFLN];	/* buffer location of buffered lines */
+static char buf[BUFFSZ];	/* output buffer.. should hold one tune */
+static float posx;		/* current left margin */
+
+char *mbf;			/* where to PUTx() */
+int nbuf;			/* number of bytes buffered */
+float bposy;			/* current position in buffered data */
+int use_buffer;			/* 1 if lines are being accumulated */
  
 /*  subroutines for postscript output  */
 
-/* ----- init_ps ------- */
+/* -- init_ps -- */
 void init_ps(FILE *fp,
 	     char str[],
 	     int  is_epsf,
@@ -35,14 +40,18 @@ void init_ps(FILE *fp,
 	int i;
 
 	if (is_epsf) {
+#ifdef DEBUG
 		if (verbose >= 8)
 			printf("Open EPS file with title \"%s\"\n", str);
+#endif
 		fprintf(fp, "%%!PS-Adobe-3.0 EPSF-3.0\n"
 			"%%%%BoundingBox: %.0f %.0f %.0f %.0f\n",
 			bx1,by1,bx2,by2);
 	} else {
+#ifdef DEBUG
 		if (verbose >= 8)
 			printf("Open PS file with title \"%s\"\n", str);
+#endif
 		fprintf(fp, "%%!PS-Adobe-3.0\n");
 	}
 
@@ -72,13 +81,17 @@ void init_ps(FILE *fp,
 		"} bind def\n");
 #endif
 	define_encoding(fp, cfmt.encoding);
+#ifdef DEBUG
 	if (verbose >= 7)
 		printf("\nDefining ISO-Latin%d fonts in file header:\n",
 			cfmt.encoding ? cfmt.encoding : 1);
+#endif
 	for (i = 0; i < nfontnames; i++) {
 		define_font(fp, fontnames[i], i, cfmt.encoding);
+#ifdef DEBUG
 		if (verbose >= 7)
 			printf("   F%d	 %s\n", i, fontnames[i]);
+#endif
 	}
 	define_symbols(fp);
 	fprintf(fp, "\n0 setlinecap 0 setlinejoin 0.8 setlinewidth\n"
@@ -87,36 +100,44 @@ void init_ps(FILE *fp,
 	file_initialized = 1;
 }
 
-/* ----- close_ps ------- */
+/* -- close_ps -- */
 void close_ps(FILE *fp)
 {
+#ifdef DEBUG
 	if (verbose >= 8)
 		printf("closing PS file\n");
+#endif
 	fprintf(fp, "%%EOF\n\n");
 }
 
-/* ----- init_page: initialize postscript page ----- */
+/* -- initialize postscript page -- */
 void init_page(FILE *fp)
 {
+#ifdef DEBUG
 	if (verbose >= 10)
 		printf("init_page called; in_page=%d\n", in_page);
+#endif
 	if (in_page)
 		return;
 
 	if (!file_initialized) {
+#ifdef DEBUG
 		if (verbose >= 10)
 			printf("file not yet initialized; do it now\n");
-		init_ps(fp,infostr, 0, 0.0, 0.0, 0.0, 0.0);
+#endif
+		init_ps(fp, in_fname, 0, 0.0, 0.0, 0.0, 0.0);
 	}
 	in_page = 1;
 	pagenum++;
 
+#ifdef DEBUG
 	if (verbose == 0)
 		;
 	else if (verbose <= 2)
 		printf("[%d] ", pagenum);
 	else	printf("[%d]\n", pagenum);
 	fflush(stdout);
+#endif
 	fprintf(fp, "\n%% --- page %d\n"
 		"%%%%Page: %d %d\n"
 		"%%%%BeginPageSetup\n",
@@ -151,11 +172,13 @@ void init_page(FILE *fp)
 	}
 }
 
-/* ----- close_page-------- */
+/* -- close_page -- */
 void close_page(FILE *fp)
 {
+#ifdef DEBUG
 	if (verbose >= 10)
 		printf("close_page called; in_page=%d\n", in_page);
+#endif
 
 	if (!in_page)
 		return;
@@ -166,7 +189,7 @@ void close_page(FILE *fp)
 		"showpage\n");
 }
 
-/* ----- init_epsf: initialize epsf file ----- */
+/* -- initialize epsf file -- */
 void init_epsf(FILE *fp)
 {
 	fprintf(fp, "%.2f %.2f translate\n",
@@ -174,14 +197,14 @@ void init_epsf(FILE *fp)
 		cfmt.pageheight - cfmt.topmargin);
 }
 
-/* ----- close_epsf: close epsf file ----- */
+/* -- close epsf file -- */
 void close_epsf(FILE *fp)
 {
 	fprintf(fp, "\nshowpage\nend\n"
 		"cleartomark origstate restore grestore\n\n");
 }
 
-/* ----- write_pagebreak ----- */
+/* -- write_pagebreak -- */
 void write_pagebreak(FILE *fp)
 {
 	close_page(fp);
@@ -193,54 +216,67 @@ void write_pagebreak(FILE *fp)
 
 /*  subroutines to handle output buffer  */
 
-/* ----- a2b: appends string to output buffer ----- */
-void a2b(char *t)
+/* -- update the output buffer pointer -- */
+/* called from the PUTx() macros */
+void a2b(void)
 {
 	int l;
 
-	l = strlen(t);
+	l = strlen(mbf);
 	/*  printf ("Append %d <%s>\n", l, t); */
 
-	if (nbuf + l >= BUFFSZ) {
-		printf("++++ a2b: buffer full, BUFFSZ=%d\n", BUFFSZ);
+	nbuf += l;
+	if (nbuf >= BUFFSZ - 500) {	/* must have place for 1 more line */
+		ERROR(("a2b: buffer full, BUFFSZ=%d", BUFFSZ));
 		exit(1);
 	}
 
-	strcpy(&buf[nbuf], t);
-	nbuf += l;
+	mbf += l;
 }
 
-/* ----- bskip(h): translate down by h points in output buffer ---- */
+/* -- translate down by h points in output buffer -- */
 void bskip(float h)
 {
-	if (h * h > 0.0001) {
+	if (h > 0.01) {
 		PUT1("0 %.1f T\n", -h);
 		bposy -= h;
 	}
 }
 
-/* ----- init_pdims: initialize page dimensions ----- */
+/* -- do horizontal shift if needed -- */
+void check_margin(float new_posx)
+{
+	float dif;
+
+	dif = new_posx - posx;
+	if (dif * dif < 0.01)
+		return;
+
+	PUT1("%.2f 0 T\n", dif);
+	posx = new_posx;
+}
+
+/* -- initialize page dimensions -- */
 void init_pdims()
 {
-	if (in_page)
-		return;
 	posx = cfmt.leftmargin;
 	posy = cfmt.pageheight - cfmt.topmargin;
 }
 
-/* ----- clear_buffer ------- */
+/* -- clear_buffer -- */
 void clear_buffer()
 {
 	nbuf = 0;
 	bposy = 0.0;
 	ln_num = 0;
+	mbf = buf;
 }
 
-/* ----- write_buffer: write buffer contents, break at full pages ---- */
+/* -- write buffer contents, break at full pages -- */
 void write_buffer(FILE *fp)
 {
-	int i,l,b2;
-	float p1,dp;
+	int i, l, b2;
+	float p1, dp;
 
 	if (nbuf == 0)
 		return;
@@ -252,29 +288,27 @@ void write_buffer(FILE *fp)
 		dp = ln_pos[l] - p1;
 		if (posy + dp < cfmt.botmargin && !epsf)
 			write_pagebreak(fp);
-		while (i < b2) {
-			putc(buf[i], fp);
-			i++;
-		}
+		fwrite(&buf[i], 1, b2 - i, fp);
+		i = b2;
 		posy += dp;
 		p1 = ln_pos[l];
 	}
 
-	while (i < nbuf) {
-		putc(buf[i], fp);
-		i++;
-	}
+	fwrite(&buf[i], 1, nbuf - i, fp);
 
 	clear_buffer();
 }
 
-/* ----- buffer_eob: handle completed block in buffer ------- */
+/* -- handle completed block in buffer -- */
 /* if the added stuff does not fit on current page, write it out
    after page break and change buffer handling mode to pass though */
 void buffer_eob(FILE *fp)
 {
-	if (ln_num >= BUFFLN)
-		rx("max number off buffer lines exceeded"," -- check BUFFLN");
+	if (ln_num >= BUFFLN) {
+		ERROR(("max number of buffer lines exceeded"
+			" -- check BUFFLN"));
+		exit(1);
+	}
 
 	ln_buf[ln_num] = nbuf;
 	ln_pos[ln_num] = bposy;
@@ -295,15 +329,13 @@ void buffer_eob(FILE *fp)
 	}
 }
 
-/* ----- check_buffer: dump buffer if less than nb bytes available --- */
+/* -- dump buffer if less than nb bytes available -- */
 void check_buffer(FILE *fp,
 		  int nb)
 {
-	char mm[81];
-
 	if (nbuf + nb > BUFFSZ) {
-		sprintf(mm, "BUFFSZ exceeded at line %d", ln_num);
-		wng("possibly bad page breaks, ", mm);
+		ERROR(("possibly bad page breaks, BUFFSZ exceeded at line %d",
+		      ln_num));
 		write_buffer(fp);
 		use_buffer = 0;
 	}

@@ -16,17 +16,33 @@
 /*  subroutines to define postscript macros which draw symbols	*/
 
 static char def_misc[] = "\n/cshow { %% usage: string cshow  - center at current pt\n"
-	"   dup stringwidth pop 2 div neg 0 rmoveto\n"
-	"   currentpoint pop dup 0 lt {neg 0 rmoveto} {pop} ifelse\n"
-	"   show\n"
+	"  dup stringwidth pop 2 div neg 0 rmoveto\n"
+	"  show\n"
 	"} bind def\n"
+
 	"\n/lshow { %% usage: string lshow - show left-aligned\n"
-	"   dup stringwidth pop neg 0 rmoveto show\n"
+	"  dup stringwidth pop neg 0 rmoveto show\n"
+	"} bind def\n"
+
+	"\n/showb { %% usage: string showb - show in box\n"
+	"  dup currentpoint 3 -1 roll show\n"
+	"  moveto gsave 0.5 setlinewidth\n"
+	"  -2 -3 rmoveto stringwidth pop 4 add fh 4 add 2 copy\n"
+	"  0 exch rlineto 0 rlineto neg 0 exch rlineto neg 0 rlineto\n"
+	"  stroke grestore\n"
+	"} bind def\n"
+
+	"\n/cshowb { %% usage: string cshowb - show centered in box\n"
+	"  dup stringwidth pop dup 2 div neg 0 rmoveto currentpoint 4 -1 roll show\n"
+	"  moveto gsave 0.5 setlinewidth\n"
+	"  -2 -3 rmoveto 4 add fh 4 add 2 copy\n"
+	"  0 exch rlineto 0 rlineto neg 0 exch rlineto neg 0 rlineto\n"
+	"  stroke grestore\n"
 	"} bind def\n"
 
 	"\n/wd { moveto show } bind def\n"
 	"/wln {\n"
-	"dup 3 1 roll moveto gsave 0.6 setlinewidth lineto stroke grestore\n"
+	"  dup 3 1 roll moveto gsave 0.6 setlinewidth lineto stroke grestore\n"
 	"} bind def\n"
 
 	"/whf {moveto gsave 0.5 1.2 scale (-) show grestore} bind def\n";
@@ -117,7 +133,7 @@ static char def_typeset[] = "\n/WS {   %%usage:	w nspaces str WS\n"
 	"\n/P2 {\n"
 	"   {  WC dup 0 le {exit} if\n"
 	"	  dup 1 sub dup 0 eq\n"
-	"	  { pop exch pop 0.0 }\n"
+	"	  { pop exch pop 0 }\n"
 	"	  { 3 2 roll 3 index exch sub exch div } ifelse\n"
 	"	  counttomark 3 sub 2 index eq { pop 0 } if exch gsave\n"
 	"	  {  3 2 roll show ( ) show dup 0 rmoveto } repeat\n"
@@ -125,10 +141,10 @@ static char def_typeset[] = "\n/WS {   %%usage:	w nspaces str WS\n"
 	"   } loop pop pop pop pop\n"
 	"} bind def\n";
 
-static char def_tsig[] = "\n/tsig { %% usage: x y (top) (bot) tsig -- draw time signature\n"
+static char def_tsig[] = "\n/tsig { %% usage: x y (top) (bot) tsig - draw time signature\n"
 	"   4 2 roll moveto\n"
 	"   gsave /Times-Bold 16 selectfont 1.2 1 scale\n"
-	"   0 1.0 rmoveto currentpoint 3 -1 roll cshow\n"
+	"   0 1 rmoveto currentpoint 3 -1 roll cshow\n"
 	"   moveto 0 12 rmoveto cshow grestore\n"
 	"} bind def\n";
 
@@ -205,12 +221,12 @@ static char def_csig[] = "\n"
 	"  exch 4 add exch 2 copy csig 4 add moveto 0 16 rlineto stroke\n"
 	"} bind def\n";
 
-static char def_gchord[] = "\n/gc { %% usage: x y (str) gc  -- draw guitar chord string\n"
+static char def_gchord[] = "\n/gc { %% usage: x y (str) gc  - draw guitar chord string\n"
 	"  3 1 roll moveto show\n"
 	"} bind def\n";
 
 static char def_staff[] = "\n/staff {	%% usage: l staff  - draw staff\n"
-	"  gsave 0.5 setlinewidth\n"
+	"  gsave 0.6 setlinewidth\n"
 	"  dup 0 rlineto dup neg 6 rmoveto\n"
 	"  dup 0 rlineto dup neg 6 rmoveto\n"
 	"  dup 0 rlineto dup neg 6 rmoveto\n"
@@ -500,7 +516,8 @@ void define_font(FILE *fp,
 		 int enc)
 {
 	if (!strcmp(name, "Symbol")) {
-		fprintf(fp, "/F%d { /%s exch selectfont } bind def\n",
+		fprintf(fp, "\n/F%d { dup 0.8 mul  /fh exch def\n"
+			"/%s exch selectfont } bind def\n",
 			num, name);
 		return;
 	}
@@ -513,7 +530,8 @@ void define_font(FILE *fp,
 		"   currentdict\n"
 		"end\n"
 		"/%s-ISO exch definefont pop\n"
-		"/F%d { /%s-ISO exch selectfont } bind def\n",
+		"/F%d { dup 0.8 mul  /fh exch def\n"
+		"/%s-ISO exch selectfont } bind def\n",
 		name, enc, name, num, name);
 }
 
@@ -578,7 +596,7 @@ static void def_stems(FILE *fp)
 		"} bind def\n",
 		STEM_XOFF, STEM_YOFF, STEM_YOFF );
 
-	fprintf(fp, "\n/sd {  %% usage: len td  - down stem\n"
+	fprintf(fp, "\n/sd {  %% usage: len sd  - down stem\n"
 		"  x y moveto %.1f %.1f rmoveto neg %.1f add 0 exch rlineto stroke\n"
 		"} bind def\n",
 		-STEM_XOFF, -STEM_YOFF, STEM_YOFF);
@@ -644,6 +662,11 @@ static void def_deco(FILE *fp)
 		"  1 add x exch moveto cshow grestore\n"
 		"} bind def\n"
 
+		"\n/brth {  %% usage:  (str) y brth  - breath\n"
+		"  gsave /Times-BoldItalic 32 selectfont\n"
+		"  6 add x 16 add exch moveto cshow grestore\n"
+		"} bind def\n"
+		
 		"\n/pf {  %% usage:  (str) y pf  - p, f, pp, ..\n"
 		"  gsave /Times-BoldItalic 16 selectfont\n"
 		"  x exch 5 add moveto cshow grestore\n"
@@ -658,7 +681,7 @@ static void def_deco(FILE *fp)
 
 		"\n/crdc {  %% usage:  (str) y crdc  - cresc, decresc, ..\n"
 		"  gsave /Times-Italic 14 selectfont\n"
-		"  x 4 sub exch moveto show grestore\n"
+		"  x 4 sub exch 4 add moveto show grestore\n"
 		"} bind def\n"
 
 		"\n/coda {  %% usage: y coda - coda\n"
@@ -961,8 +984,9 @@ static float r[29][2]={
 	add_sg(fp,f1,f2,q,13,3);
 	fprintf(fp, "  fill\n } bind def\n");
 
-	for (i=13;i<26;i++) {
-		r[i][0]-=4.2; r[i][1]-=14;
+	for (i = 13; i < 26; i++) {
+		r[i][0] -= 4.2;
+		r[i][1] -= 14;
 	}
 	fprintf(fp, "\n/r16 {  %% usage:  x y r16  -  16th rest\n"
 		"   dup /y exch def exch dup /x exch def exch moveto\n");
@@ -998,6 +1022,11 @@ static float r[29][2]={
 		"2 copy 5.5 add exch 1.6 add exch r16\n"
 		"5.5 sub exch 1.5 sub exch r16\n"
 		"} bind def\n");
+
+	for (i = 13; i < 26; i++) {
+		r[i][0] += 4.2;
+		r[i][1] += 14;
+	}
 }
 
 /* -- def_ends -- */
@@ -1038,6 +1067,14 @@ static void def_sl(FILE *fp)
 /* -- def_hd1 -- */
 static void def_hd1(FILE *fp)
 {
+#if 1
+	fprintf(fp, "\n/hd {  %% usage: x y hd  - full head\n"
+		"  2 copy /y exch def /x exch def moveto\n"
+		"  3.30 2.26 rmoveto\n"
+		"  -2.26 3.30 -8.86 -1.22 -6.60 -4.52 rcurveto\n"
+		"  2.26 -3.30 8.86 1.22 6.60 4.52 rcurveto\n"
+		"  fill\n} bind def\n");
+#else
 static float p[7][2] = {
 	{8.0, 0.0},  {8.0, 8.0}, {-8.0, 8.0}, {-8.0, 0.0}, {-8.0, -8.0},
 	{8.0, -8.0}, {8.0, 0.0} };
@@ -1065,11 +1102,23 @@ static float p[7][2] = {
 	add_mv(fp,f1,f2,p,0);
 	add_cv(fp,f1,f2,p,1,2);
 	fprintf(fp, "   fill\n} bind def\n");
+#endif
 }
 
 /* -- def_hd2 -- */
 static void def_hd2(FILE *fp)
 {
+#if 1
+	fprintf(fp, "\n/Hd {  %% usage: x y Hd  - open head for half\n"
+		"  2 copy /y exch def /x exch def moveto\n"
+		"  3.51 1.92 rmoveto\n"
+		"  -2.04 3.73 -9.06 -0.10 -7.02 -3.83 rcurveto\n"
+		"  2.04 -3.73 9.06 0.10 7.02 3.83 rcurveto\n"
+		"  -0.44 -0.24 rmoveto\n"
+		"  0.96 -1.76 -5.19 -5.11 -6.15 -3.35 rcurveto\n"
+		"  -0.96 1.76 5.19 5.11 6.15 3.35 rcurveto\n"
+		"  fill\n} bind def\n");
+#else
 static float p[14][2] = {
 	{8.0, 0.0},  {8.0, 8.5},  {-8.0, 8.5}, {-8.0, 0.0}, {-8.0, -8.5},
 	{8.0, -8.5}, {8.0, 0.0},  {7.0, 0.0},  {7.0, -4.0}, {-7.0, -4.0},
@@ -1100,11 +1149,30 @@ static float p[14][2] = {
 	add_mv(fp,f1,f2,p,7);
 	add_cv(fp,f1,f2,p,8,2);
 	fprintf(fp, "   fill\n} bind def\n");
+#endif
 }
 
 /* -- def_hd3 -- */
 static void def_hd3(FILE *fp)
 {
+#if 1
+	fprintf(fp, "\n/HD { %% usage: x y HD  - open head for whole\n"
+		"  2 copy /y exch def /x exch def moveto\n"
+		"  5.96 0.00 rmoveto\n"
+		"  0.00 1.08 -2.71 3.52 -5.96 3.52 rcurveto\n"
+		"  -3.25 0.00 -5.96 -2.44 -5.96 -3.52 rcurveto\n"
+		"  0.00 -1.08 2.71 -3.52 5.96 -3.52 rcurveto\n"
+		"  3.25 0.00 5.96 2.44 5.96 3.52 rcurveto\n"
+		"  -8.13 1.62 rmoveto\n"
+		"  1.62 2.17 5.96 -1.07 4.34 -3.24 rcurveto\n"
+		"  -1.62 -2.17 -5.96 1.07 -4.34 3.24 rcurveto\n"
+		"  fill\n} bind def\n"
+		"\n/HDD {  %% usage: x y HDD - semibreve\n"
+		"  HD\n"
+		"  x y moveto -6 -4 rmoveto 0 8 rlineto stroke\n"
+		"  x y moveto 6 -4 rmoveto 0 8 rlineto stroke\n"
+		"} bind def\n");
+#else
 static float p[13][2] = {
 	{11.0, 0.0}, {11.0, 2.0},  {6.0, 6.5},  {0.0, 6.5}, {-6.0, 6.5},
 	{-11.0, 2.0}, {-11.0, 0.0}, {-11.0, -2.0}, {-6.0, -6.5},
@@ -1144,15 +1212,47 @@ static float q[8][2] = {
 		"  x y moveto -6 -4 rmoveto 0 8 rlineto stroke\n"
 		"  x y moveto 6 -4 rmoveto 0 8 rlineto stroke\n"
 		"} bind def\n");
+#endif
 }
 
 /* -- def_gnote -- */
 static void def_gnote(FILE *fp)
 {
+#if 1
+	fprintf(fp, "\n/gn1 {  %% usage: x y l gn1 - grace note w. tail\n"
+		"  3 1 roll 2 copy moveto\n"
+		"  -1.29 1.53 rmoveto\n"
+		"  2.45 2.06 5.02 -1.00 2.58 -3.06 rcurveto\n"
+		"  -2.45 -2.06 -5.02 1.00 -2.58 3.06 rcurveto\n"
+		"  fill moveto %.2f 0 rmoveto 0 exch rlineto\n"
+		"  3 -4 4 -5 2 -8 rcurveto\n"
+		"  stroke\n",
+		GSTEM_XOFF);
+	fprintf(fp, "} bind def\n"
+
+		"\n/gn1s {  %% usage: x y l gn1s - short appoggiatura\n"
+		"  3 1 roll 2 copy moveto\n"
+		"  -1.29 1.53 rmoveto\n"
+		"  2.45 2.06 5.02 -1.00 2.58 -3.06 rcurveto\n"
+		"  -2.45 -2.06 -5.02 1.00 -2.58 3.06 rcurveto\n"
+		"  fill moveto %.2f 0 rmoveto 0 exch rlineto\n"
+		"  3 -4 4 -5 2 -8 rcurveto -5 2 rmoveto 7 4 rlineto\n"
+		"  stroke\n",
+		GSTEM_XOFF);
+	fprintf(fp, "} bind def\n"
+
+		"\n/gnt {  %% usage: x y l gnt - grace note\n"
+		"  3 1 roll 2 copy moveto\n"
+		"  -1.29 1.53 rmoveto\n"
+		"  2.45 2.06 5.02 -1.00 2.58 -3.06 rcurveto\n"
+		"  -2.45 -2.06 -5.02 1.00 -2.58 3.06 rcurveto\n"
+		"  fill moveto %.2f 0 rmoveto 0 exch rlineto stroke\n",
+		GSTEM_XOFF);
+#else
 static float p[7][2] = {
 	{0,10}, {16,10}, {16,-10}, {0,-10}, {-16,-10}, {-16,10}, {0,10} };
 /*  float phi; */
-	float c,s,xx,yy,f1,f2;
+	float c, s, xx, yy, f1, f2;
 	int i;
 
 /*phi=0.7;
@@ -1196,9 +1296,10 @@ static float p[7][2] = {
 	add_cv(fp, f1, f2, p, 1, 2);
 	fprintf(fp, "  fill moveto %.2f 0 rmoveto 0 exch rlineto stroke\n",
 		GSTEM_XOFF);
+#endif
 	fprintf(fp, "} bind def\n"
 
-		"\n/gbm2 {  %% usage: x1 y1 x2 y2 gbm2 - double note beam\n"
+		"\n/gbm2 {  %% usage: x1 y1 x2 y2 gbm2 - double gnote beam\n"
 		"  gsave 1.4 setlinewidth\n"
 		"  4 copy 0.5 sub moveto 0.5 sub lineto stroke\n"
 		"  3.4 sub moveto 3.4 sub lineto stroke grestore\n"
@@ -1233,7 +1334,7 @@ static float p[7][2] = {
 		"} bind def\n");
 }
 
-/* ----- def_cclef ------- */
+/* -- def_cclef -- */
 static void def_cclef(FILE *fp)
 {
 	fprintf(fp, "\n/cchalf {\n"

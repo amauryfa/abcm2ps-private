@@ -324,12 +324,35 @@ int tex_str(char *d,
 				w += cwid(c1);
 				break;
 			}
+			/* treat escape with octal value */
+			if ((unsigned) (c1 - '0') <= 3
+			    && (unsigned) (c2 - '0') <= 7) {
+				if ((unsigned) (s[2] - '0') <= 7) {
+					if ((maxlen -= 4) <= 0)
+						break;
+					*d++ = '\\';
+					*d++ = c1;
+					*d++ = c2;
+					*d++ = s[2];
+					n++;
+					c1 = ((c1 - '0') << 6) + ((c2 - '0') << 3) + s[2] - '0';
+					w += cwid(c1);
+					s += 2;
+					break;
+				}
+			}
 			/* convert to rfc1345 */
 			switch (c1) {
 			case '`': c1 = '!'; break;
 			case '^': c1 = '>'; break;
 			case '~': c1 = '?'; break;
 			case '"': c1 = ':'; break;
+			/* special TeX sequences */
+			case 'O': c1 = '/'; c2 = 'O'; s--; break;
+			case 'o': c1 = '/'; c2 = 'o'; s--; break;
+			case 'c': if (c2 == 'c' || c2 == 'C')
+					c1 = ',';
+				break;
 			}
 			switch (c2) {
 			case '`': c2 = '!'; break;
@@ -410,8 +433,8 @@ void set_font(struct FONTSPEC *font)
 			break;
 	}
 	if (fnum < 0) {
-		printf("\n++++ Font \"%s\" not predefined; using first in list\n",
-			font->name);
+		ERROR(("Font \"%s\" not predefined; using first in list",
+			font->name));
 		fnum = 0;
 	}
 	PUT2("%.1f F%d ", font->size, fnum);
@@ -428,19 +451,6 @@ static void set_font_str(char str[],
 			break;
 	}
 	sprintf(str, "%.1f F%d ", font->size, fnum);
-}
-
-/* -- check_margin: do horizontal shift if needed -- */
-void check_margin(float new_posx)
-{
-	float dif;
-
-	dif = new_posx - posx;
-	if (dif * dif < 0.001)
-		return;
-
-	PUT1("%.2f 0 T\n", dif);
-	posx = new_posx;
 }
 
 /* -- epsf_title -- */
@@ -473,7 +483,7 @@ void close_output_file()
 	m = ftell(fout);
 	fclose(fout);
 	if (tunenum == 0)
-		printf("++++ Warning: no tunes written to output file\n");
+		ERROR(("Warning: no tunes written to output file"));
 	printf("Output written on %s (%d page%s, %d title%s, %ld byte%s)\n",
 		outfnam,
 		pagenum, pagenum == 1 ? "" : "s",
@@ -493,8 +503,10 @@ void open_output_file(char *fnam)
 		close_output_file();
 
 	strcpy(outfnam, fnam);
-	if ((fout = fopen(outfnam, "w")) == 0)
-		rx("Cannot open output file ", outf);
+	if ((fout = fopen(outfnam, "w")) == 0) {
+		printf("Cannot open output file %s\n", outf);
+		exit(1);
+	}
 	pagenum = 0;
 	tunenum = 0;
 	file_initialized = 0;
@@ -531,13 +543,14 @@ void add_to_text_block(char *ln,
 		}
 		*a = '\0';
 		if (nc <= 0) {
-			printf("++++ Insanely long word truncated to %d chars: %s\n", 
-				MAXWLEN-1, word);
+			ERROR(("Insanely long word truncated to %d chars: %s",
+			       MAXWLEN-1, word));
 		}
 		if (nt >= MAXNTEXT) {
-			printf("\n++++ '%s'\n", ln);
-			rx("Text overflow; increase MAXNTEXT and recompile.",
-			   "");
+			ERROR(("'%s'\n"
+			       "Text overflow; increase MAXNTEXT and recompile.",
+			       ln));
+			exit(1);
 		}
 		if (word[0] != '\0') {
 			strcpy(txt[nt], word);
@@ -633,6 +646,7 @@ void write_text_block(FILE *fp,
 			textwidth += 5 * nbreak * cwid('a') * swfac * cfmt.textfont.size;
 			ftline = textwidth / cfmt.staffwidth;
 			ntline = ftline + 1.0;
+#ifdef DEBUG
 			if (verbose >= 10) {
 				printf("first estimate %.2f, revised %.2f\n",
 				       ftline0, ftline);
@@ -640,6 +654,7 @@ void write_text_block(FILE *fp,
 				       i2 - i1, i2 - i1 == 1 ? "" : "s",
 				       ftline, swfac);
 			}
+#endif
 			bskip((ntline - 1) * baseskip);
 		}
 
@@ -670,15 +685,23 @@ void add_text(char *s,
 	      int type)
 {
 	struct text *t, *r;
+
+#if 1
+	t = (struct text *) getarena(sizeof (struct text) - 2
+				     + strlen(s) + 1);
+	strcpy(t->text, s);
+	t->textw = cwid('a') * strlen(s);
+#else
 	char b[256];
 	float w;
 
 	tex_str(b, s, sizeof b, &w);
 	t = (struct text *) getarena(sizeof (struct text) - 2
 				     + strlen(b) + 1);
-	t->next = 0;
-	t->textw = w;
 	strcpy(t->text, b);
+	t->textw = w;
+#endif
+	t->next = 0;
 	if ((r = text_tb[type]) == 0)
 		text_tb[type] = t;
 	else {
@@ -745,8 +768,8 @@ void put_words(FILE *fp)
 				while (*p != '\0') {
 					*q++ = *p++;
 					if (*p == ' '
-					    || *(p-1) == ':'
-					    || *(p-1) == '.')
+					    || *(p - 1) == ':'
+					    || *(p - 1) == '.')
 						break;
 				}
 				if (*p == ' ')
@@ -776,8 +799,8 @@ void put_words(FILE *fp)
 				while (*p != '\0') {
 					*q++ = *p++;
 					if (*p == ' '
-					    || *(p-1) == ':'
-					    || *(p-1) == '.')
+					    || *(p - 1) == ':'
+					    || *(p - 1) == '.')
 						break;
 				}
 				if (*p == ' ')
@@ -873,12 +896,13 @@ void put_history(FILE *fp)
 	put_text(fp, TEXT_N, "Notes: ");
 	put_text(fp, TEXT_Z, "Transcription: ");
 
-	if ((t = text_tb[TEXT_H]) == 0) {
+	if ((t = text_tb[TEXT_H]) != 0) {
 		while (t != 0) {
 			bskip(0.5 * CM);
 			put_str3("0 0 M (",
 				 t->text,
 				 ") show\n");
+			t = t->next;
 		}
 		bskip(parskip);
 	}
@@ -895,8 +919,10 @@ void write_inside_title(void)
 	set_font(&cfmt.subtitlefont);
 
 	strcpy(t, info.title[info.ntitle - 1]);
+#ifdef DEBUG
 	if (verbose > 15)
 		printf("write inside title <%s>\n", t);
+#endif
 
 	if (cfmt.titlecaps)
 		cap_str(t);
@@ -917,48 +943,25 @@ void write_heading(void)
 
 	lwidth = cfmt.staffwidth;
 
-	/* write the main title (if exists) */
-	if (info.ntitle > 0) {
-		bskip(cfmt.titlefont.size + cfmt.titlespace);
-		set_font(&cfmt.titlefont);
+	/* write the titles */
+	for (i = 0; i < info.ntitle; i++) {
+		if (i == 0) {
+			bskip(cfmt.titlespace + cfmt.titlefont.size);
+			set_font(&cfmt.titlefont);
+		} else {
+			bskip(cfmt.subtitlespace + cfmt.subtitlefont.size);
+			set_font(&cfmt.subtitlefont);
+		}
 		PUT0("(");
-		if (cfmt.withxrefs)
+		if (i == 0 && cfmt.withxrefs)
 			PUT1("%s. ", info.xref);
-		strcpy(t, info.title[0]);
+		strcpy(t, info.title[i]);
 		if (cfmt.titlecaps)
 			cap_str(t);
 		put_str(t);
 		if (cfmt.titleleft)
 			PUT0(") 0 0 M show\n");
 		else	PUT1(") %.1f 0 M cshow\n", lwidth / 2);
-	}
-
-	/* write second title */
-	if (info.ntitle >= 2) {
-		bskip(cfmt.subtitlespace + cfmt.subtitlefont.size);
-		set_font(&cfmt.subtitlefont);
-		PUT0("(");
-		strcpy(t, info.title[1]);
-		if (cfmt.titlecaps)
-			cap_str(t);
-		put_str(t);
-		if (cfmt.titleleft)
-			PUT0(") 0 0 M show\n");
-		else	PUT1(") %.1f 0 M cshow\n", lwidth/2);
-	}
-
-	/* write third title */
-	if (info.ntitle >= 3) {
-		bskip(cfmt.subtitlespace + cfmt.subtitlefont.size);
-		set_font(&cfmt.subtitlefont);
-		PUT0("(");
-		strcpy(t, info.title[2]);
-		if (cfmt.titlecaps)
-			cap_str(t);
-		put_str(t);
-		if (cfmt.titleleft)
-			PUT0(") 0 0 M show\n");
-		else	PUT1(") %.1f 0 M cshow\n", lwidth/2);
 	}
 
 	/* write composer, origin */
@@ -1012,8 +1015,8 @@ void write_parts(void)
 		return;
 	bskip(cfmt.partsfont.size);
 	set_font(&cfmt.partsfont);
-	put_str3("0 0 M (",
-		 info.parts,
-		 ") show\n");
+	PUT0("0 0 M (");
+	put_str(info.parts);
+	PUT1(") show%s\n", cfmt.partsbox ? "b" : "");
 	bskip(cfmt.partsspace);
 }

@@ -13,41 +13,44 @@
 #include <time.h>
 #include <string.h>
 #include <ctype.h>
-#include <sys/stat.h>
 
 #include "abcparse.h" 
-#include "abc2ps.h" 
+#include "abc2ps.h"
+
+#ifndef DEBUG
+char newline[] = "\n";
+#else
+char newline[] = "\n+++ ";
+#endif
 
 /*  low-level utilities  */
 
-/* -- error warning -- */
-void wng(char msg[],
-	 char str[])
-{
-	printf("++++ %s%s\n", msg, str);
-}
-
-/* -- error exit -- */
-void rx(char msg[],
-	char str[])
-{
-	printf("\n++++ %s%s\n", msg, str);
-	exit(1);
-}
-
 /* -- print message for internal error and maybe stop -- */
-void bug(char msg[],
+void bug(char *msg,
 	 int fatal)
 {
-	printf("\n\nThis cannot happen!");
-	if (msg[0] != '\0')
-		printf("\nInternal error: %s.\n", msg);
+	ERROR(("This cannot happen!\n"
+	       "Internal error: %s.\n", msg));
 	if (fatal) {
 		printf("Emergency stop.\n\n");
 		exit(1);
 	}
 	printf("Trying to continue...\n\n");
 }
+
+#ifndef DEBUG
+/* -- print an error message -- */
+void error_head(void)
+{
+static char *t;
+
+	if (t != info.title[0]) {
+		t = info.title[0];
+		printf("%s:\n", t);
+	}
+	printf("  - ");
+}
+#endif
 
 /* -- return random float between x1 and x2 -- */
 float ranf(float x1,

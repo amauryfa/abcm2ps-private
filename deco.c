@@ -22,6 +22,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
+ * fixme: top & bottom of staves KO: the staves are already defined
+ *
  *--*/
 
 #include <stdio.h>
@@ -59,7 +61,7 @@ static struct deco_def_s {
 	{3, 11, 5, DECO_TEXT},	/* 5 */
 	{0, 0, 0, 0},		/* plus */
 	{0, 0, 0, 0},		/* accent */
-	{0, 0, 0, 0},		/* breath */
+	{3, 18, 0, DECO_TEXT}, /* breath */
 	{0, 0, 0, 0},		/* crescendo_s	- 10 */
 	{0, 0, 0, 0},		/* crescendo_e */
 	{3, 16, 20, 0},		/* coda */
@@ -138,6 +140,7 @@ static char *ps_func_tb[] = {
 	"crdc",		/* 15: cresc, decresc, .. */
 	"coda",		/* 16: coda */
 	"sgno",		/* 17: segno */
+        "brth",         /* 18: breath */
 };
 
 /* -- drawing functions -- */
@@ -184,7 +187,7 @@ static void d_pf(struct SYMBOL *s,
 	staffp = &staff_tb[(int) s->staff];
 	/*fixme: may be more complex*/
 	/*fixme: should be in an other pass*/
-	if (staffp->brace || staffp->bracket) {
+	if (staffp->nvocal == 0) {
 
 		/* below the staff */
 		if (s->stem > 0)
@@ -228,7 +231,7 @@ static void d_pf(struct SYMBOL *s,
 	case D_decresc: p = "Decresc."; break;
 	case D_dimin: p = "Dimin."; break;
 	case D_fp: p = "fp"; break;
-	default: wng("No text for ", deco_tb[dd - deco_def]); return;
+	default: ERROR(("No text for %s", deco_tb[dd - deco_def])); return;
 	}
 	PUT3(" (%s) %.2f %s", p, yc + staffb, f);
 }
@@ -356,6 +359,10 @@ static void d_upstaff(struct SYMBOL *s,
 			sprintf(buf, "%d", dd - deco_def + 128 - D_0);
 		else	{			/* D.C. / D.S. / FINE */
 			switch (dd - deco_def + 128) {
+			case D_breath:
+				strcpy(buf, ",");
+				yc = staffb + 24. + 3.;
+				break;
 			case D_DC:
 				strcpy(buf, "D.C.");
 				break;
@@ -401,15 +408,15 @@ float draw_decorations(struct SYMBOL *s,
 		deco -= 128;
 		dd = &deco_def[deco];
 		if (dd->func == 0) {
-			printf(">>> Decoration %s not treated\n",
-			       deco_tb[deco - 128]);
+			ERROR(("Decoration %s not treated",
+			       deco_tb[deco]));
 			continue;
 		}
 		if (!(dd->flags & DECO_NEAR))
 			continue;
 		if (s->type != NOTE) {
-			printf(">>> Cannot have a %s on a rest or a bar\n",
-			       deco_tb[deco - 128]);
+			ERROR(("Cannot have a %s on a rest or a bar",
+			       deco_tb[deco]));
 			continue;
 		}
 		func_tb[dd->func](s, dd, staffb, &top, &bot);
@@ -423,6 +430,8 @@ float draw_decorations(struct SYMBOL *s,
 		if (deco == 0)
 			continue;
 		dd = &deco_def[deco - 128];
+		if (dd->func == 0)
+			continue;
 		if ((dd->flags & DECO_NEAR)
 		    || (dd->flags & DECO_NONOTE))
 			continue;
@@ -435,6 +444,8 @@ float draw_decorations(struct SYMBOL *s,
 		if (deco == 0)
 			continue;
 		dd = &deco_def[deco - 128];
+		if (dd->func == 0)
+			continue;
 		if (!(dd->flags & DECO_NONOTE))
 			continue;
 		func_tb[dd->func](s, dd, staffb, &top, &bot);
@@ -452,7 +463,9 @@ void reset_deco(int deco_old)
 	memset(&deco_glob, 0, sizeof deco_glob);
 
 	/* standard */
-/*	deco_glob['~'] = D_roll; */
+#if DECO_IS_ROLL
+	deco_glob['~'] = D_roll;
+#endif
 	deco_glob['H'] = D_fermata;
 	deco_glob['L'] = D_emphasis;
 	deco_glob['M'] = D_lowermordent;
@@ -464,7 +477,9 @@ void reset_deco(int deco_old)
 	deco_glob['v'] = D_downbow;
 
 	/* non-standard */
+#if !DECO_IS_ROLL
 	deco_glob['~'] = D_turn;
+#endif
 	deco_glob['J'] = D_slide;
 	deco_glob['R'] = D_roll;
 

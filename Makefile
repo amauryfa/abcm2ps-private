@@ -1,19 +1,19 @@
-VERSION=1.3.9
+VERSION=1.6.12
 
 # general options
 CPPFLAGS=
 # -DUS_LETTER:	Handle US letter format instead of default european A4.
 # -DBSTEM_DOWN: Let the B note have always its stem down.
+# -DDEBUG:	Have '-v' working.
 
 # unix
 CC=gcc
-CFLAGS=-g -O2 -pipe -Wall -pipe -DVERSION='"$(VERSION)"'
+CFLAGS=-g -O2 -pipe -Wall -DVERSION='"$(VERSION)"'
 OBJECTS=abc2ps.o \
 	abcparse.o buffer.o deco.o format.o music.o parse.o subs.o syms.o util.o
 abcm2ps: $(OBJECTS)
 	$(CC) $(CFLAGS) -o abcm2ps $(OBJECTS)
 $(OBJECTS): abcparse.h abc2ps.h
-abc2ps.o abcparse.o parse.o: abcparse.h
 music.o: style.h
 
 # win32 with a cross-compiler
@@ -25,7 +25,6 @@ OBJ32=abc2ps.obj \
 %.obj : %.c
 	$(CC32) -c $(C32FLAGS) $(CPPFLAGS) $< -o $@
 $(OBJ32): abcparse.h abc2ps.h
-abc2ps.obj abcparse.obj parse.obj: abcparse.h
 abcm2ps.exe: $(OBJ32)
 	$(CC32) $(C32FLAGS) -o abcm2ps.exe $(OBJ32)
 
@@ -58,12 +57,10 @@ dist:
 		abcm2ps-$(VERSION)/music.c \
 		abcm2ps-$(VERSION)/newfeatures.abc \
 		abcm2ps-$(VERSION)/parse.c \
-		abcm2ps-$(VERSION)/ricercar.abc \
 		abcm2ps-$(VERSION)/sample.abc \
 		abcm2ps-$(VERSION)/sample2.abc \
 		abcm2ps-$(VERSION)/style.h \
 		abcm2ps-$(VERSION)/style.pure \
-		abcm2ps-$(VERSION)/style.std \
 		abcm2ps-$(VERSION)/subs.c \
 		abcm2ps-$(VERSION)/syms.c \
 		abcm2ps-$(VERSION)/tight.fmt \
@@ -72,3 +69,5 @@ dist:
 	rm abcm2ps-$(VERSION)
 zip: abcm2ps.exe
 	zip abcm2ps-$(VERSION).zip abcm2ps.exe License
+clean:
+	rm -f *.o
