@@ -1,0 +1,67 @@
+% Sample file to test various features of abcm2ps
+
+U: N = !tenuto!
+
+X:1
+T:All clefs
+M:C
+L:1/4
+K:C bass
+"bass"CEGc|[K:bass3]"bass3"CEGc|[K:alto4]"alto4"CEGc|[K:alto]"alto"CEGc|
+[K:alto2]"alto2"CEGc|[K:alto1]"alto1"CEGc|[K:treble]"treble"CEGc|
+
+X:2
+T:Key signature change
+M:C
+L:1/4
+K:C
+"C"CEGc|[K:A]"A"Acea|[K:B]"B"Bdfb|[K:A]"A"Acea|
+[K:Eb]"Eb"EGBe|[K:Cb]"Cb"CEGc|[K:C]"C"CEGc|
+
+X:3
+T:All clefs with common key signatures
+M:C
+L:1/4
+K:E bass
+CEGc|[K:Ab]CEGc|[K:E bass3]CEGc|[K:Ab]CEGc|
+[K:E alto4]CEGc|[K:Ab]CEGc|[K:C# alto]CEGc|
+[K:Ab]CEGc|[K:E alto2]CEGc|[K:Ab]CEGc|
+[K:E alto1]CEGc|[K:Ab]CEGc|[K:E treble]CEGc|[K:Ab]CEGc|
+
+X:4
+T:Miscellaneous
+M:none
+L:1/4
+K:C
+"no time signature"CD"gchord on bar"|EF\
+"grace note"{B}c "short\nappogiattura"{/B}c \
+"three\nchord\nlines"G "and""four""chord""lines!"c||
+
+X:5
+T:Decorations
+M:C
+L:1/4
+K:C
+~C.DJENF HCRDTEuF|vc~B.AJG NcHBRATG|ugva~bHc' ~A.BJcNd||
+w: grace dot slide tenuto hold roll trill upbow|downbow|*|
+L:1/8
+!1!C!2!D!3!E!4!F PCMD!p!EF|!5!cB!ff!AG !4!!1![Gc]BAG|gaPbMc ABcd!D.C.!||
+!trill!CDEF|!mordent!GABc|[U: T = !roll!]CDEF|TGABc|!uppermordent!CDEF|GABc!segno!||
+
+X:6
+T:Decorations on two voices
+M:C
+%%staves (1 2)
+K:C
+V:1
+~c.dJeNf HcRdTeuf|!mf!aabc' gabc'|!coda!!sfz!cdef gfe!D.S.!c||
+V:2
+~C.DJENF HCRDTEuF|~f.fJgNa HeRfTgua|!5!C!4!PDM!3!EF !5!!4![EG]MFEC||
+
+X:7
+T:Beams
+L:1/16
+M:1/4
+K:C
+(3CDE(3FGA B/c/d/e/d/c/B/A/ (3zDE(3FGz z/c/d/e/d/c/B/z/|(3CDz(3zGA B/c/d/z/z/c/B/A/ G8|
+
