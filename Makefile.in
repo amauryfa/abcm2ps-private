@@ -1,22 +1,22 @@
-# Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 2.11.3
+VERSION = @VERSION@
 
-CC = gcc
-INSTALL = /usr/bin//install -c
-INSTALL_DATA = ${INSTALL} -m 644
-INSTALL_PROGRAM = ${INSTALL}
+CC = @CC@
+INSTALL = @INSTALL@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
-CPPFLAGS = -g -O2 -Wall -pipe -I.
+CPPFLAGS = @CFLAGS@ @DEFS@ -I.
 
-prefix = /usr/local
-exec_prefix = ${prefix}
+prefix = @prefix@
+exec_prefix = @exec_prefix@
 
-srcdir = .
-bindir = ${exec_prefix}/bin
-libdir = ${exec_prefix}/lib
-datadir = ${prefix}/share
+srcdir = @srcdir@
+VPATH = @srcdir@
+bindir = @bindir@
+libdir = @libdir@
+datadir = @datadir@
 
 # unix
 OBJECTS=abc2ps.o \
