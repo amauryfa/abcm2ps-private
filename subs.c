@@ -534,11 +534,51 @@ void add_text(char *s,
 	}
 }
 
+/* -- output a line of words after tune -- */
+static void put_wline(unsigned char *p,
+		      float x,
+		      int right)
+{
+	unsigned char *q, *r, sep;
+
+	r = 0;
+	q = p;
+	if (isdigit(*p) || p[1] == '.') {
+		while (*p != '\0') {
+			p++;
+			if (*p == ' '
+			    || p[-1] == ':'
+			    || p[-1] == '.')
+				break;
+		}
+		r = p;
+		while (*p == ' ')
+			p++;
+	}
+
+	/* on the left side, permit page break at empty lines or stanza start */
+	if (!right
+	   && (*p == '\0' || r != 0))
+		buffer_eob();
+
+	if (r != 0) {
+		sep = *r;
+		*r = '\0';
+		PUT1("%.2f 0 M(", x);
+		put_str(q);
+		PUT0(")lshow\n");
+		*r = sep;
+	}
+	if (*p != '\0') {
+		PUT1("%.2f 0 M(", x + 5);
+		put_str(p);
+		PUT0(")show\n");
+	}
+}
+
 /* -- put_words -- */
 void put_words(void)
 {
-	char str[81];
-	unsigned char *p, *q;
 	struct text *t, *u, *t_end;
 	int n, have_text;
 	float middle, max2col;
@@ -594,63 +634,13 @@ void put_words(void)
 	for (t = text_tb[TEXT_W]; t != 0 || u != 0;) {
 		bskip(cfmt.lineskipfac * cfmt.wordsfont.size);
 		if (t != 0) {
-			p = t->text;
-			q = str;
-			if (isdigit(*p) || p[1] == '.') {
-				while (*p != '\0') {
-					*q++ = *p++;
-					if (*p == ' '
-					    || p[-1] == ':'
-					    || p[-1] == '.')
-						break;
-				}
-				if (*p == ' ')
-					p++;
-			}
-			*q = '\0';
-
-			/* permit page break at empty lines or stanza start */
-			if (*p == '\0' || str[0] != '\0')
-				buffer_eob();
-			if (str[0] != '\0')
-				put_str3("45 0 M (",
-					 str,
-					 ") lshow\n");
-			if (*p != '\0')
-				put_str3("50 0 M (",
-					p,
-					") show\n");
+			put_wline(t->text, 45., 0);
 			t = t->next;
 			if (t == t_end)
 				t = 0;
 		}
 		if (u != 0) {
-			p = u->text;
-			q = str;
-			if (isdigit(*p) || p[1] == '.') {
-				while (*p != '\0') {
-					*q++ = *p++;
-					if (*p == ' '
-					    || p[-1] == ':'
-					    || p[-1] == '.')
-						break;
-				}
-				if (*p == ' ')
-					p++;
-			}
-			*q = '\0';
-			if (str[0] != '\0') {
-				PUT1("%.2f 0 M (",
-				     20. + middle);
-				put_str(str);
-				PUT0(") lshow\n");
-			}
-			if (*p != '\0') {
-				PUT1("%.2f 0 M (",
-				     25. + middle);
-				put_str(p);
-				PUT0(") show\n");
-			}
+			put_wline(u->text, 20. + middle, 1);
 			if (u->text[0] == '\0') {
 				if (--n == 0) {
 					if (t != 0)

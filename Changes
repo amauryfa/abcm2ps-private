@@ -1,3 +1,7 @@
+---- Version 3.7.21 - 04/12/16 ----
+
+Fix a security hole (found by Limin Wang, reported by D. J. Bernstein).
+
 ---- Version 3.7.20 - 04/11/15 ----
 
 Accept '&)' as end of voice overlay.

@@ -25,5 +25,5 @@
 /* Define the PostScript language level (1, 2, 3) */
 #define PS_LEVEL 2
 
-#define VERSION "3.7.20"
-#define VDATE "November 15, 2004"
+#define VERSION "3.7.21"
+#define VDATE "December 16, 2004"
