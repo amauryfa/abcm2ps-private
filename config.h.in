@@ -18,9 +18,6 @@
 /* Define to have clef definition changing the note pitch.  */
 #undef CLEF_TRANSPOSE
 
-/* Define to have '-v' working.  */
-#undef DEBUG
-
 /* Define to have ~ as roll instead of twiddle.  */
 #undef DECO_IS_ROLL
 
