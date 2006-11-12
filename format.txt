@@ -27,6 +27,12 @@ Some pseudo-comments are treated while being parsed and cannot appear
 in a format file nor in the command line. These ones are listed at the
 end of this file.
 
+In font definitions, <font>, <encoding> and <size> may be specified
+as '*' (star), in which case the font, encoding or size remains
+the same. When the <encoding> is omitted, it defaults to the global
+font encoding (see 'encoding'), or to the last 'font' definition
+of the same font.
+
 
 List of the format parameters
 -----------------------------
@@ -50,7 +56,7 @@ List of the format parameters
 		and a positive value means 'on the right'.
 			
 
-  annotationfont <font> [<encoding>] <size>
+  annotationfont <font> [<encoding>] [<size>]
 	Default: Helvetica 12
 	Compilation: none
 	Command line: none
@@ -120,7 +126,7 @@ List of the format parameters
 		If 1, the notes of same duration belonging to voices of
 		the same staff are combined giving chords.
 
-  composerfont <font> [<encoding>] <size>
+  composerfont <font> [<encoding>] [<size>]
 	Default: Times-Italic 14
 	Compilation: none
 	Command line: none
@@ -212,24 +218,24 @@ List of the format parameters
 	Command line: -L<int>
 	Description:
 		Set the global font encoding to <encoding>, or to
-		ISO-Latin<int>.
+		'Latin<int>'.
 		The recognized encodings are:
 			us-ascii
-			iso-8859-1	(latin1)
-			iso-8859-2	(latin2)
-			iso-8859-3	(latin3)
-			iso-8859-4	(latin4)
-			iso-8859-9	(latin5)
-			iso-8859-10	(latin6)
+			iso-8859-1	(Latin1)
+			iso-8859-2	(Latin2)
+			iso-8859-3	(Latin3)
+			iso-8859-4	(Latin4)
+			iso-8859-9	(Latin5)
+			iso-8859-10	(Latin6)
 			native
 		When the encoding is 'native', the encoding vectors
 		of the fonts are not changed.
 		<encoding> may be any string. In this case, the encoding
 		vector must be defined by a sequence of 'postscript'
 		commands.
-		<int> may take values from '0' to '6'.
-		The value '0' is the same as '1', but the PostScript
-		encoding vector for Latin1 is not output.
+		<int> may take values from 0 to 6. The value 0 is
+		the same as 1, but the PostScript encoding vector
+		'ISOLatin1Encoding' is not output.
 
   exprabove <bool>
 	Default: 0
@@ -305,7 +311,7 @@ List of the format parameters
 		a tune, it is printed on the next page. This may be used
 		for example to have no header/footer on the 1st page.
 
-  footerfont <font> [<encoding>] <size>
+  footerfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 12
 	Compilation: none
 	Command line: none
@@ -363,7 +369,7 @@ List of the format parameters
 		Set the text printed at the top of each page.
 		See 'footer' above for the header syntax.
 
-  headerfont <font> [<encoding>] <size>
+  headerfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 12
 	Compilation: none
 	Command line: none
@@ -371,7 +377,7 @@ List of the format parameters
 		Set the header font to <font> with a size <size>.
 		Note that the header is not scaled.
 
-  historyfont <font> [<encoding>] <size>
+  historyfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 16
 	Compilation: none
 	Command line: none
@@ -393,7 +399,7 @@ List of the format parameters
 	Description:
 		Indent the first line of the tune by <unit>.
 
-  infofont <font> [<encoding>] <size>
+  infofont <font> [<encoding>] [<size>]
 	Default: Times-Italic 14
 	Compilation: none
 	Command line: none
@@ -612,7 +618,7 @@ List of the format parameters
 	Description:
 		Print the tempo indications (Q:).
 
-  repeatfont <font> [<encoding>] <size>
+  repeatfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 13
 	Compilation: none
 	Command line: none
@@ -655,6 +661,7 @@ List of the format parameters
 		In most strings, the current font may be changed
 		by "$n" (n = 0, 1 .. 4 - "$0" resets the font to
 		its default value.
+		Note: <size> is mandatory at the first definition..
 
   shifthnote <bool>
 	Default: 0
@@ -732,7 +739,7 @@ List of the format parameters
 	Description:
 		Stretch underfull staves across page.
 
-  subtitlefont <font> [<encoding>] <size>
+  subtitlefont <font> [<encoding>] [<size>]
 	Default: Times-Roman 16
 	Compilation: none
 	Command line: none
@@ -753,14 +760,14 @@ List of the format parameters
 	Description:
 		Set the vertical space between staves in a system to <unit>.
 
-  tempofont <font> [<encoding>] <size>
+  tempofont <font> [<encoding>] [<size>]
 	Default: Times-Bold 15
 	Compilation: none
 	Command line: none
 	Description:
 		Set the tempo font to <font> with a size <size>.
 
-  textfont <font> [<encoding>] <size>
+  textfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 16
 	Compilation: none
 	Command line: none
@@ -774,12 +781,13 @@ List of the format parameters
 	Description:
 		Set the default text option to <int>. This option is
 		used for text between '%%begintext' and '%%endtext'.
-		<int> may be a keyword. The values are:
+		<int> may be an integer or a keyword. The values are:
 			0: obeylines
 			1: justify
 			2: fill
 			3: center
 			4: skip
+			5: right
 
   textspace <unit>
 	Default: 0.5cm
@@ -802,9 +810,9 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Output the title in uppercase letters.
+		Output the titles in uppercase letters.
 
-  titlefont <font> [<encoding>] <size>
+  titlefont <font> [<encoding>] [<size>]
 	Default: Times-Roman 20
 	Compilation: none
 	Command line: none
@@ -818,25 +826,39 @@ List of the format parameters
 	Description:
 		Define the format of the tune title.
 		This format overrides the standard way to display the
-		tune title, i.e. parameters as %%titleleft, %%infoline
-		or %%composerspace will be ignored. The format is
-		a set of letters, numbers and commas. Unrecognized
-		characters are ignored.
-		A letter is the ABC header infomation type. It may be
-		'A', 'B', 'C', 'D', 'H', 'N', 'O', 'P', 'R', 'S',
+		tune title. Then, parameters as %%titleleft, %%infoline
+		are not used.
+		The format is a set of letters, numbers, commas and
+		plus and minus signs. Unrecognized characters are ignored.
+
+		A letter gives the ABC header infomation type. It may be
+		'A', 'B', 'C', 'D', 'H', 'N', 'O', 'P', 'Q', 'R', 'S',
 		'T', 'X' or 'Z'.
-		A number may follow a letter. It may be:
+
+		Alignment is defined by a number and/or a minus sign
+		following the letter. It may be:
 			'0' for 'center',
-			'1' for 'right align' or
-			'-1' for 'left align'.
-		When absent, the number defaults to '0' (center).
-		A comma sets the next fields to appear lower in the page.
-		For example:
-			%%titleformat T-1 T1 T1, R0 C1 A1
-		displays the first title on the left, the second and
-		third titles, if any, on the right. The rhythm is centered
-		a bit below, with the composer and author/area on the
-		right.
+			'1' for 'right align'
+			'-1' (or '-') for 'left align'.
+		When absent, alignment defaults to center ('0').
+
+		A plus sign ('+') may appear between two fields
+		in which case these fields are concatenated (this works
+		only with fields of the same type and same alignment).
+
+		A comma defines a box edge. In each box, the fields are
+		vertically added in their alignment zones.
+
+		Example:
+			%%titleformat R-1 P-1 Q-1 T C1 O1 , T + T N1
+		displays:
+		- in the 1st box:
+		    - on the left: the rhythm, part and tempo
+		    - in the middle: the main title (only)
+		    - on the right: the composer and origin
+		- in the 2nd box:
+		    - in the middle: the concatenated subtitles
+		    - on the right: the notes
 
   titleleft <bool>
 	Default: 0
@@ -851,6 +873,19 @@ List of the format parameters
 	Command line: none
 	Description:
 		Set the vertical space before the title to <unit>.
+
+  titletrim <bool>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		When set, if the last word of a title starts with a capital
+		letter and is preceeded by a comma and a space, this word is
+		moved at the head. For example: the title
+			T:Clair de la lune, Au
+		is printed as
+			Au Clair de la lune
+			
 
   topmargin <unit>
 	Default: 1cm
@@ -893,7 +928,7 @@ List of the format parameters
 	Description:
 		Set the vocals above the staff.
 
-  vocalfont <font> [<encoding>] <size>
+  vocalfont <font> [<encoding>] [<size>]
 	Default: Times-Bold 13
 	Compilation: none
 	Command line: none
@@ -909,7 +944,7 @@ List of the format parameters
 		Set the vertical space before the lyrics under staves
 		to <unit>.
 
-  voicefont <font> [<encoding>] <size>
+  voicefont <font> [<encoding>] [<size>]
 	Default: Times-Bold 13
 	Compilation: none
 	Command line: none
@@ -923,7 +958,7 @@ List of the format parameters
 	Command line: -x
 		Print the X: number in the title.
 
-  wordsfont <font> [<encoding>] <size>
+  wordsfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 16
 	Compilation: none
 	Command line: none
@@ -947,7 +982,6 @@ List of the format parameters
 		Output notes, history...
 
 
-
 List of the pseudo-comments treated while parsed
 ------------------------------------------------
 
@@ -961,12 +995,15 @@ List of the pseudo-comments treated while parsed
 	    'ragged' or 'fill':	  fill the lines
 	    'center':		  center the lines
 	    'skip':		  don't print the lines (same as comments)
+	    'right':		  align the right side
 
   center <line of text>
 	Print one line of centered text.
 
   EPS <eps_file>
 	Include the file <eps_file>.
+	The file content is left or right aligned or centered according
+	to the current value of 'textoption'.
 
   endtext
 	See 'begintext'.
@@ -983,6 +1020,8 @@ List of the pseudo-comments treated while parsed
 	    'end':	restore the left and right margins, and skip down
 			to a safe place.
 	(see 'sample3.abc' for example).
+	This command may also be used to group some tunes and text in a
+	same page.
 
   newpage [<int>]
 	Continue printing on a new page and possibly restart page

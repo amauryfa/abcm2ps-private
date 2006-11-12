@@ -90,13 +90,14 @@
 #define MAXENC		6	/* max number of ISO-Latin encodings */
 #define ENC_NATIVE	7	/* (see format.c) */
 
-#define OBEYLINES	0
+#define T_LEFT		0
 #define T_JUSTIFY	1
 #define T_FILL		2
-#define OBEYCENTER	3
-#define SKIP		4
+#define T_CENTER	3
+#define T_SKIP		4
+#define T_RIGHT		5
 
-#define YSTEP	100		/* number of steps for y offsets */
+#define YSTEP	128		/* number of steps for y offsets */
 
 extern unsigned char deco_glob[256], deco_tune[256];
 
@@ -110,7 +111,7 @@ extern char font_enc[MAXFONTS];	/* font encoding */
 /* lyrics */
 #define MAXLY	16	/* max number of lyrics */
 struct lyl {
-	struct FONTSPEC* f;	/* font */
+	struct FONTSPEC *f;	/* font */
 	float w;		/* width */
 	float s;		/* shift / note */
 	char t[1];		/* word */
@@ -151,10 +152,10 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_EOLN		0x0001		/* end of line */
 #define S_WORD_ST	0x0002		/* word starts here */
 #define S_BEAM_BR1	0x0004		/* 2nd beam must restart here */
-#define S_NO_HEAD	0x0008		/* don't draw the highest/lowest note head */
-#define S_OTHER_HEAD	0x0010		/* don't draw any note head */
-#define S_IN_TUPLET	0x0020		/* in a tuplet */
-#define S_RRBAR		0x0040		/* right repeat bar (when bar) */
+#define S_OTHER_HEAD	0x0008		/* don't draw any note head */
+#define S_IN_TUPLET	0x0010		/* in a tuplet */
+#define S_RRBAR		0x0020		/* right repeat bar (when bar) */
+#define S_NOREPBAR	0x0040		/* don't draw the repeat bar (when bar) */
 #define S_XSTEM		0x0040		/* cross-staff stem (when note) */
 #define S_BEAM_ON	0x0080		/* continue beaming */
 #define S_SL1		0x0100		/* some chord slur start */
@@ -176,6 +177,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define H_SQUARE	3
 	signed char multi;	/* multi voice in the staff (+1, 0, -1) */
 	signed char doty;	/* dot y pos when voices overlap */
+	signed char nohdix;	/* no head index */
 	unsigned char gcf;	/* font for guitar chords */
 	unsigned char anf;	/* font for annotations */
 	short u;		/* auxillary information:
@@ -187,18 +189,14 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define STBRK 0				/* staff break
 					 *	xmx: width */
 #define PSSEQ 1				/* postscript sequence */
-	float x;		/* position */
+	float x;		/* x offset */
 	short y;
 	short ymn, ymx, yav;	/* min, max, avg note head height */
 	float xmx;		/* max h-pos of a head rel to top */
-#ifndef YSTEP
-	float dc_top;		/* max offset needed for decorations */
-	float dc_bot;		/* min offset for decoration */
-#endif
-	float xs, ys;		/* position of stem end */
+	float xs, ys;		/* offset of stem end */
 	float wl, wr;		/* left, right min width */
-	float pl, pr;		/* left, right preferred width */
-	float shrink, stretch;	/* glue before this symbol */
+	float space, stretch;	/* natural and maxi width */
+	float xmin, xmax;	/* min and max x offsets */
 	float shhd[MAXHD];	/* horizontal shift for heads */
 	float shac[MAXHD];	/* horizontal shift for accidentals */
 	struct lyrics *ly;	/* lyrics */
@@ -234,18 +232,32 @@ struct FORMAT { 		/* struct for page layout */
 	int oneperpage, partsbox, printparts, printtempo, pslevel;
 	int setdefl, shifthnote, splittune, squarebreve;
 	int straightflags, stretchstaff, stretchlast;
-	int textoption, titlecaps, titleleft, timewarn, tuplets;
+	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
 	int vocalabove, withxrefs, writehistory;
 	char *dateformat, *header, *footer, *titleformat;
-	struct FONTSPEC annotationfont, composerfont, footerfont;
-	struct FONTSPEC gchordfont, headerfont, historyfont, infofont;
-	struct FONTSPEC measurefont, partsfont, repeatfont, subtitlefont;
-	struct FONTSPEC tempofont, textfont, titlefont;
-	struct FONTSPEC vocalfont, voicefont, wordsfont;
-#define DFONT_MIN 5		/* index of dynamic fonts */
-#define DFONT_MAX 16		/* max number of dynamic fonts */
-	struct FONTSPEC font_tb[DFONT_MAX];
-	char ndfont;
+#define FONT_UMAX 5		/* max number of user fonts */
+#define ANNOTATIONFONT 5
+#define COMPOSERFONT 6
+#define FOOTERFONT 7
+#define GCHORDFONT 8
+#define HEADERFONT 9
+#define HISTORYFONT 10
+#define INFOFONT 11
+#define MEASUREFONT 12
+#define PARTSFONT 13
+#define REPEATFONT 14
+#define SUBTITLEFONT 15
+#define TEMPOFONT 16
+#define TEXTFONT 17
+#define TITLEFONT 18
+#define VOCALFONT 19
+#define VOICEFONT 20
+#define WORDSFONT 21
+#define FONT_DYN 22		/* index of dynamic fonts (gch, an, ly) */
+#define FONT_DYNX 12		/* number of dynamic fonts */
+#define FONT_MAX (FONT_DYN+FONT_DYNX)		/* whole number of fonts */
+	struct FONTSPEC font_tb[FONT_MAX];
+	char ndfont;		/* current index of dynamic fonts */
 	unsigned char gcf, anf, vof;	/* fonts for
 				* guitar chords, annotations and lyrics */
 };
@@ -276,8 +288,7 @@ extern char *mbf;		/* where to PUTx() */
 extern int nbuf;		/* number of bytes buffered */
 extern int use_buffer;		/* 1 if lines are being accumulated */
 
-extern struct FONTSPEC *font_init; /* font for page break */
-extern int strcf;		/* current string font */
+extern int outft;		/* last font in the output file */
 extern int tunenum;		/* number of current tune */
 extern int pagenum;		/* current page number */
 extern int nbar;		/* current measure number */
@@ -289,11 +300,10 @@ extern int defl;		/* decoration flags */
 #define DEF_STEMUP 0x04		/* stem up (1) or down (0) */
 
 		/* switches modified by flags: */
-extern int pagenumbers; 	/* write page numbers ? */
+extern int pagenumbers; 	/* write page numbers */
 extern int epsf;		/* for EPSF postscript output */
-extern int break_continues;	/* ignore continuations ? */
 
-extern char outf[STRL1];	/* output file name */
+extern char outfn[STRL1];	/* output file name */
 extern char *in_fname;		/* current input file name */
 extern char *styd;		/* format search directory */
 extern time_t mtime;		/* last modification time of the input file */
@@ -323,9 +333,8 @@ struct STAFF_S {
 	unsigned empty:1;	/* no symbol on this staff */
 	float y;		/* y position */
 	float scale;
-#ifdef YSTEP
+	float space;		/* distance to the next staff */
 	float top[YSTEP], bot[YSTEP];	/* top/bottom y offsets */
-#endif
 };
 extern struct STAFF_S staff_tb[MAXSTAFF];
 extern int nstaff;		/* (0..MAXSTAFF-1) */
@@ -342,6 +351,7 @@ struct VOICE_S {
 	struct SYMBOL *tie;	/* note with ties of previous line */
 	struct SYMBOL *rtie;	/* note with ties before 1st repeat bar */
 	float scale;		/* scale */
+	float space;		/* distance to the next staff */
 	int time;		/* current time while parsing */
 	struct clef_s clef;	/* current clef */
 	struct key_s key;	/* current key signature */
@@ -375,7 +385,7 @@ extern float realwidth;		/* real staff width while generating */
 
 #define NFLAGS_SZ 10		/* size of note flags tables */
 #define C_XFLAGS 5		/* index of crotchet in flags tables */
-extern float space_tb[NFLAGS_SZ], dot_space; /* note spacing */
+extern float space_tb[NFLAGS_SZ]; /* note spacing */
 
 /* PUTn: add to buffer with n arguments */
 #define PUT0(f) do {sprintf(mbf,f); a2b(); } while (0)
@@ -422,6 +432,10 @@ float draw_partempo(float top,
 void draw_measnb(void);
 void reset_deco(int deco_old);
 void set_defl(int new_defl);
+float tempo_width(struct SYMBOL *s);
+void write_tempo(struct SYMBOL *s,
+		int beat,
+		float sc);
 float y_get(struct SYMBOL *s,
 	    int up,
 	    float x,
@@ -443,11 +457,14 @@ void putx(float x);
 void puty(float y);
 void putxy(float x, float y);
 /* format.c */
-void interpret_fmt_line(char *w, char *p, int lock);
-void lock_fmt(void *fmt);
 void define_fonts(void);
 int get_textopt(char *p);
+void interpret_fmt_line(char *w, char *p, int lock);
+void lock_fmt(void *fmt);
 void make_font_list(void);
+FILE *open_file(char *fn,
+		char *ext,
+		char *rfn);
 void print_format(void);
 int read_fmt_file(char *filename);
 void set_format(void);
@@ -474,8 +491,8 @@ void add_to_text_block(char *s, int job);
 float cwid(unsigned char c);
 void put_history(void);
 void put_words(struct SYMBOL *words);
-void set_font(struct FONTSPEC *font);
-void str_font(struct FONTSPEC *font);
+void set_font(int ft);
+void str_font(int ft);
 #define A_LEFT -1
 #define A_CENTER 0
 #define A_RIGHT 1

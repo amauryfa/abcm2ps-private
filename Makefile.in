@@ -9,7 +9,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 CPPFLAGS = @DEFS@ -I.
 CFLAGS = @CFLAGS@
-LDFLAGS = -lm	# @LDFLAGS@
+LDFLAGS =	# @LDFLAGS@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -91,6 +91,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample3.abc \
 	abcm2ps-$(VERSION)/sample3.eps \
 	abcm2ps-$(VERSION)/sample4.abc \
+	abcm2ps-$(VERSION)/sample5.abc \
 	abcm2ps-$(VERSION)/subs.c \
 	abcm2ps-$(VERSION)/syms.c \
 	abcm2ps-$(VERSION)/tight.fmt \
@@ -126,6 +127,8 @@ EXAMPLES = deco.ps \
 	sample.ps \
 	sample2.ps \
 	sample3.ps \
+	sample4.ps \
+	sample5.ps \
 	voices.ps
 
 test:	$(EXAMPLES)

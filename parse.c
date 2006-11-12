@@ -220,7 +220,7 @@ static char *get_lyric(char *p)
 	struct FONTSPEC *f;
 
 	f = &cfmt.font_tb[cfmt.vof];
-	str_font(f);				/* (for tex_str) */
+	str_font(cfmt.vof);			/* (for tex_str) */
 
 	if ((s = lyric_cont) == 0) {
 		if (lyric_nb >= MAXLY)
@@ -351,19 +351,10 @@ static char *get_lyric(char *p)
 static void get_over(struct SYMBOL *s)
 {
 	struct VOICE_S *p_voice, *p_voice2;
-#if 0
-	struct SYMBOL *s1, *s2;
-	int linenum, colnum;
-#endif
 	int ctime;
 
 	/* treat the end of overlay */
 	p_voice = curvoice;
-#if 0
-	linenum = s != 0 ? s->as.linenum : 0;
-	colnum = s != 0 ? s->as.colnum : 0;
-#endif
-#if 1
 	if (over_bar) {
 		struct SYMBOL *s2;
 
@@ -374,7 +365,6 @@ static void get_over(struct SYMBOL *s)
 			s2->as.colnum = s->as.colnum;
 		}
 	}
-#endif
 	if (s == 0
 	    || s->as.u.v_over.type == V_OVER_E)  {
 		over_bar = 0;
@@ -406,19 +396,12 @@ static void get_over(struct SYMBOL *s)
 		p_voice2->second = 1;
 		p_voice2->cstaff = p_voice2->staff = p_voice->staff;
 		p_voice2->scale = p_voice->scale;
-#if 0
-		memcpy(&p_voice2->clef, &p_voice->clef,
-			sizeof p_voice2->clef);
-		memcpy(&p_voice2->meter, &p_voice->meter,
-			sizeof p_voice2->meter);
-#endif
 		if ((p_voice2->next = p_voice->next) != 0)
 			p_voice2->next->prev = p_voice2;
 		p_voice->next = p_voice2;
 		p_voice2->prev = p_voice;
 	}
 
-#if 1
 	if (voice_over == 0) {
 		voice_over = s;
 		over_bar = 1;
@@ -440,77 +423,6 @@ static void get_over(struct SYMBOL *s)
 		voice_over = tmp;
 	}
 	ctime = s->time;
-#else
-	/* search the start of sequence */
-	ctime = p_voice2->time;
-	if (voice_over == 0) {
-		voice_over = s;
-		over_bar = 1;
-		for (s = p_voice->last_symbol; /*s != 0*/; s = s->prev)
-			if (s->type == BAR || s->time <= ctime)
-				break;
-	} else {
-		struct SYMBOL *tmp;
-
-		tmp = s;
-		s = (struct SYMBOL *) voice_over->as.next;
-/*fixme: what if this symbol is not in the voice?*/
-		if (s->voice != curvoice - voice_tb) {
-			error(1, s, "Voice overlay not closed");
-			voice_over = 0;
-			return;
-		}
-		voice_over = tmp;
-	}
-	/* search the last common sequence */
-	for (s1 = s; /*s1 != 0*/; s1 = s1->prev)
-		if (s1->time <= ctime)
-			break;
-
-	/* fill the secundary voice with invisible rests */
-	if (p_voice2->last_symbol == 0
-	    || p_voice2->last_symbol->type != BAR) {
-		for (s2 = s1; s2 != 0 && s2->time == ctime; s2 = s2->prev) {
-			if (s2->type == BAR) {
-				s1 = s2;
-				break;
-			}
-		}
-		if (s1->type == BAR) {
-			s2 = add_sym(p_voice2, BAR);
-			s2->as.linenum = linenum;
-			s2->as.colnum = colnum;
-			s2->as.u.bar.type = s1->as.u.bar.type;
-			s2->time = ctime;
-		}
-	}
-	while (ctime < s->time) {
-		while (s1->time < s->time) {
-			s1 = s1->next;
-			if (s1->type == BAR)
-				break;
-		}
-		if (s1->time != ctime) {
-			s2 = add_sym(p_voice2, REST);
-			s2->as.type = ABC_T_REST;
-			s2->as.linenum = linenum;
-			s2->as.colnum = colnum;
-			s2->as.u.note.invis = 1;
-			s2->len = s2->as.u.note.lens[0] = s1->time - ctime;
-			s2->time = ctime;
-			ctime = s1->time;
-		}
-		while (s1->type == BAR) {
-			s2 = add_sym(p_voice2, BAR);
-			s2->as.linenum = linenum;
-			s2->as.colnum = colnum;
-			s2->as.u.bar.type = s1->as.u.bar.type;
-			s2->time = ctime;
-			if ((s1 = s1->next) == 0)
-				break;
-		}
-	}
-#endif
 	p_voice2->time = ctime;
 	curvoice = p_voice2;
 }
@@ -646,16 +558,6 @@ static void get_staves(struct SYMBOL *s)
 				staff_tb[staff].bracket_end = 1;
 			if (p_staff->flags & CLOSE_BRACE) {
 				staff_tb[staff].brace_end = 1;
-#if 0
-				/* the lowest voice must be main */
-				if (p_voice->second) {
-					p_voice->second = 0;
-					do {
-						p_voice = p_voice->prev;
-					} while (p_voice->second);
-					p_voice->second = 1;
-				}
-#endif
 			}
 		}
 	}
@@ -765,6 +667,8 @@ static void get_info(struct SYMBOL *s,
 			bskip(cfmt.topspace);
 		write_heading(t);
 		reset_gen();
+		if (!cfmt.printtempo)
+			info.tempo = 0;
 		nbar = nbar_rep = cfmt.measurefirst;	/* measure numbering */
 		curvoice = first_voice;		/* switch to the 1st voice */
 		break;
@@ -808,8 +712,7 @@ static void get_info(struct SYMBOL *s,
 		}
 		break;
 	case 'Q':
-		if (curvoice != first_voice	/* tempo only for first voice */
-		    || !cfmt.printtempo)
+		if (curvoice != first_voice)	/* tempo only for first voice */
 			break;
 		switch (s->as.state) {
 		case ABC_S_GLOBAL:
@@ -817,7 +720,8 @@ static void get_info(struct SYMBOL *s,
 			inf->tempo = s;
 			break;
 		default:
-			sym_link(s, TEMPO);
+			if (cfmt.printtempo)
+				sym_link(s, TEMPO);
 			break;
 		}
 		break;
@@ -909,51 +813,52 @@ void identify_note(struct SYMBOL *s,
 		   int *p_dots,
 		   int *p_flags)
 {
-	int head, dots, flags, base;
+	int head, dots, flags;
 
-	if (len >= BREVE * 4) {
-		error(1, s, "Note too long");
-		len = BREVE * 2;
-	} else if (len < SEMIQUAVER / 8) {
+	if (len % 12 != 0)
+		error(1, s, "Invalid note duration");
+	len /= 12;			/* see BASE_LEN for values */
+	if (len == 0)
 		error(1, s, "Note too short");
-		len = SEMIQUAVER / 8;
-	}
-	flags = -4;
-	for (base = BREVE * 2; base > 0; base >>= 1) {
-		if (len >= base)
+	for (flags = 5; len != 0; len >>= 1, flags--) {
+		if (len & 1)
 			break;
-		flags++;
 	}
-	head = H_FULL;
-	switch (base) {
-	case BREVE * 2:
+	len >>= 1;
+	switch (len) {
+	case 0: dots = 0; break;
+	case 1: dots = 1; break;
+	case 3: dots = 2; break;
+	case 7: dots = 3; break;
+	default:
+		error(1, s, "Note too much dotted");
+		dots = 3;
+		break;
+	}
+	flags -= dots;
+	if (flags >= 0)
+		head = H_FULL;
+	else switch (flags) {
+	default:
+		error(1, s, "Note too long");
+		flags = -4;
+		/* fall thru */
+	case -4:
 		head = H_SQUARE;
 		break;
-	case BREVE:
+	case -3:
 		head = cfmt.squarebreve ? H_SQUARE : H_OVAL;
 		break;
-	case SEMIBREVE:
+	case -2:
 		head = H_OVAL;
 		break;
-	case MINIM:
+	case -1:
 		head = H_EMPTY;
 		break;
 	}
-
-	dots = 0;
-	if (len == base)
-		;
-	else if (2 * len == 3 * base)
-		dots = 1;
-	else if (4 * len == 7 * base)
-		dots = 2;
-	else if (8 * len == 15 * base)
-		dots = 3;
-	else	error(1, s, "Note too much dotted");
-
 	*p_head = head;
-	*p_dots = dots;
 	*p_flags = flags;
+	*p_dots = dots;
 }
 
 /* -- measure bar -- */
@@ -965,10 +870,8 @@ static void get_bar(struct SYMBOL *s)
 	bar_type = s->as.u.bar.type;
 
 	/* remove the repeat indication if not wanted */
-	if (curvoice->norepbra && s->as.u.bar.repeat_bar) {
-		s->as.u.bar.repeat_bar = 0;
-		s->as.text = 0;
-	}
+	if (curvoice->norepbra && s->as.u.bar.repeat_bar)
+		s->sflags |= S_NOREPBAR;
 
 	/* remove the invisible repeat bars when no shift needed */
 	if (bar_type == B_INVIS
@@ -1126,15 +1029,9 @@ void do_tune(struct abctune *t,
 			get_note(s);
 			break;
 		case ABC_T_BAR:
-			get_bar(s);
-			if (over_bar) {
+			if (over_bar)
 				get_over(0);
-				s2 = add_sym(curvoice, BAR);
-				s2->as.linenum = s->as.linenum;
-				s2->as.colnum = s->as.colnum;
-				s2->as.u.bar.type = s->as.u.bar.type;
-				s2->time = s->time;
-			}
+			get_bar(s);
 			break;
 		case ABC_T_CLEF:
 			get_clef(s);
@@ -1184,7 +1081,7 @@ void do_tune(struct abctune *t,
 			s->len = len;
 			if (s->as.text != 0)		/* adjust the */
 				gchord_adjust(s);	/* guitar chords */
-			if (s->as.u.bar.dc.n > 0)	/*4.12.21*/
+			if (s->as.u.bar.dc.n > 0)
 				deco_cnv(&s->as.u.bar.dc, s);
 			break;
 		    }
@@ -1553,6 +1450,7 @@ static void get_note(struct SYMBOL *s)
 		s->len = s->as.u.note.lens[0];
 		s->type = type;
 	}
+	s->nohdix = -1;
 
 	/* convert the decorations */
 	if (s->as.u.note.dc.n > 0)
@@ -1729,7 +1627,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 				if (job < 0) {
 					error(1, s,
 					      "Bad argument for begintext: %s", p);
-					job = OBEYLINES;
+					job = T_LEFT;
 				}
 			}
 			output_music();
@@ -1749,12 +1647,12 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 							p++;
 					}
 					if (strncmp(p, "endtext", 7) == 0) {
-						if (job != SKIP)
+						if (job != T_SKIP)
 							write_text_block(job, as->state);
 						return as;
 					}
 				}
-				if (job != SKIP)
+				if (job != T_SKIP)
 					add_to_text_block(p, job);
 			}
 			/* not reached */
@@ -1763,33 +1661,44 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	case 'E':
 		if (strcmp(w, "EPS") == 0) {
 			float x1, y1, x2, y2;
-			FILE *epsf;
-			char line[BSIZE];
+			FILE *fp;
+			char fn[BSIZE], line[BSIZE];
 
 			output_music();
 			buffer_eob();
-			if ((epsf = fopen(p, "r")) == 0) {
-				error(1, s, "No such file: %s", p);
+			get_str(line, p, BSIZE);
+			if ((fp = open_file(line, "eps", fn)) == 0) {
+				error(1, s, "No such file: %s", line);
 				return as;
 			}
 
 			/* get the bounding box */
-			while (fgets(line, sizeof line, epsf)) {
+			while (fgets(line, sizeof line, fp)) {
 				if (strncmp(line, "%%BoundingBox:", 14) == 0) {
 					if (sscanf(&line[14], "%f %f %f %f",
 						   &x1, &y1, &x2, &y2) == 4)
 						break;
 				}
 			}
-			fclose(epsf);
+			fclose(fp);
 			if (strncmp(line, "%%BoundingBox:", 14) != 0) {
 				error(1, s,
-				      "No bounding box in '%s'", p);
+				      "No bounding box in '%s'", fn);
 				return as;
 			}
-			PUT0("\001");
-			abskip((y2 - y1) * cfmt.scale);
-			PUT3("%.2f %.2f %s\n", x1, y1, p);
+			if (cfmt.textoption == T_CENTER
+			    || cfmt.textoption == T_RIGHT) {
+				float lw;
+
+				lw = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
+					- cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale;
+				if (cfmt.textoption == T_CENTER)
+					x1 += (lw - (x2 - x1)) * 0.5;
+				else	x1 += lw - (x2 - x1);
+			}
+			PUT0("\001");	/* include file (must be the first after eob) */
+			bskip(y2 - y1);
+			PUT3("%.2f %.2f%%%s\n", x1, y1, fn);
 			buffer_eob();
 			return as;
 		}
@@ -1801,7 +1710,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			output_music();
 			if (strncmp(p, "start", 5) == 0) {
 				buffer_eob();
-				if (!in_page)	/*4.12.20*/
+				if (!in_page)
 					PUT0("%%\n");	/* initialize the output */
 				bposy = get_bposy();
 				multicol_max = multicol_start = bposy;
@@ -1831,7 +1740,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 					cfmt.leftmargin = lmarg;
 					cfmt.rightmargin = rmarg;
 					multicol_start = 0;
-					PUT0("%%\n");	/*4.12.27*/
+					PUT0("%%\n");	/* force write_buffer */
 					buffer_eob();
 				}
 			} else {
@@ -1964,7 +1873,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 
 			if (epsf && as->state == ABC_S_GLOBAL)
 				return as;
-			job = w[0] == 't' ? OBEYLINES : OBEYCENTER;
+			job = w[0] == 't' ? T_LEFT : T_CENTER;
 			output_music();
 			buffer_eob();
 			add_to_text_block(p, job);
@@ -1976,8 +1885,6 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		if (strcmp(w, "vskip") == 0) {
 			output_music();
 			h1 = scan_u(p);
-			if (h1 < 1)
-				h1 = 0.5 CM;
 			bskip(h1);
 			buffer_eob();
 			return as;
@@ -2083,10 +1990,6 @@ static void set_tuplet(struct SYMBOL *t)
 		oldlen = s->len;
 		s->len = (oldlen * lplet) / l;
 		if (--r <= 0) {
-#if 0
-			if (oldlen < QUAVER)
-				s->sflags |= S_BEAM_BR1;
-#endif
 			break;
 		}
 		l -= oldlen;

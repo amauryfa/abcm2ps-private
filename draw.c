@@ -363,16 +363,8 @@ static int calculate_beam(struct BEAM *bm,
 			s->ys = a * s->xs + b - staff_tb[s->staff].y;
 			if (s->stem > 0) {
 				s->ymx = s->ys + 2.5;
-#ifndef YSTEP
-				if (s->dc_top < s->ys + 2)
-					s->dc_top = s->ys + 2;
-#endif
 			} else {
 				s->ymn = s->ys - 2.5;
-#ifndef YSTEP
-				if (s->dc_bot > s->ys - 2)
-					s->dc_bot = s->ys - 2;
-#endif
 			}
 			break;
 		case REST:
@@ -1301,9 +1293,9 @@ static void draw_basic_note(float x,
 		return;
 
 	/* special case when no head */
-	if (s->sflags & S_NO_HEAD) {
-		if ((m == 0 && s->stem > 0)
-		    || (m == s->nhd && s->stem < 0)) {
+	if (s->nohdix >= 0) {
+		if ((s->stem > 0 && m <= s->nohdix)
+		    || (s->stem < 0 && m >= s->nohdix)) {
 			PUT0("/x ");			/* set x y */
 			putx(x + shhd);
 			PUT0("def/y ");
@@ -1552,7 +1544,6 @@ static struct SYMBOL *prev_scut(struct SYMBOL *s)
 		case NOTE:
 		case REST:
 		case BAR:
-/*4.12.25*/
 			x = s->x;
 			do {
 				s = s->prev;
@@ -1734,20 +1725,15 @@ static int draw_slur(struct SYMBOL *k1,
 			break;
 	}
 /*fixme: KO when two staves*/
-if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
+if (two_staves) error(0, k1, "*** multi-staves slurs not treated\n");
 
 	/* fix endpoints */
 	x1 = k1->x + k1->xmx;		/* take the max right side */
 	if (k1 != k2)
 		x2 = k2->x;
 	else	x2 = realwidth;		/* (the slur starts on last note of the line) */
-#ifdef YSTEP
 	y1 = (float) (s > 0 ? k1->ymx + 2 : k1->ymn - 2);
 	y2 = (float) (s > 0 ? k2->ymx + 2 : k2->ymn - 2);
-#else
-	y1 = s > 0 ? k1->dc_top + 2 : k1->dc_bot - 2;
-	y2 = s > 0 ? k2->dc_top + 2 : k2->dc_bot - 2;
-#endif
 
 	if (k1->type == NOTE) {
 		if (s > 0) {
@@ -1755,7 +1741,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 				x1 += 5;
 				if (k1->as.u.note.word_end
 				    && k1->nflags >= -1
-/*4.12.25*/
 				    && k1->ys > y1 - 3) {	/* (pb tuplets) */
 					if (k1->nflags > 0) {
 						x1 += 2;
@@ -1768,7 +1753,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 				x1 -= 1;
 				if (k1->as.u.note.word_end
 				    && k1->nflags >= -1
-/*4.12.25*/
 				    && k1->ys < y1 + 3) {
 					if (k1->nflags > 0) {
 						x1 += 2;
@@ -1785,7 +1769,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 				x2 += 1;
 				if ((k2->sflags & S_WORD_ST)
 				    && k2->nflags >= -1
-/*4.12.25*/
 				    && k2->ys > y2 - 3)
 					y2 = k2->ys - 6;
 			}
@@ -1794,7 +1777,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 				x2 -= 5;
 				if ((k2->sflags & S_WORD_ST)
 				    && k2->nflags >= -1
-/*4.12.25*/
 				    && k2->ys < y2 + 3)
 					y2 = k2->ys + 6;
 			}
@@ -1815,7 +1797,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 	}
 
 	if (nn >= 3) {
-#ifdef YSTEP
 		if (k1->next->x < x1 + 48) {
 			if (s > 0) {
 				y = k1->next->ymx - 2;
@@ -1838,23 +1819,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 					y2 = y;
 			}
 		}
-#else
-		if (s > 0) {
-			if (y1 < k1->next->dc_top - 2
-			    && k1->next->x < x1 + 48)
-				y1 = k1->next->dc_top - 2;
-			if (y2 < k2->prev->dc_top - 2
-			    && k2->prev->x > x2 - 48)
-				y2 = k2->prev->dc_top - 2;
-		} else {
-			if (y1 > k1->next->dc_bot + 2
-			    && k1->next->x < x1 + 48)
-				y1 = k1->next->dc_bot + 2;
-			if (y2 > k2->prev->dc_bot + 2
-			    && k2->prev->x > x2 - 48)
-				y2 = k2->prev->dc_bot + 2;
-		}
-#endif
 	}
 
 	/* shift endpoints */
@@ -2001,17 +1965,10 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 /*fixme: it seems to work with 0.4, but why?*/
 	addy = y1 - a * x1 + 0.4 * height;
 	for (k = k1; ; k = k->next) {
-#ifdef YSTEP
 		if (k == k2)
 			break;
-#else
-		if (k == k2
-		    && k->as.u.note.slur_st)
-			break;	/* the next slur will set the top/bottom */
-#endif
 		if (k->staff == upstaff) {
 			y = a * k->x + addy;
-#ifdef YSTEP
 			if (k->ymx < y)
 				k->ymx = y;
 			else if (k->ymn > y)
@@ -2024,15 +1981,6 @@ if (two_staves) fprintf(stderr, "*** multi-staves slurs not treated\n");
 			dx -= x1;
 			y_set(k, s > 0, x1, dx, y);
 		}
-#else
-			if (k->dc_top < y)
-				k->dc_top = y;
-			else if (k->dc_bot > y)
-				k->dc_bot = y;
-		}
-		if (k == k2)
-			break;
-#endif
 	}
 	return s > 0 ? SL_ABOVE : SL_BELOW;
 }
@@ -2330,14 +2278,9 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 /*			if (s1->multi) { */
 				for (sy = s1; ; sy = sy->next) {
 					yy = a * sy->x + b;
-#ifdef YSTEP
 					ym = sy->ymx;
 					if (ym > yy)
 						b += ym - yy;
-#else
-					if (sy->dc_top > yy)
-						b += sy->dc_top - yy;
-#endif
 					if (sy == s2)
 						break;
 				}
@@ -2347,14 +2290,9 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 /*			if (s1->multi) { */
 				for (sy = s1; ; sy = sy->next) {
 					yy = a * sy->x + b;
-#ifdef YSTEP
 					ym = sy->ymn;
 					if (ym < yy)
 						b += ym - yy;
-#else
-					if (sy->dc_bot < yy)
-						b += sy->dc_bot - yy;
-#endif
 					if (sy == s2)
 						break;
 				}
@@ -2375,7 +2313,6 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 		putxy(xm, ym);
 		PUT1("y%d bnum\n", s1->staff);
 
-#ifdef YSTEP
 		for (sy = s1; ; sy = sy->next) {
 			if (sy->x >= xm)
 				break;
@@ -2390,26 +2327,6 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				sy->ymn = (short) ym;
 			y_set(sy, 0, xm - 3, 6, ym);
 		}
-#else
-		if (s1->stem > 0) {
-			b += 8;
-			for (sy = s1; ; sy = sy->next) {
-				yy = a * sy->x + b;
-				if (sy->dc_top < yy)
-					sy->dc_top = yy;
-				if (sy == s2)
-					break;
-			}
-		} else {
-			for (sy = s1; ; sy = sy->next) {
-				yy = a * sy->x + b;
-				if (sy->dc_bot > yy)
-					sy->dc_bot = yy;
-				if (sy == s2)
-					break;
-			}
-		}
-#endif
 		return next;
 	}
 
@@ -2434,14 +2351,9 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				if (sy->type == NOTE)
 					break;
 		}
-#ifdef YSTEP
 		ym = y_get(sy, 1, sy->x, 0, 0);
 		if (ym > y1)
 			y1 = ym;
-#else
-		if (sy->dc_top > 24)
-			y1 = sy->dc_top;
-#endif
 		if (s1->stem > 0)
 			x1 += 3;
 	}
@@ -2453,14 +2365,9 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				if (sy->type == NOTE)
 					break;
 		}
-#ifdef YSTEP
 		ym = y_get(sy, 1, sy->x, 0, 0);
 		if (ym > y2)
 			y2 = ym;
-#else
-		if (sy->dc_top > 24)
-			y2 = sy->dc_top;
-#endif
 		if (s2->stem > 0)
 			x2 += 3;
 	}
@@ -2497,11 +2404,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 			continue;
 		}
 		yy = ym + (sy->x - xm) * s;
-#ifdef YSTEP
 		yx = y_get(sy, 1, sy->x, 0, 0);
-#else
-		yx = sy->dc_top;
-#endif
 		if (yx - yy > dy)
 			dy = yx - yy;
 		if (sy == s2)
@@ -2519,21 +2422,13 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	ym += 8;
 	for (sy = s1; ; sy = sy->next) {
 		if (sy->staff == upstaff) {
-#ifdef YSTEP
-/*4.12.25*/
 			yy = ym + (sy->x - xm) * s;
 			if (sy->ymx < yy)
 				sy->ymx = yy;
 			if (sy == s2)
 				break;
 			y_set(sy, 1, sy->x, sy->next->x - sy->x, yy);
-#else
-			yy = ym + (sy->x - xm) * s;
-			if (sy->dc_top < yy)
-				sy->dc_top = yy;
-#endif
-		}
-		if (sy == s2)
+		} else if (sy == s2)
 			break;
 	}
 
@@ -2553,11 +2448,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				if (sy->type == NOTE)
 					break;
 		}
-#ifdef YSTEP
 		y1 = y_get(sy, 0, sy->x, 0, 0);
-#else
-		y1 = sy->dc_bot;
-#endif
 	} else	y1 = 0;
 	if (s2->staff == upstaff) {
 		sy = s2;
@@ -2566,11 +2457,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				if (sy->type == NOTE)
 					break;
 		}
-#ifdef YSTEP
 		y2 = y_get(sy, 0, sy->x, 0, 0);
-#else
-		y2 = sy->dc_bot;
-#endif
 	} else	y2 = 0;
 
 	xm = 0.5 * (x1 + x2);
@@ -2602,11 +2489,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 			continue;
 		}
 		yy = ym + (sy->x - xm) * s;
-#ifdef YSTEP
 		yx = y_get(sy, 0, sy->x, 0, 0);
-#else
-		yx = sy->dc_bot;
-#endif
 		if (yx - yy < dy)
 			dy = yx - yy;
 		if (sy == s2)
@@ -2624,18 +2507,12 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	ym -= 8;
 	for (sy = s1; ; sy = sy->next) {
 		if (sy->staff == upstaff) {
-#ifdef YSTEP
 			if (sy == s2)
 				break;
 			yy = ym + (sy->x - xm) * s;
 			if (sy->ymn > yy)
 				sy->ymn = (short) yy;
 			y_set(sy, 0, sy->x, sy->next->x - sy->x, yy);
-#else
-			yy = ym + (sy->x - xm) * s;
-			if (sy->dc_bot > yy)
-				sy->dc_bot = yy;
-#endif
 		}
 		if (sy == s2)
 			break;
@@ -2782,7 +2659,6 @@ static void draw_ties(struct SYMBOL *k1,
 	ntie = ntie3 = 0;
 	nh1 = k1->nhd;
 
-/*4.12.23+*/
 	/* 2-note case: set up list of ties to draw */
 	if (job != 2) {
 		for (i = 0; i <= nh1; i++) {
@@ -2813,7 +2689,6 @@ static void draw_ties(struct SYMBOL *k1,
 
 	/* try an other voice */
 	ntie = 0;
-/*4.12.24*/
 	time = k1->time + k1->len;
 	k2 = k1->ts_next;
 	while (k2 != 0 && k2->time < time)
@@ -2852,7 +2727,6 @@ static void draw_ties(struct SYMBOL *k1,
 					ntie3, mhead3, mhead3,
 					k1->as.u.note.dotted_tie, job);
 	}
-/*4.12.23-*/
 }
 
 /* -- draw all ties between neighboring notes -- */
@@ -3034,27 +2908,17 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 	if (incr > 0) {			/* under the staff */
 		j = 0;
 /*fixme: may not be the current font*/
-		y -= cfmt.vocalfont.size;
-#if 1
+		y -= cfmt.font_tb[VOCALFONT].size;
 		if (y > -cfmt.vocalspace)
-#else
-		if (p_voice->staff == nstaff	/* if last staff */
-		    && y > -cfmt.vocalspace)
-#endif
 			y = -cfmt.vocalspace;
 	} else {
 		j = nly - 1;
 		nly = -1;
-#if 1
-		if (y < 24 + cfmt.vocalspace - cfmt.vocalfont.size)
-#else
-		if (p_voice->staff == nstaff	/* if last staff */
-		    && y < 24 + cfmt.vocalspace - cfmt.vocalfont.size)
-#endif
-			y = 24 + cfmt.vocalspace - cfmt.vocalfont.size;
+		if (y < 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size)
+			y = 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size;
 	}
 /*fixme: may not be the current font*/
-	desc = cfmt.vocalfont.size * 0.25;	/* descent */
+	desc = cfmt.font_tb[VOCALFONT].size * 0.25;	/* descent */
 	for (; j != nly ; j += incr) {
 		struct SYMBOL *s;
 		float x0, shift;
@@ -3094,7 +2958,7 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 			}
 			if (lyl->f != f) {		/* font change */
 				f = lyl->f;
-				PUT2("%.1f F%d ", f->size, f->fnum);
+				set_font(f - cfmt.font_tb);
 				if (lskip < f->size * 1.1)
 					lskip = f->size * 1.1;
 			}
@@ -3214,8 +3078,6 @@ static void draw_all_lyrics(void)
 		nly = 0;
 		for (s = p_voice->sym->next; s != 0; s = s->next) {
 			struct lyrics *ly;
-
-#ifdef YSTEP
 			float x, y, w;
 
 			if ((ly = s->ly) == 0)
@@ -3232,14 +3094,6 @@ static void draw_all_lyrics(void)
 			y = y_get(s, 0, x, w, 0);
 			if (bot > y)
 				bot = y;
-#else
-			if (s->dc_top > top)
-				top = s->dc_top;
-			if (s->dc_bot < bot)
-				bot = s->dc_bot;
-			if ((ly = s->ly) == 0)
-				continue;
-#endif
 			for (i = MAXLY; --i >= 0; )
 				if (ly->lyl[i] != 0)
 					break;
@@ -3296,12 +3150,8 @@ static void draw_all_lyrics(void)
 			for (s = p_voice->sym->next; s != 0; s = s->next) {
 /*fixme: may have lyrics crossing a next symbol*/
 				if (s->ly != 0) {
-#ifdef YSTEP
 /*fixme:should set the real width*/
 					y_set(s, 1, s->x, 10, top);
-#else
-					s->dc_top = top;
-#endif
 				}
 			}
 		}
@@ -3309,12 +3159,8 @@ static void draw_all_lyrics(void)
 			bot = lyst_tb[staff].bot - 2;
 			for (s = p_voice->sym->next; s != 0; s = s->next) {
 				if (s->ly != 0) {
-#ifdef YSTEP
 /*fixme:should set the real width*/
 					y_set(s, 0, s->x, 10, bot);
-#else
-					s->dc_bot = bot;
-#endif
 				}
 			}
 		}
@@ -3350,7 +3196,6 @@ void draw_sym_near(void)
 		}
 	}
 
-#ifdef YSTEP
 	/* initialize the y offsets */
 	{
 		int i, staff;
@@ -3362,7 +3207,6 @@ void draw_sym_near(void)
 			}
 		}
 	}
-#endif
 
 	set_tie_room();
 	draw_deco_near();
@@ -3370,7 +3214,6 @@ void draw_sym_near(void)
 	/* have room for the accidentals */
 	for (s = first_voice->sym; s != 0; s = s->ts_next) {
 		int y;
-#ifdef YSTEP
 		struct SYMBOL *g;
 
 		/* set the y offsets */
@@ -3387,19 +3230,13 @@ void draw_sym_near(void)
 		}
 		y_set(s, 1, s->x - s->wl, s->wl + s->wr, s->ymx);
 		y_set(s, 0, s->x - s->wl, s->wl + s->wr, s->ymn);
-#endif
 		if (s->type != NOTE)
 			continue;
 		if (s->as.u.note.accs[s->nhd]) {
 			y = s->y + 8;
-#ifdef YSTEP
 			if (s->ymx < y)
 				s->ymx = y;
 			y_set(s, 1, s->x, 0., y);
-#else
-			if (s->dc_top < y)
-				s->dc_top = y;
-#endif
 		}
 		if (s->as.u.note.accs[0]) {
 			y = s->y;
@@ -3407,14 +3244,9 @@ void draw_sym_near(void)
 			    || s->as.u.note.accs[0] == A_NT)
 				y -= 7;
 			else	y -= 5;
-#ifdef YSTEP
 			if (s->ymn > y)
 				s->ymn = y;
 			y_set(s, 0, s->x, 0., y);
-#else
-			if (s->dc_bot > y)
-				s->dc_bot = y;
-#endif
 		}
 	}
 
@@ -3430,7 +3262,6 @@ void draw_sym_near(void)
 	}
 
 	/* set the top and bottom for all symbols to be out of the staves */
-#ifdef YSTEP
 	{
 		int top, bot, i, staff;
 
@@ -3446,25 +3277,8 @@ void draw_sym_near(void)
 			}
 		}
 	}
-#else
-	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
-		int top, bot;
-
-		top = topbar(staff_tb[p_voice->staff].clef.stafflines) + 2;
-		bot = botbar(staff_tb[p_voice->staff].clef.stafflines) - 2;
-		for (s = p_voice->sym->next; s != 0; s = s->next) {
-			if (s->type == CLEF && s->as.u.clef.stafflines >= 0) {
-				top = topbar(s->as.u.clef.stafflines) + 2;
-				bot = botbar(s->as.u.clef.stafflines) - 2;
-			}
-			if (s->dc_top < top)
-				s->dc_top = top;
-			if (s->dc_bot > bot)
-				s->dc_bot = bot;
-		}
-	}
-#endif
 	draw_deco_note();
+	outft = -1;
 	draw_all_lyrics();
 	draw_deco_staff();
 }
@@ -3580,7 +3394,7 @@ void draw_symbols(struct VOICE_S *p_voice)
 			PUT0("mrep2\n");
 			if (s->voice != first_voice - voice_tb)
 				break;
-			set_font(&cfmt.font_tb[s->gcf]);
+			set_font(s->gcf);
 			putxy(s->prev->x, staff_tb[s->staff].y + 24 + 4);
 			PUT1("M(%d)showc\n", s->as.u.bar.len);
 			break;
@@ -3694,14 +3508,14 @@ void draw_vname(int first_line,
 	}
 	if (n == 0)
 		return;
-	str_font(&cfmt.voicefont);
+	str_font(VOICEFONT);
 	indent = -indent * 0.5;
 	for (staff = nstaff; staff >= 0; staff--) {
 		staff_p = &staff_d[staff];
 		if (staff_p->nl == 0)
 			continue;
 		y = staff_tb[staff].y + 12 + 9 * (staff_p->nl - 1)
-			- cfmt.voicefont.size * 0.3;
+			- cfmt.font_tb[VOICEFONT].size * 0.3;
 		if (staff_tb[staff].brace)
 			y -= (staff_tb[staff].y - staff_tb[staff + 1].y) * 0.5;
 		for (n = 0; n < staff_p->nl; n++) {
@@ -3978,33 +3792,19 @@ static void set_tie_room(void)
 			else	dy = 16;
 			if (s->pits[s->nhd] > 24) {
 				y = 3 * (s->pits[s->nhd] - 18) + dy;
-#ifdef YSTEP
 				if (s->ymx < y)
 					s->ymx = y;
 				if (s2 != 0 && s2->ymx < y)
 					s2->ymx = y;
 				y_set(s, 1, s->x + 5, dx, y);
-#else
-				if (s->dc_top < y)
-					s->dc_top = y;
-				if (s2 != 0 && s2->dc_top < y)
-					s2->dc_top = y;
-#endif
 			}
 			if (s->pits[0] < 20) {
 				y = 3 * (s->pits[0] - 18) - dy;
-#ifdef YSTEP
 				if (s->ymn > y)
 					s->ymn = y;
 				if (s2 != 0 && s2->ymn > y)
 					s2->ymn = y;
 				y_set(s, 0, s->x + 5, dx, y);
-#else
-				if (s->dc_bot > y)
-					s->dc_bot = y;
-				if (s2 != 0 && s2->dc_bot > y)
-					s2->dc_bot = y;
-#endif
 			}
 		}
 	}

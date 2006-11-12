@@ -56,7 +56,7 @@ List of the options
 	An item may be a single index value (as indicated in the 'X:'
 	field), or a range of such values. A range is indicated as
 	<first_index>-<last_index>. The last index may be omitted
-	meaning 'end of file'.
+	meaning 'last tune of file'.
 	Example:
 		abcm2ps voices -e 5,2-4 newfeatures -e5-
 	Note: Filtering may raise problems, mainly on global definitions.

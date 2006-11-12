@@ -485,6 +485,24 @@ static char ps_head[] =
 	"/ft513{2 copy gsave -1 1 scale exch neg 3 add exch M ftx grestore\n"
 	"	M 1.5 0 RM ftx}!\n"
 
+#if 1
+	/* accidentals in strings */
+	"/accfont{\n"
+	"	Encoding 8#201 /sharpchar put\n"
+	"	Encoding 8#202 /flatchar put\n"
+	"	Encoding 8#203 /natchar put\n"
+	"	/CharStrings CharStrings dup length dict copy def\n"
+	"	CharStrings /sharpchar{pop\n"
+	"		650 0 0 -50 650 750 setcachedevice\n"
+	"		gsave 50 dup scale 5.8 7 sh0 grestore}bind put\n"
+	"	CharStrings /flatchar{pop\n"
+	"		600 0 0 0 600 750 setcachedevice\n"
+	"		gsave 50 dup scale 5.8 6 ft0 grestore}bind put\n"
+	"	CharStrings /natchar{pop\n"
+	"		600 0 0 0 600 750 setcachedevice\n"
+	"		gsave 50 dup scale 5.8 7 nt0 grestore}bind put\n"
+	"	}!\n"
+#else
 	/* accidentals in guitar chord */
 	"/sharp_glyph{\n"
 	"	fh .4 mul 0 RM currentpoint\n"
@@ -498,22 +516,19 @@ static char ps_head[] =
 	"	fh .4 mul 0 RM currentpoint\n"
 	"	gsave T fh .08 mul dup scale 0 7 nt0 grestore\n"
 	"	fh .4 mul 0 RM}!\n"
+#endif
 	/* str gcshow - guitar chord */
-	"/gchshow{\n"
-	"	pop pop\n"
-	"	dup 129 eq{pop sharp_glyph}\n"
-	"	  {dup 130 eq{pop flat_glyph}\n"
-	"	    {dup 131 eq{pop nat_glyph}\n"
-	"		{currentfont/Encoding get exch get glyphshow}\n"
-	"		ifelse}\n"
-	"	    ifelse}\n"
-	"	  ifelse}!\n"
-	"/gcshow{/gchshow load cshow}!\n"
+	"/gcshow{show}!\n"
 	/* x y w h box - draw a box */
 	"/box{.6 SLW rectstroke}!\n"
+	/* str w gxshow - expand a guitar chord */
+	"/find{search{pop 3 -1 roll 1 add 3 1 roll}{pop exit}ifelse}!\n"
+	"/gxshow{1 index stringwidth pop\n"
+	"	sub 0 2 index(	){find}loop div\n"
+	"	0 9 4 -1 roll widthshow}!\n"
 
 	/* str anshow - annotation */
-	"/anshow{/gchshow load cshow}!\n"
+	"/anshow{show}!\n"
 
 	/* -- lyrics under notes -- */
 	/* l x y wln - underscore line */
@@ -827,23 +842,9 @@ void define_encoding(int enc,		/* index */
 		ename = enc_txt;
 		if (enc > 0)
 		    fprintf(fout, "/%s [\n"
-			"/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef\n"
-			"/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef\n"
-			"/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef\n"
-			"/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef\n"
-			"/space/exclam/quotedbl/numbersign/dollar/percent/ampersand/quoteright\n"
-			"/parenleft/parenright/asterisk/plus/comma/minus/period/slash\n"
-			"/zero/one/two/three/four/five/six/seven\n"
-			"/eight/nine/colon/semicolon/less/equal/greater/question\n"
-			/* (100) */
-			"/at/A/B/C/D/E/F/G\n"
-			"/H/I/J/K/L/M/N/O\n"
-			"/P/Q/R/S/T/U/V/W\n"
-			"/X/Y/Z/bracketleft/backslash/bracketright/asciicircum/underscore\n"
-			"/quoteleft/a/b/c/d/e/f/g\n"
-			"/h/i/j/k/l/m/n/o\n"
-			"/p/q/r/s/t/u/v/w\n"
-			"/x/y/z/braceleft/bar/braceright/asciitilde/.notdef\n"
+			"StandardEncoding 0 45 getinterval aload pop\n"
+			"/minus\n"
+			"StandardEncoding 46 82 getinterval aload pop\n"
 			/* (200) */
 			"/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef\n"
 			"/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef/.notdef\n"
@@ -855,12 +856,20 @@ void define_encoding(int enc,		/* index */
 	}
 	fprintf(fout, "/mkfontext%d{\n"
 		"	findfont dup length dict begin\n"
-		"		{1 index/FID ne{def}{pop pop}ifelse}forall\n"
-		"		/Encoding %s def\n"
+		"		{1 index/FID ne{def}{pop pop}ifelse}forall\n",
+		enc);
+	if (enc < ENC_NATIVE)
+	   fprintf(fout,
+		"		/Encoding %s dup length array copy def\n"
+		"		accfont\n",
+		ename);
+	   else fprintf(fout,
+		"		/Encoding %s def\n",
+		ename);
+	fprintf(fout,
 		"		currentdict\n"
 		"	end\n"
-		"	definefont pop}!\n",
-		enc, ename);
+		"	definefont pop}!\n");
 }
 
 /* -- define_font -- */

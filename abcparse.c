@@ -1276,7 +1276,6 @@ char *get_str(char *d,		/* destination */
 	      char *s,		/* source */
 	      int maxlen)	/* max length */
 {
-/*4.12.26+*/
 	char c;
 
 	maxlen--;		/* have place for the EOS */
@@ -1307,7 +1306,6 @@ char *get_str(char *d,		/* destination */
 			s++;
 		}
 	}
-/*4.12.26-*/
 	*d = '\0';
 	while (isspace((unsigned) *s))
 		s++;
@@ -1323,7 +1321,6 @@ static char *parse_tempo(char *p,
 
 	/* string before */
 	if (*p == '"') {
-/*4.12.26+*/
 		p = get_str(str, p, sizeof str);
 		s->u.tempo.str1 = alloc_f(strlen(str) + 1);
 		strcpy(s->u.tempo.str1, str);
@@ -1386,7 +1383,6 @@ static char *parse_tempo(char *p,
 
 	/* string after */
 	if (*p == '"') {
-/*4.12.26*/
 		p = get_str(str, p, sizeof str);
 		s->u.tempo.str2 = alloc_f(strlen(str) + 1);
 		strcpy(s->u.tempo.str2, str);
@@ -1896,6 +1892,8 @@ static char *parse_gchord(char *p,
 	more_gch = 0;
 	q = p;
 	while (*p != '"') {
+		if (*p == '\\')
+			p++;
 		if (*p == '\0') {
 			more_gch = 1;
 			break;
@@ -2182,7 +2180,7 @@ again:					/* for history */
 				t->last_sym->u.note.sappo = 1;
 				sappo = 0;
 			}
-			if (t->last_sym->u.note.lens[0] > 0)	/*4.12.21*/
+			if (t->last_sym->u.note.lens[0] > 0)	/* if not space */
 				curvoice->last_note = t->last_sym;
 			break;
 		case CHAR_SLASH:		/* '/' */
@@ -2621,7 +2619,7 @@ add_slurs:
 	}
 add_deco:
 	if (dc.n > 0) {
-		memcpy(s->type != ABC_T_MREST ? &s->u.note.dc	/*4.12.21*/
+		memcpy(s->type != ABC_T_MREST ? &s->u.note.dc
 				: &s->u.bar.dc,
 			&dc, sizeof dc);
 		dc.n = dc.h = dc.s = 0;

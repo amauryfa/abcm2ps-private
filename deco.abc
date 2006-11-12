@@ -233,7 +233,7 @@
 	    } ifelse
 	  } ifelse
 	dup dup length 1 sub 1 exch getinterval
-	/gchshow load cshow
+	show
 	pop}!
 %
 % -- 'tr' + long trill

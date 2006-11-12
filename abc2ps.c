@@ -61,7 +61,7 @@ int in_page;
 int pagenumbers;		/* write page numbers ? */
 int epsf;			/* for EPSF postscript output */
 
-char outf[STRL1];		/* output file name */
+char outfn[STRL1];		/* output file name */
 int  file_initialized;		/* for output file */
 FILE *fout;			/* output file */
 char *in_fname;			/* current input file name */
@@ -121,7 +121,7 @@ int main(int argc,
 		usage();
 
 	/* initialize */
-	outf[0] = '\0';
+	outfn[0] = '\0';
 	clrarena(0);			/* global desription */
 	clrarena(1);			/* tune description */
 	clrarena(2);			/* tune generation */
@@ -185,7 +185,7 @@ int main(int argc,
 					lock_fmt(&cfmt.writehistory);
 					break;
 				case 'O':
-					outf[0] = '\0';
+					outfn[0] = '\0';
 					break;
 				case 'Q':
 					cfmt.printtempo = 0;
@@ -196,7 +196,7 @@ int main(int argc,
 					lock_fmt(&cfmt.withxrefs);
 					break;
 				case 'W': nwhistle = 0; break;
-				case '0':		/*4.12.27*/
+				case '0':
 					cfmt.splittune = 0;
 					lock_fmt(&cfmt.splittune);
 					break;
@@ -282,7 +282,7 @@ int main(int argc,
 					cfmt.withxrefs = 1;
 					lock_fmt(&cfmt.withxrefs);
 					break;
-				case '0':		/*4.12.27*/
+				case '0':
 					cfmt.splittune = 1;
 					lock_fmt(&cfmt.splittune);
 					break;
@@ -442,7 +442,7 @@ int main(int argc,
 						}
 						break;
 					case 'O':
-						strcpy(outf, aaa);
+						strcpy(outfn, aaa);
 						break;
 					case 's':
 						sscanf(aaa, "%f", &cfmt.scale);
@@ -523,7 +523,7 @@ static void output_file(char *sel)
 		set_page_format();
 	memset(&default_info, 0, sizeof default_info);
 	default_info.title = &notitle;
-	notitle.as.text = "T:(notitle)";
+	notitle.as.text = "T:";
 	memcpy(&info, &default_info, sizeof info);
 	reset_deco(deco_old);
 	memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
@@ -556,8 +556,8 @@ static void do_filter(struct abctune *t, char *sel)
 			sel++;
 			end_sel = (int) ((unsigned) (~0) >> 1);
 			if (sscanf(sel, "%d%n", &end_sel, &n) != 1)
-				break;
-			sel += n;
+				end_sel = 65000;
+			else	sel += n;
 		} else	end_sel = cur_sel;
 		do_select(t, cur_sel, end_sel);
 		if (*sel != ',')

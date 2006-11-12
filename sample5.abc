@@ -1,0 +1,17 @@
+% sample5.abc - this file is part of abcm2ps
+
+X:1
+%%titleformat T,TTQ-1C1A1
+T:New features in abcm2ps-5.x.x
+T:Subtitle one
+T:Subtitle two
+C:This is the composer field
+A:This is the Area/Author field
+M:C
+L:1/4
+Q:"Tempo in the tune header"
+%%printtempo 0
+K:C
+%%printtempo 1
+Q:"Tempo in the tune body"
+"C"C"Dm	G"D2"C"C|cccc|cccc|c4||

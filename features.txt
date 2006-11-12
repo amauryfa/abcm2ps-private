@@ -1,5 +1,5 @@
-	Features of abcm2ps 4.12.6 (J.F. Moine, January 2006)
-	=====================================================
+	Features of abcm2ps 5.1.0 (J.F. Moine, September 2006)
+	======================================================
 
 abcm2ps tries to follow the ABC standard version 2.0:
 
@@ -243,6 +243,9 @@ Tune body.
 
 	- Annotations may contain '\#', '\b' and '\=' to display
 	  accidentals.
+
+	- Strings with ISO latin encoding may contain '\201', '\202'
+	  and '\203' to display accidentals.
 
 Clefs.
 

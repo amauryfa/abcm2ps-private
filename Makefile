@@ -1,16 +1,16 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 4.12.27
+VERSION = 5.1.2
 
 CC = gcc
 INSTALL = /usr/bin//install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
-CPPFLAGS = -DHAVE_CONFIG_H -I.
-CFLAGS = -g -O2 -Wall -pipe
-LDFLAGS = -lm	# 
+CPPFLAGS = -Wall -pipe -DHAVE_CONFIG_H -I. #-ansi 
+CFLAGS = -g -O2 
+LDFLAGS =	# 
 
 prefix = /usr/local
 exec_prefix = ${prefix}
@@ -19,7 +19,7 @@ srcdir = .
 bindir = ${exec_prefix}/bin
 libdir = ${exec_prefix}/lib
 datadir = ${prefix}/share
-docdir = /usr/local/doc
+docdir = ${prefix}/doc
 
 # unix
 OBJECTS=abc2ps.o \
@@ -91,6 +91,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample3.abc \
 	abcm2ps-$(VERSION)/sample3.eps \
 	abcm2ps-$(VERSION)/sample4.abc \
+	abcm2ps-$(VERSION)/sample5.abc \
 	abcm2ps-$(VERSION)/subs.c \
 	abcm2ps-$(VERSION)/syms.c \
 	abcm2ps-$(VERSION)/tight.fmt \
@@ -126,6 +127,8 @@ EXAMPLES = deco.ps \
 	sample.ps \
 	sample2.ps \
 	sample3.ps \
+	sample4.ps \
+	sample5.ps \
 	voices.ps
 
 test:	$(EXAMPLES)
