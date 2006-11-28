@@ -538,6 +538,19 @@ static void d_trill(struct deco_elt *de)
 	}
 
 	y = y_get(s2, up, x, dx, dd->h);
+	if (up) {
+		float stafft;
+
+		stafft = staff_tb[s->staff].topbar + 2;
+		if (y < stafft)
+			y = stafft;
+	} else {
+		float staffb;
+
+		staffb = staff_tb[s->staff].botbar - 2;
+		if (y > staffb)
+			y = staffb;
+	}
 	de->flags &= ~DE_LDEN;
 	de->flags |= DE_VAL;
 	de->v = dx;
@@ -553,13 +566,15 @@ static void d_upstaff(struct deco_elt *de)
 {
 	struct SYMBOL *s;
 	struct deco_def_s *dd;
-	float x, yc;
+	float x, yc, stafft, staffb;
 	int inv;
 
 	s = de->s;
 	dd = &deco_def_tb[de->t];
 	inv = 0;
 	x = s->x + s->shhd[s->stem >= 0 ? 0 : s->nhd];
+	stafft = staff_tb[s->staff].topbar + 2;
+	staffb = staff_tb[s->staff].botbar - 2;
 	if (dd->str != 0)
 		de->str = dd->str == 255 ? dd->name : str_tb[dd->str];
 	switch (de->t) {
@@ -567,15 +582,15 @@ static void d_upstaff(struct deco_elt *de)
 		if (s->multi < 0
 		    || (s->multi == 0 && s->stem > 0)) {
 			yc = y_get(s, 0, s->x, 0, 0);
-			if (yc > -2)
-				yc = -2;
+			if (yc > staffb)
+				yc = staffb;
 			yc -= dd->h;
 			y_set(s, 0, s->x, 0, yc);
 			inv = 1;
 		} else {
 			yc = y_get(s, 1, s->x, 0, 0) + 3;
-			if (yc < 24 + 2)
-				yc = 24 + 2;
+			if (yc < stafft)
+				yc = stafft;
 			if (s->stem <= 0
 			    && (s->dots == 0 || ((int) s->y % 6)))
 				yc -= 2;
@@ -588,7 +603,7 @@ static void d_upstaff(struct deco_elt *de)
 	case 18: {	/* shortphrase */
 		int stime, seq;
 
-		yc = 24 + 3;
+		yc = stafft + 1;
 		stime = s->time;
 		seq = s->seq;
 		for (s = s->ts_next; s != 0; s = s->ts_next)
@@ -608,13 +623,13 @@ static void d_upstaff(struct deco_elt *de)
 		    && de->t != 19	/* invertedfermata */
 		    && !(de->flags & DE_BELOW)) {
 			yc = y_get(s, 1, s->x, 0, 0);
-			if (yc < 24 + 2)
-				yc = 24 + 2;
+			if (yc < stafft)
+				yc = stafft;
 			y_set(s, 1, s->x, 0, yc + dd->h);
 		} else {
 			yc = y_get(s, 0, s->x, 0, 0);
-			if (yc > -2)
-				yc = -2;
+			if (yc > staffb)
+				yc = staffb;
 			yc -= dd->h;
 			y_set(s, 0, s->x, 0, yc);
 			switch (de->t) {
@@ -1336,7 +1351,7 @@ void draw_deco_staff(void)
 			continue;
 
 		/* search the max y offset */
-		y = 24 + 6 + 20;
+		y = staff_tb[p_voice->staff].topbar + 6 + 20;
 		first_repeat = 0;
 		for (s = p_voice->sym->next; s != 0; s = s->next) {
 			if (s->type != BAR
@@ -1778,8 +1793,8 @@ void draw_measnb(void)
 			x = 0;
 			w = 20;
 			y = y_get(s, 1, x, w, 0);
-			if (y < 24 + 14)
-				y = 24 + 14;
+			if (y < staff_tb[0].topbar + 14)
+				y = staff_tb[0].topbar + 14;
 			PUT0("0 ");
 			puty(y);
 			PUT2("y0 M(%d)%s",nbar, showm);
@@ -1797,8 +1812,8 @@ void draw_measnb(void)
 			if (cfmt.measurebox)
 				w += 4;
 			y = y_get(s, 1, x, w, 0);
-			if (y < 24 + 7)
-				y = 24 + 7;
+			if (y < staff_tb[0].topbar + 7)
+				y = staff_tb[0].topbar + 7;
 			putxy(x, y);
 			PUT2("y0 M(%d)%s", nbar, showm);
 			y_set(s, 1, x, w, y + cfmt.font_tb[MEASUREFONT].size + 2);
@@ -1863,8 +1878,8 @@ void draw_measnb(void)
 			w += 4;
 		x = s->x - w * 0.4;
 		y = y_get(s, 1, x, w, 0);
-		if (y < 24 + 7)
-			y = 24 + 7;
+		if (y < staff_tb[0].topbar + 7)
+			y = staff_tb[0].topbar + 7;
 		if (s->next->type == NOTE) {
 			if (s->next->stem > 0) {
 				if (y < s->next->ys - cfmt.font_tb[MEASUREFONT].size)
@@ -2032,7 +2047,7 @@ float draw_partempo(float top,
 		str_font(TEMPOFONT);
 
 		/* get the minimal y offset */
-		ymin = 24 + 12;
+		ymin = staff_tb[0].topbar + 12;
 		dosh = 0;
 		shift = 1;
 		x = 0;
@@ -2081,7 +2096,7 @@ float draw_partempo(float top,
 /*fixme: should reduce if parts don't overlap tempo...*/
 	h = cfmt.font_tb[PARTSFONT].size + 2 + 2;	/* + cfmt.partsspace; */
 	str_font(PARTSFONT);
-	ymin = 24 + 14;
+	ymin = staff_tb[0].topbar + 14;
 	for (s = first_voice->sym->next; s != 0; s = s->next) {
 		if (s->type != PART)
 			continue;

@@ -1704,6 +1704,13 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		}
 		break;
 	case 'm':
+		if (strcmp(w, "maxsysstaffsep") == 0) {
+			if (as->state != ABC_S_TUNE
+			    && as->state != ABC_S_EMBED)
+				break;
+			curvoice->maxsep = scan_u(p);
+			return as;
+		}
 		if (strcmp(w, "multicol") == 0) {
 			float bposy;
 
@@ -1863,6 +1870,13 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			get_staves((struct SYMBOL *) as);
 			curvoice = first_voice;
 			staves_found = 1;
+			return as;
+		}
+		if (strcmp(w, "sysstaffsep") == 0) {
+			if (as->state != ABC_S_TUNE
+			    && as->state != ABC_S_EMBED)
+				break;
+			curvoice->sep = scan_u(p);
 			return as;
 		}
 		break;

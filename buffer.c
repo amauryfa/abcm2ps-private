@@ -113,27 +113,19 @@ static void init_ps(char *str, int is_epsf)
 		"/RC/rcurveto load def\n"
 		"/SLW/setlinewidth load def\n"
 		"/defl 0 def\n"	/* decoration flags - see deco.c for values */
-		"/dlw{0.7 SLW}!\n");
-	if (cfmt.pslevel < 2)
-		/* (simple!) level2 emulation */
-	    fprintf(fout, 
-		"/cshow{exch dup{fh fh 4 index exec}forall pop pop}!\n"
-/*		"/glyphshow{currentfont/Encoding .knownget not{{}} if\n" */
-		"/glyphshow{currentfont/Encoding get\n"
-		"   0 1 2 index length 1 sub{\n"	/* stack: glyph encoding index */
-		"      2 copy get 3 index eq{exch pop exch pop null exit}if\n"
-		"      pop\n"
-		"    }\n"
-		"   for null eq{(X) dup 0 4 -1 roll put show}{pop}ifelse\n"
-		"}!\n"
-		"/rectstroke{\n"
+		"/dlw{0.7 SLW}!\n"
+
+	/* (simple!) level2 emulation */
+		"languagelevel 1 eq{\n"
+		" /rectstroke{\n"
 		"	4 2 roll M 1 index 0 RL 0 exch RL neg 0 RL closepath\n"
 		"	stroke}!\n"
-		"/rectfill{\n"
+		" /rectfill{\n"
 		"	4 2 roll M 1 index 0 RL 0 exch RL neg 0 RL closepath\n"
 		"	fill}!\n"
-		"/selectfont{exch findfont exch dup\n"
-		"	type/arraytype eq{makefont}{scalefont}ifelse setfont}!\n");
+		" /selectfont{exch findfont exch dup\n"
+		"	type/arraytype eq{makefont}{scalefont}ifelse setfont}!\n"
+		" }if\n");
 	define_symbols();
 	user_ps_write();
 	define_fonts();

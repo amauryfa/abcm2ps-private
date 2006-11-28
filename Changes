@@ -1,3 +1,15 @@
+---- Version 5.2.0 - 06/11/29 ----
+
+Handle some type 3 fonts.
+Do the PostScript output always work with level 1 interpreters.
+Do the PostScript output work again with RoPS.
+Better place of dots when close voice overlay (again!).
+Have the decorations tied to notes under the slurs.
+Handle the number of lines per staff when displaying the staff system.
+Bad left system bar when stafflines of the lowest staff <= 3.
+Apply %%sysstaffsep and %%maxsysstaffsep to the current voice
+	when in tune.
+
 ---- Version 5.1.2 - 06/11/13 ----
 
 Align or center the EPS content according to %%textoption.

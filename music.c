@@ -693,7 +693,7 @@ static void def_tssym(void)
 		prev_sym = s;
 		p_voice->s_anc = s->next;
 	}
-	bars = 0;			/* (for errors) */
+	bars = nbar- 1;			/* (for errors - KO if not -j ) */
 	for (;;) {
 
 		/* search the closest next time/sequence */
@@ -1585,10 +1585,13 @@ static void set_global(void)
 	}
 
 	/* set the starting clefs and adjust the note pitches */
-	for (p_voice = first_voice; p_voice; p_voice = p_voice->next)
+	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 		memcpy(&p_voice->sym->as.u.clef,
 		       &staff_tb[p_voice->staff].clef,
 		       sizeof p_voice->sym->as.u.clef);
+		staff_tb[p_voice->staff].sep = p_voice->sep;
+		staff_tb[p_voice->staff].maxsep = p_voice->maxsep;
+	}
 	set_pitch();
 }
 
@@ -1726,20 +1729,22 @@ static float set_staff(void)
 	} else	dy = 0;
 
 	/* set the staff offsets */
-	staffsep = cfmt.staffsep * 0.5 + 24;
-	maxsep = cfmt.maxstaffsep * 0.5 + 24;
+	staffsep = cfmt.staffsep * 0.5;
+	maxsep = cfmt.maxstaffsep * 0.5;
 	y = 0;
 	for (staff = 0, p_delta = delta_tb;
 	     staff <= nstaff;
 	     staff++, p_delta++) {
 		scale = staff_tb[staff].clef.staffscale;
 		dy += p_delta->mtop * scale;
-		if (staff_tb[staff].empty)
-			;
-		else if (dy < staffsep)
-			dy = staffsep;
-		else if (dy > maxsep)
-			dy = maxsep;
+		if (!staff_tb[staff].empty) {
+			staffsep += staff_tb[staff].topbar;
+			if (dy < staffsep)
+				dy = staffsep;
+			maxsep += staff_tb[staff].topbar;
+			if (dy > maxsep)
+				dy = maxsep;
+		}
 		y += dy;
 		staff_tb[staff].y = -y;
 		PUT2("/y%d{%.1f add}def\n", staff, -y);
@@ -1747,10 +1752,12 @@ static float set_staff(void)
 			PUT3("/scst%d{gsave 0 %.2f translate %.2f dup scale}def\n",
 			     staff, -y, scale);
 		}
-		if (staff == 0) {
-			staffsep = cfmt.sysstaffsep + 24;
-			maxsep = cfmt.maxsysstaffsep + 24;
-		}
+		if (staff_tb[staff].sep != 0)
+			staffsep = staff_tb[staff].sep;
+		else	staffsep = cfmt.sysstaffsep;
+		if (staff_tb[staff].maxsep != 0)
+			maxsep = staff_tb[staff].maxsep;
+		else	maxsep = cfmt.maxsysstaffsep;
 		dy = 0;
 	}
 	if (mbot == 0) {
@@ -1765,7 +1772,7 @@ static float set_staff(void)
 	staffsep = cfmt.staffsep * 0.5;
 	if (dy < staffsep)
 		dy = staffsep;
-	maxsep = cfmt.maxstaffsep * 0.5 + 24;
+	maxsep = cfmt.maxstaffsep * 0.5;
 	if (dy > maxsep)
 		dy = maxsep;
 	y += dy;
@@ -2128,9 +2135,13 @@ static void set_overlap(void)
 		if (d == -1
 		    && (s1->nhd == 0 || s1->pits[1] > s2->pits[s2->nhd])
 		    && (s2->nhd == 0 || s1->pits[0] > s2->pits[s2->nhd - 1])) {
-			if (!s->as.u.note.stemless)
+			if (!s->as.u.note.stemless) {
 				d1 = noteshift;
-			else	d2 = noteshift;
+				if (s2->dots && s1->dots == s2->dots) {
+					sd2 = 1;
+					dy1 = -3;
+				}
+			} else	d2 = noteshift;
 			goto do_shift;
 		}
 
@@ -2166,9 +2177,11 @@ static void set_overlap(void)
 					d1 = noteshift;
 				else	d2 = noteshift;
 /*fixme:if second, see if dots may be distinguished?*/
-			} else if (d == 1)
+			} else if (d == 1) {
 				d2 = noteshift;
-			else	d1 = noteshift;
+				if (s1->dots)
+					sd1 = 1;
+			} else	d1 = noteshift;
 			if (t >= 4) {		/* if unisson */
 				if (d1 != 0)
 					d1 += 1.5;
@@ -3511,6 +3524,7 @@ static void find_piece(void)
 static void init_music_line(struct VOICE_S *p_voice)
 {
 	struct SYMBOL *s, *sym;
+	struct STAFF_S *p_staff;
 
 	sym = p_voice->sym;
 	p_voice->sym = 0;
@@ -3526,26 +3540,39 @@ static void init_music_line(struct VOICE_S *p_voice)
 	}
 
 	/* add clef */
+	p_staff = &staff_tb[p_voice->staff];
 	if (sym != 0 && sym->type == CLEF
 	    && !p_voice->second && p_voice->staff == sym->staff) {
 		int stafflines;
 		float staffscale;
 
 		if ((stafflines = sym->as.u.clef.stafflines) < 0)
-			stafflines = staff_tb[p_voice->staff].clef.stafflines;
+			stafflines = p_staff->clef.stafflines;
 		if ((staffscale = sym->as.u.clef.staffscale) == 0)
-			staffscale = staff_tb[p_voice->staff].clef.staffscale;
+			staffscale = p_staff->clef.staffscale;
 		if (sym->as.u.clef.type >= 0)
-			memcpy(&staff_tb[p_voice->staff].clef,
+			memcpy(&p_staff->clef,
 				&sym->as.u.clef,
 				sizeof sym->as.u.clef);
-		staff_tb[p_voice->staff].clef.stafflines = stafflines;
-		staff_tb[p_voice->staff].clef.staffscale = staffscale;
+		p_staff->clef.stafflines = stafflines;
+		p_staff->clef.staffscale = staffscale;
 		sym = delsym(sym);
+	}
+	p_staff->botbar = p_staff->clef.stafflines <= 3 ? 6 : 0;
+	switch (p_staff->clef.stafflines) {
+	case 0:
+	case 1:
+	case 3:
+	case 4:	p_staff->topbar = 18; break;
+	case 2:	p_staff->topbar = 12; break;
+	case 5:	p_staff->topbar = 24; break;
+	default:
+		p_staff->topbar = 6 * (p_staff->clef.stafflines - 1);
+		break;
 	}
 	s = add_sym(p_voice, CLEF);
 	s->seq--;		/* else, pb when clef change */
-	memcpy(&p_voice->clef, &staff_tb[p_voice->staff].clef,
+	memcpy(&p_voice->clef, &p_staff->clef,
 	       sizeof p_voice->clef);
 	memcpy(&s->as.u.clef, &p_voice->clef, sizeof s->as.u.clef);
 

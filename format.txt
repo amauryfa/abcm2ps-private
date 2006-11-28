@@ -457,14 +457,18 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Set the maximum vertical interstaff space to <unit>.
+		Do not put a staff system further than <unit> from the
+		previous system.
 
   maxsysstaffsep <unit>
 	Default: 2000pt
 	Compilation: none
 	Command line: none
 	Description:
-		Set the maximum vertical system interstaff space to <unit>.
+		Do not put the staves further than <unit> inside a system.
+		This values applies to all staves when global or in
+		the tune header. Otherwise, it defines the maximum
+		vertical offset of the next staff.
 
   measurebox <bool>
 	Default: 0
@@ -701,7 +705,8 @@ List of the format parameters
 	Compilation: none
 	Command line: -d<unit>
 	Description:
-		Set the vertical interstaff space to <unit>.
+		Do not put a staff system closer than <unit> from the
+		previous system.
 
   staffwidth <unit>
 	Default: none
@@ -758,7 +763,10 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Set the vertical space between staves in a system to <unit>.
+		Do not put the staves closer than <unit> inside a system.
+		This values applies to all staves when global or in
+		the tune header. Otherwise, it defines the minimum
+		vertical offset of the next staff.
 
   tempofont <font> [<encoding>] [<size>]
 	Default: Times-Bold 15
@@ -967,7 +975,7 @@ List of the format parameters
 		with a size <size>.
 
   wordsspace <unit>
-	Default: 0.5cm
+	Default: 0cm
 	Compilation: none
 	Command line: none
 	Description:

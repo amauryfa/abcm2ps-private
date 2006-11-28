@@ -559,27 +559,6 @@ static void draw_beams(struct BEAM *bm)
 	}
 }
 
-/* -- calculate the lower and upper y offset of a measure bar -- */
-static int botbar(int nlines)
-{
-	if (nlines <= 3)
-		return 6;
-	return 0;
-}
-
-static int topbar(int nlines)
-{
-	switch (nlines) {
-	case 0:
-	case 1:
-	case 3:
-	case 4:	return 18;
-	case 2:	return 12;
-	case 5:	return 24;
-	}
-	return 6 * (nlines - 1);
-}
-
 /* -- draw the left side of the staves -- */
 static void draw_lstaff(float x)
 {
@@ -610,11 +589,11 @@ static void draw_lstaff(float x)
 	if (i == j && brace == 0)
 		return;
 	set_scale(-1);
+	yb = staff_tb[j].y + staff_tb[j].botbar * staff_tb[j].clef.staffscale;
 	PUT3("%.1f %.1f %.1f bar\n",
-	     staff_tb[i].y - staff_tb[j].y
-		+ topbar(staff_tb[i].clef.stafflines) * staff_tb[i].clef.staffscale,
-	     x, staff_tb[j].y
-		+ botbar(staff_tb[j].clef.stafflines) * staff_tb[j].clef.staffscale);
+	     staff_tb[i].y + staff_tb[i].topbar * staff_tb[i].clef.staffscale
+		- yb,
+	     x, yb);
 	x0 = y0 = yb = 0;
 	brace = bracket = 0;
 	for (i = 0; i <= nstaff; i++) {
@@ -634,7 +613,7 @@ static void draw_lstaff(float x)
 		if (staff_tb[i].brace || brace) {
 			x0 = x;
 			y0 = yb;
-			yb = y + topbar(staff_tb[i].clef.stafflines)
+			yb = y + staff_tb[i].topbar
 				* staff_tb[i].clef.staffscale;
 			x -= 6;
 			if (brace)
@@ -643,7 +622,7 @@ static void draw_lstaff(float x)
 		if (staff_tb[i].bracket || bracket) {
 			x0 = x;
 			y0 = yb;
-			yb = y + topbar(staff_tb[i].clef.stafflines)
+			yb = y + staff_tb[i].topbar
 				* staff_tb[i].clef.staffscale;
 			x -= 6;
 			if (bracket)
@@ -651,7 +630,7 @@ static void draw_lstaff(float x)
 		}
 		if (staff_tb[i].brace_end) {
 			x += 6;
-			y += botbar(staff_tb[i].clef.stafflines)
+			y += staff_tb[i].botbar
 				* staff_tb[i].clef.staffscale;
 			PUT3("%.1f %.1f %.1f brace\n",
 			     yb - y, x, yb);
@@ -659,7 +638,7 @@ static void draw_lstaff(float x)
 		}
 		if (staff_tb[i].bracket_end) {
 			x += 6;
-			y += botbar(staff_tb[i].clef.stafflines)
+			y += staff_tb[i].botbar
 				* staff_tb[i].clef.staffscale;
 			PUT3("%.1f %.1f %.1f bracket\n",
 			     yb - y, x, yb);
@@ -936,7 +915,7 @@ static void draw_bar(float x, struct SYMBOL *s)
 	}
 	staff = voice_tb[s->voice].staff;	/* (may be != s->staff) */
 	y = staff_tb[staff].y;
-	stafft = y + topbar(staff_tb[staff].clef.stafflines)
+	stafft = y + staff_tb[staff].topbar
 		* staff_tb[staff].clef.staffscale;
 	longbar = staff < nstaff && !staff_tb[staff].stop_bar;
 	if (longbar) {
@@ -948,10 +927,10 @@ static void draw_bar(float x, struct SYMBOL *s)
 	}
 	if (longbar)
 		staffb = staff_tb[staff + 1].y
-			+ topbar(staff_tb[staff + 1].clef.stafflines)
+			+ staff_tb[staff + 1].topbar
 				* staff_tb[staff + 1].clef.staffscale;
 	else	staffb = y
-			+ botbar(staff_tb[staff].clef.stafflines)
+			+ staff_tb[staff].botbar
 				* staff_tb[staff].clef.staffscale;
 	for (;;) {
 		psf = "bar";
@@ -3174,8 +3153,8 @@ static void draw_all_lyrics(void)
  * - decorations near the notes
  * - measure bar numbers
  * - n-plets
- * - slurs
  * - decorations tied to the notes
+ * - slurs
  * - guitar chords
  * - then remaining decorations
  */
@@ -3253,6 +3232,8 @@ void draw_sym_near(void)
 	if (cfmt.measurenb >= 0)
 		draw_measnb();
 
+	draw_deco_note();
+
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 		for (s = p_voice->sym->next; s != 0; s = s->next) {
 			if (s->type == TUPLET)
@@ -3266,8 +3247,8 @@ void draw_sym_near(void)
 		int top, bot, i, staff;
 
 		for (staff = 0; staff <= nstaff; staff++) {
-			top = topbar(staff_tb[staff].clef.stafflines) + 2;
-			bot = botbar(staff_tb[staff].clef.stafflines) - 2;
+			top = staff_tb[staff].topbar + 2;
+			bot = staff_tb[staff].botbar - 2;
 /*fixme:should handle stafflines changes*/
 			for (i = 0; i < YSTEP; i++) {
 				if (top > staff_tb[staff].top[i])
@@ -3277,7 +3258,6 @@ void draw_sym_near(void)
 			}
 		}
 	}
-	draw_deco_note();
 	outft = -1;
 	draw_all_lyrics();
 	draw_deco_staff();

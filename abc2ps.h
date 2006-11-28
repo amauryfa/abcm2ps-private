@@ -331,9 +331,10 @@ struct STAFF_S {
 	unsigned forced_clef:1;	/* explicit clef */
 	unsigned stop_bar:1;	/* stop drawing measure bar on this staff */
 	unsigned empty:1;	/* no symbol on this staff */
+	short botbar, topbar;	/* bottom and top of bar */
 	float y;		/* y position */
-	float scale;
-	float space;		/* distance to the next staff */
+	float sep;		/* distance to the next staff */
+	float maxsep;		/* max distance to the next staff */
 	float top[YSTEP], bot[YSTEP];	/* top/bottom y offsets */
 };
 extern struct STAFF_S staff_tb[MAXSTAFF];
@@ -351,7 +352,8 @@ struct VOICE_S {
 	struct SYMBOL *tie;	/* note with ties of previous line */
 	struct SYMBOL *rtie;	/* note with ties before 1st repeat bar */
 	float scale;		/* scale */
-	float space;		/* distance to the next staff */
+	float sep;		/* distance to the next staff */
+	float maxsep;		/* max distance to the next staff */
 	int time;		/* current time while parsing */
 	struct clef_s clef;	/* current clef */
 	struct key_s key;	/* current key signature */
@@ -362,7 +364,7 @@ struct VOICE_S {
 	unsigned floating:1;	/* floating voice in a brace */
 	unsigned selected:1;	/* selected while sorting by time (music.c) */
 	unsigned bar_repeat:1;	/* bar at start of staff is a repeat bar */
-	unsigned norepbra:1;	/* display the repeat brackets */
+	unsigned norepbra:1;	/* don't display the repeat brackets */
 	unsigned have_ly:1;	/* some lyrics in this voice */
 	unsigned whistle:1;	/* tin whistle for this voice */
 	short wmeasure;		/* measure duration while parsing */
