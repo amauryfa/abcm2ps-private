@@ -1,3 +1,12 @@
+---- Version 5.2.1 - 06/12/?? ----
+
+Bad encoding and calculated size when '$0" in a string.
+Handle some "$n" in lyrics under staff.
+%%tablature added.
+Add elements to build a tune index (thanks to the script 'abcmaddidx.tcl').
+New command line option '-i' added.
+%%pslevel removed.
+
 ---- Version 5.2.0 - 06/11/29 ----
 
 Handle some type 3 fonts.

@@ -1747,6 +1747,7 @@ static float set_staff(void)
 		}
 		y += dy;
 		staff_tb[staff].y = -y;
+/*fixme: handle tabheight*/
 		PUT2("/y%d{%.1f add}def\n", staff, -y);
 		if (scale != 1) {
 			PUT3("/scst%d{gsave 0 %.2f translate %.2f dup scale}def\n",
@@ -3791,6 +3792,17 @@ void output_music(void)
 		for (p_voice = first_voice; p_voice; p_voice = p_voice->next)
 			draw_symbols(p_voice);
 		draw_all_deco();
+		if (showerror > 1) {
+			struct SYMBOL *s;
+
+			showerror = 1;
+			for (s = first_voice->sym; s != 0; s = s->ts_next) {
+				if (s->sflags & S_ERROR) {
+					putxy(s->x, staff_tb[s->staff].y + s->y);
+					PUT0("showerror\n");
+				}
+			}
+		}
 		bskip(line_height);
 		if (nwhistle != 0)
 			draw_whistle();

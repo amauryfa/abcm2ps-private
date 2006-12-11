@@ -2871,38 +2871,53 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 	}
 }
 
-/* -- draw the lyrics under notes -- */
+/* -- draw the lyrics under (or above) notes -- */
 /* !! this routine is tied to set_width() !! */
 static float draw_lyrics(struct VOICE_S *p_voice,
 			 int nly,
 			 float y,
 			 int incr)
 {
-	int hyflag, l, j, lflag;
+	int hyflag, l, j, lflag, jtab;
 	float lastx, w, lskip, desc;
 	struct FONTSPEC *f;
 
 	lskip = 0;			/* (compiler warning) */
 	f = 0;				/* (force new font) */
+	jtab = p_voice->tabheight == 0 ? -1 : nly - 1;
 	if (incr > 0) {			/* under the staff */
 		j = 0;
 /*fixme: may not be the current font*/
-		y -= cfmt.font_tb[VOCALFONT].size;
-		if (y > -cfmt.vocalspace)
-			y = -cfmt.vocalspace;
+		if (j != jtab) {
+			y -= cfmt.font_tb[VOCALFONT].size;
+			if (y > -cfmt.vocalspace)
+				y = -cfmt.vocalspace;
+		} else {
+			y -= p_voice->tabheight;
+		}
 	} else {
 		j = nly - 1;
 		nly = -1;
-		if (y < 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size)
-			y = 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size;
+		if (j != jtab) {
+			if (y < 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size)
+				y = 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size;
+		}
 	}
 /*fixme: may not be the current font*/
-	desc = cfmt.font_tb[VOCALFONT].size * 0.25;	/* descent */
+	if (j != jtab)
+		desc = cfmt.font_tb[VOCALFONT].size * 0.25;	/* descent */
+	else	desc = 0;
 	for (; j != nly ; j += incr) {
 		struct SYMBOL *s;
 		float x0, shift;
 
 		PUT2("/y{%.1f y%d}def ", y + desc, p_voice->staff);
+		if (j == jtab) {
+			set_font(VOCALFONT);
+			f = 0;
+			PUT2("%.1f 0 y %s\n",
+				realwidth, p_voice->tabhead);
+		}
 		hyflag = lflag = 0;
 		if (p_voice->hy_st & (1 << j)) {
 			hyflag = 1;
@@ -2913,8 +2928,10 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 				break;
 		lastx = s->prev->x;
 		x0 = 0;
-		if (f != 0)
-			lskip = f->size * 1.1;
+		if (j != jtab) {
+			if (f != 0)
+				lskip = f->size * 1.1;
+		} else	lskip = p_voice->tabheight;
 		for ( ; s != 0; s = s->next) {
 			struct lyrics *ly;
 			struct lyl *lyl;
@@ -2923,6 +2940,11 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 			if ((ly = s->ly) == 0
 			    || (lyl = ly->lyl[j]) == 0) {
 				switch (s->type) {
+				case BAR:
+					if (j == jtab)
+						PUT2("(|)%.1f y %s ",
+							s->x, p_voice->tabfunc);
+					break;
 				case REST:
 				case MREST:
 				case MREP:
@@ -2935,11 +2957,10 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 				}
 				continue;
 			}
-			if (lyl->f != f) {		/* font change */
-				f = lyl->f;
-				set_font(f - cfmt.font_tb);
-				if (lskip < f->size * 1.1)
-					lskip = f->size * 1.1;
+			if (j == jtab) {		/* if tablature */
+				PUT3("(%s)%.1f y %s ",
+					lyl->t, s->x, p_voice->tabfunc);
+				continue;
 			}
 			p = lyl->t;
 			w = lyl->w;
@@ -2976,6 +2997,12 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 			if (p[l] == '\x02') {		/* '-' at end */
 				p[l] = '\0';
 				hyflag = 1;
+			}
+			if (lyl->f != f) {		/* font change */
+				f = lyl->f;
+				set_font(f - cfmt.font_tb);
+				if (lskip < f->size * 1.1)
+					lskip = f->size * 1.1;
 			}
 			PUT2("%.1f y M(%s)lyshow ", x0, p);
 			lastx = x0 + w;

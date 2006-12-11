@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.2.0
+VERSION = 5.2.1
 
 CC = gcc
 INSTALL = /usr/bin//install -c
@@ -94,6 +94,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample5.abc \
 	abcm2ps-$(VERSION)/subs.c \
 	abcm2ps-$(VERSION)/syms.c \
+	abcm2ps-$(VERSION)/tablature.abc \
 	abcm2ps-$(VERSION)/tight.fmt \
 	abcm2ps-$(VERSION)/voices.abc
 

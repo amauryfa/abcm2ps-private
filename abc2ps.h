@@ -154,16 +154,17 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_BEAM_BR1	0x0004		/* 2nd beam must restart here */
 #define S_OTHER_HEAD	0x0008		/* don't draw any note head */
 #define S_IN_TUPLET	0x0010		/* in a tuplet */
+#define S_TREM		0x0020		/* tremolo (when note) */
 #define S_RRBAR		0x0020		/* right repeat bar (when bar) */
-#define S_NOREPBAR	0x0040		/* don't draw the repeat bar (when bar) */
 #define S_XSTEM		0x0040		/* cross-staff stem (when note) */
+#define S_NOREPBAR	0x0040		/* don't draw the repeat bar (when bar) */
 #define S_BEAM_ON	0x0080		/* continue beaming */
 #define S_SL1		0x0100		/* some chord slur start */
 #define S_SL2		0x0200		/* some chord slur end */
 #define S_TI1		0x0400		/* some chord tie start */
 #define S_DYNUP		0x0800		/* dynamic marks above the staff */
 #define S_DYNDN		0x1000		/* dynamic marks below the staff */
-#define S_TREM		0x2000		/* tremolo */
+#define S_ERROR		0x2000		/* error on this symbol */
 #define S_RBSTOP	0x4000		/* repeat bracket stop */
 #define S_BEAM_BR2	0x8000		/* 3rd beam must restart here */
 	unsigned char nhd;	/* number of notes in chord - 1 */
@@ -229,7 +230,7 @@ struct FORMAT { 		/* struct for page layout */
 	int encoding, exprabove, exprbelow, flatbeams, freegchord;
 	int infoline, gchordbox, graceslurs, comball, hyphencont;
 	int landscape, measurenb, measurefirst, measurebox, musiconly;
-	int oneperpage, partsbox, printparts, printtempo, pslevel;
+	int oneperpage, partsbox, printparts, printtempo;
 	int setdefl, shifthnote, splittune, squarebreve;
 	int straightflags, stretchstaff, stretchlast;
 	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
@@ -302,6 +303,7 @@ extern int defl;		/* decoration flags */
 		/* switches modified by flags: */
 extern int pagenumbers; 	/* write page numbers */
 extern int epsf;		/* for EPSF postscript output */
+extern int showerror;		/* show the errors */
 
 extern char outfn[STRL1];	/* output file name */
 extern char *in_fname;		/* current input file name */
@@ -351,6 +353,9 @@ struct VOICE_S {
 	char *bar_text;		/* bar text at start of staff when bar_start */
 	struct SYMBOL *tie;	/* note with ties of previous line */
 	struct SYMBOL *rtie;	/* note with ties before 1st repeat bar */
+	char *tabhead;		/* tablature:	PS head function */
+	char *tabfunc;		/*		note function */
+	float tabheight;	/*		height */
 	float scale;		/* scale */
 	float sep;		/* distance to the next staff */
 	float maxsep;		/* max distance to the next staff */

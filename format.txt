@@ -601,13 +601,6 @@ List of the format parameters
 		function or to define new functions for use in a 'deco'
 		format.
 
-  pslevel <int>
-	Default: 2
-	Compilation: none
-	Command line: none
-	Description:
-		Set the PostScript level for output. It may be 1, 2 or 3.
-
   printparts <bool>
 	Default: 1
 	Compilation: none
@@ -1063,6 +1056,20 @@ List of the pseudo-comments treated while parsed
 
   staves <definition>
 	See 'features.txt' for description.
+
+  tablature <unit> <head-func> <note-func>
+	Define a tablature for the current voice.
+	<unit> gives the tablature height.
+	<head-func> is the PostScript function called at tablature
+	start. When called, the stack contains:
+		- the music line width,
+		- the x and y offsets.
+	<note-func> is the PostScript function called at each note
+	or bar. When called, the stack contains:
+		- the string as defined by the 'w:' line ('|' for
+		  a measure bar),
+		- the x and y offsets.
+	See 'tablature.abc' for example.
 
   text <line of text>
 	Print one line of text.

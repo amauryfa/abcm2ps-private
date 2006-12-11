@@ -94,6 +94,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample5.abc \
 	abcm2ps-$(VERSION)/subs.c \
 	abcm2ps-$(VERSION)/syms.c \
+	abcm2ps-$(VERSION)/tablature.abc \
 	abcm2ps-$(VERSION)/tight.fmt \
 	abcm2ps-$(VERSION)/voices.abc
 

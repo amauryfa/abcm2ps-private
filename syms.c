@@ -764,6 +764,11 @@ static char ps_head[] =
 	"/tw_pp{	pop 3 sub -53.5 M 6 0 RL\n"
 	"	-1.5 -1.5 RM 0 3 RL\n"
 	"	-3 0 RM 0 -3 RL stroke}!\n"
+
+	/* x y showerror */
+	"/showerror{	gsave 1 0.7 0.7 setrgbcolor 2.5 SLW 2 copy newpath\n"
+	"	30 0 360 arc stroke grestore}!\n"
+
 	"0 setlinecap 0 setlinejoin\n";
 
 static char *enc_tb[MAXENC] = {

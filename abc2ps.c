@@ -60,6 +60,7 @@ int in_page;
 				/* switches modified by flags: */
 int pagenumbers;		/* write page numbers ? */
 int epsf;			/* for EPSF postscript output */
+int showerror;		/* show the errors */
 
 char outfn[STRL1];		/* output file name */
 int  file_initialized;		/* for output file */
@@ -166,6 +167,9 @@ int main(int argc,
 					cfmt.graceslurs = 1;
 					lock_fmt(&cfmt.graceslurs);
 					break;
+				case 'i':
+					showerror = 0;
+					break;
 				case 'j':
 				case 'k':
 					cfmt.measurenb = -1;
@@ -258,6 +262,9 @@ int main(int argc,
 					print_format();
 					return 0;
 				case 'h': usage(); break;
+				case 'i':
+					showerror = 1;
+					break;
 				case 'l':
 					cfmt.landscape = 1;
 					lock_fmt(&cfmt.landscape);
@@ -699,21 +706,22 @@ static void usage(void)
 		"     -E      produce EPSF output, one tune per file\n"
 		"     -O fff  set outfile name to fff\n"
 		"     -O =    make outfile name from infile/title\n"
+		"     -i      indicate where are the errors\n"
 		"  .output formatting:\n"
 		"     -s xx   set scale factor to xx\n"
 		"     -w xx   set staff width (cm/in/pt)\n"
 		"     -m xx   set left margin (cm/in/pt)\n"
 		"     -d xx   set staff separation (cm/in/pt)\n"
 		"     -a xx   set max shrinkage to xx (between 0 and 1)\n"
-		"     -F foo  read format from \"foo.fmt\"\n"
+		"     -F foo  read format file \"foo.fmt\"\n"
 		"     -D bar  look for format files in directory \"bar\"\n"
 		"  .output options:\n"
 		"     -l      landscape mode\n"
 		"     -I xx   indent 1st line (cm/in/pt)\n"
-		"     -x      include xref numbers in output\n"
+		"     -x      add xref numbers in titles\n"
 		"     -M      don't output the lyrics\n"
 		"     -n      include notes and history in output\n"
-		"     -N n    set page number mode to n=\n"
+		"     -N n    set page numbering mode to n=\n"
 		"             0=off 1=left 2=right 3=even left,odd right 4=even right,odd left\n"
 		"     -1      write one tune per page\n"
 		"     -G      no slur in grace notes\n"

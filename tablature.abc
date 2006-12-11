@@ -1,0 +1,79 @@
+% tablature examples
+% --- diatonic accordion
+%%beginps
+% length x y accordh2 - accordion tablature header with 2 lines
+/accordh2{
+%	/Times-Roman 14 selectfont
+	.8 SLW
+	gsave 3 add T /w exch def
+	0 0 M w 0 RL
+	0 3 M w 0 RL
+	0 21 M w 0 RL
+	0 39 M w 0 RL
+	0 42 M w 0 RL
+	stroke
+	3 7 M (T:) show
+	3 25 M (P:) show
+	grestore
+}!
+% length x y accordh3 - accordion tablature header with 3 lines
+/accordh3{
+%	/Times-Roman 14 selectfont
+	.8 SLW
+	gsave 3 add T /w exch def
+	0 0 M w 0 RL
+	0 3 M w 0 RL
+	0 21 M w 0 RL
+	0 39 M w 0 RL
+	0 57 M w 0 RL
+	0 60 M w 0 RL
+	stroke
+	3 7 M (B/a:) show
+	3 25 M (T:) show
+	3 43 M (P:) show
+	grestore
+}!
+% string x y accordn2 - accordion tablature
+/str ( ) def
+/accordn2{
+	gsave 29 add T
+	/somespace false def
+	{	
+		dup 124 eq{pop 0 -26 M 0 42 RL stroke}	% bar
+		{dup 44 eq{pop}				% comma
+		{dup 39 eq{str 0 3 -1 roll put str show 0 18 T} % quote
+		{dup 32 eq{str 0 3 -1 roll put str show % space
+				/somespace true def 0 36 T}
+		{somespace{/somespace false def}{-2 0 M}ifelse
+			str 0 3 -1 roll put str show}
+		ifelse}ifelse}ifelse}ifelse
+		0 -18 T
+	}forall
+	grestore
+}!
+/accordn3{
+	gsave 47 add T
+	/somespace false def
+	{	
+		dup 124 eq{pop 0 -44 M 0 60 RL stroke}	% bar
+		{dup 44 eq{pop}				% comma
+		{dup 39 eq{str 0 3 -1 roll put str show 0 18 T} % quote
+		{dup 32 eq{str 0 3 -1 roll put str show % space
+				/somespace true def 0 36 T}
+		{somespace{/somespace false def}{-2 0 M}ifelse
+			str 0 3 -1 roll put str show}
+		ifelse}ifelse}ifelse}ifelse
+		0 -18 T
+	}forall
+	grestore
+}!
+%%endps
+
+X:1
+T:Diatonic accordion
+M:3/4
+L:1/8
+K:Am
+%%tablature 80 accordh3 accordn3
+|: "Am" ee/f/ "Am" ed "Am" c2  | "Am" ed/c/ "G" Bd "Am" cA | "Am" ee/f/ "Am" ed "Am" c2 |
+w:,9A ,9a ,8', ,9A ,7'a ,8A~a ,9A ,7'a ,8, 7,G 8,g ,8E ,7e ,9A ,9a ,8', ,9A ,7'a ,8A~a

@@ -331,12 +331,27 @@ static char *get_lyric(char *p)
 				memset(s->ly, 0, sizeof (struct lyrics));
 			}
 			w = tex_str(word);
+
+			/* handle the font change at start of text */
+			q = tex_buf;
+			if (*q == '$' && isdigit((unsigned char) q[1])
+			    && (unsigned) (q[1] - '0') < FONT_UMAX) {
+				int ft;
+
+				ft = q[1] - '0';
+				if (ft == 0)
+					ft = cfmt.vof;
+				f = &cfmt.font_tb[ft];
+/*				str_font(ft); */
+				q += 2;
+			}
 			lyl = (struct lyl *) getarena(sizeof *s->ly->lyl[0]
-						    + strlen(tex_buf));
+						    + strlen(q));
 			s->ly->lyl[ln] = lyl;
 			lyl->f = f;
 			lyl->w = w;
-			strcpy(lyl->t, tex_buf);
+			strcpy(lyl->t, q);
+
 		}
 		s = s->next;
 	}
@@ -661,8 +676,13 @@ static void get_info(struct SYMBOL *s,
 		if (s->as.state != ABC_S_HEAD)
 			break;
 		tunenum++;
-		PUT2("%% --- %s (%s) ---\n",
-		     info.xref, &info.title->as.text[2]);
+		PUT2("%% --- %s (%s) ---\n"
+			"%% --- font ",
+			info.xref, &info.title->as.text[2]);
+		outft = -1;
+		set_font(TITLEFONT);		/* for index */
+		outft = -1;
+		PUT0("\n");
 		if (!epsf)
 			bskip(cfmt.topspace);
 		write_heading(t);
@@ -1862,11 +1882,12 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			return as;
 		}
 		if (strcmp(w, "staves") == 0) {
-			if (as->state == ABC_S_TUNE) {
-				output_music();
-				buffer_eob();
-				voice_init();
-			}
+			if (as->state != ABC_S_TUNE
+			    && as->state != ABC_S_EMBED)
+				return as;
+			output_music();
+			buffer_eob();
+			voice_init();
 			get_staves((struct SYMBOL *) as);
 			curvoice = first_voice;
 			staves_found = 1;
@@ -1893,6 +1914,29 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			add_to_text_block(p, job);
 			write_text_block(job, as->state);
 			return as;
+		}
+		if (strcmp(w, "tablature") == 0) {
+			if (as->state != ABC_S_TUNE
+			    && as->state != ABC_S_EMBED)
+				return as;
+			/* %%tablature <height> <head funct> <note funct> */
+			curvoice->tabheight = scan_u(p);
+			while (*p != '\0' && !isspace((unsigned char) *p))
+				p++;
+			while (isspace((unsigned char) *p))
+				p++;
+			if (*p != '\0') {
+				curvoice->tabhead = p;
+				while (*p != '\0' && !isspace((unsigned char) *p))
+					p++;
+				if (*p != '\0') {
+					*p = '\0';
+					p++;
+					while (isspace((unsigned char) *p))
+						p++;
+					curvoice->tabfunc = p;
+				} else	curvoice->tabheight = 0;
+			} else	curvoice->tabheight = 0;
 		}
 		break;
 	case 'v':

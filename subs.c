@@ -232,9 +232,14 @@ static struct SYMBOL *t;
 		fprintf(stderr, "   - In tune `%s':\n", p);
 	}
 	fprintf(stderr, sev == 0 ? "Warning " : "Error ");
-	if (s != 0)
+	if (s != 0) {
 		fprintf(stderr, "in line %d.%d",
 			s->as.linenum, s->as.colnum);
+		if (showerror) {
+			s->sflags |= S_ERROR;
+			showerror++;
+		}
+	}
 	fprintf(stderr, ": ");
 	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
@@ -385,6 +390,8 @@ float tex_str(char *s)
 			if (isdigit((unsigned char) *s)
 			    && (unsigned) (*s - '0') < FONT_UMAX) {
 				i = *s - '0';
+				if (i == 0)
+					i = defft;
 				swfac = cfmt.font_tb[i].swfac;
 				i = cfmt.font_tb[i].fnum;
 				i = font_enc[i];
@@ -1323,8 +1330,16 @@ void user_ps_add(char *s)
 /* -- output the user defined postscript sequences -- */
 void user_ps_write(void)
 {
-	struct u_ps *t;
+	struct u_ps *t, *r;
 
-	for (t = user_ps; t != 0; t = t->next)
+	if ((t = user_ps) == 0)
+		return;
+	user_ps = 0;
+	for (;;) {
 		fprintf(fout, "%s\n", t->text);
+		r = t->next;
+		free(t);
+		if ((t = r) == 0)
+			break;
+	}
 }

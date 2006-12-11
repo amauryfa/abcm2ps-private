@@ -75,8 +75,7 @@ static void init_ps(char *str, int is_epsf)
 				- p_fmt->rightmargin + 20,
 			-bposy);
 		cur_lmarg = p_fmt->leftmargin - 10;
-	} else	fprintf(fout, "%%!PS-Adobe-%d.0\n",
-			cfmt.pslevel);
+	} else	fprintf(fout, "%%!PS-Adobe-2.0\n");
 
 	fprintf(fout, "%%%%Title: %s\n", str);
 
@@ -87,10 +86,9 @@ static void init_ps(char *str, int is_epsf)
 		"%%%%CreationDate: %s\n", tex_buf);
 	if (!is_epsf)
 		fprintf(fout, "%%%%Pages: (atend)\n");
-	fprintf(fout, "%%%%LanguageLevel: %d\n"
+	fprintf(fout, "%%%%LanguageLevel: 2\n"
 		"%%%%EndComments\n"
-		"%%CommandLine:",
-		cfmt.pslevel);
+		"%%CommandLine:");
 	for (i = 1; i < s_argc; i++) {
 		fprintf(fout,
 			strchr(s_argv[i], ' ') != 0 ? " \'%s\'" : " %s",
@@ -370,6 +368,10 @@ static void init_page(void)
 		fprintf(fout, "gsave 0 %.1f T\n",
 			pheight - cfmt.topmargin);
 	}
+	fprintf(fout,
+		"%% --- width %.1f\n",		/* for index */
+		((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
+		 - cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale);
 
 	posy = pheight - cfmt.topmargin - cfmt.botmargin;
 

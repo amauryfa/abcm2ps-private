@@ -109,7 +109,6 @@ static struct format {
 	{"partsspace", &cfmt.partsspace, FORMAT_U, 0},
 	{"printparts", &cfmt.printparts, FORMAT_B, 0},
 	{"printtempo", &cfmt.printtempo, FORMAT_B, 0},
-	{"pslevel", &cfmt.pslevel, FORMAT_I, 0},
 	{"repeatfont", &cfmt.font_tb[REPEATFONT], FORMAT_F, 0},
 	{"rightmargin", &cfmt.rightmargin, FORMAT_U, 0},
 	{"scale", &cfmt.scale, FORMAT_R, 0},
@@ -345,7 +344,6 @@ void set_format(void)
 	f->titletrim = 1;
 	f->aligncomposer = A_RIGHT;
 	f->notespacingfactor = 1.414;
-	f->pslevel = 2;
 	f->stemheight = STEM;
 	f->dateformat = strdup("\\%b \\%e, \\%Y \\%H:\\%M");
 	f->textoption = T_LEFT;

@@ -81,6 +81,9 @@ List of the options
   -I<unit>
 	See: format.txt - indent <unit>
 
+  -i, +i
+	Insert a red cercle around the errors in the PostScript output.
+
   -j<int>[b], +j
 	See: format.txt - measurenb <int>
 
