@@ -124,6 +124,7 @@ static struct format {
 	{"slurheight", &cfmt.slurheight, FORMAT_R, 0},
 	{"splittune", &cfmt.splittune, FORMAT_B, 0},
 	{"squarebreve", &cfmt.squarebreve, FORMAT_B, 0},
+	{"staffnonote", &cfmt.staffnonote, FORMAT_B, 0},
 	{"staffsep", &cfmt.staffsep, FORMAT_U, 0},
 	{"staffwidth", &staffwidth, FORMAT_U, 1},
 	{"stemheight", &cfmt.stemheight, FORMAT_R, 0},
@@ -341,6 +342,7 @@ void set_format(void)
 	f->dynalign = 1;
 	f->printparts = 1;
 	f->printtempo = 1;
+	f->staffnonote = 1;
 	f->titletrim = 1;
 	f->aligncomposer = A_RIGHT;
 	f->notespacingfactor = 1.414;
@@ -766,26 +768,31 @@ FILE *open_file(char *fn,	/* file name */
 	int l;
 
 	strcpy(rfn, fn);
+	if ((fp = fopen(rfn, "r")) != 0)
+		return fp;
 	strext(rfn, ext);
-	if ((fp = fopen(rfn, "r")) == 0) {
-		if (in_fname != 0
-		    && (p = strrchr(in_fname, DIRSEP)) != 0) {
-			l = p - in_fname + 1;
-			strncpy(rfn, in_fname, l);
-			strcpy(&rfn[l], fn);
-			strext(&rfn[l], ext);
-			fp = fopen(rfn, "r");
-		}
-		if (fp == 0) {
-			if (*styd == '\0')
-				return 0;
-	                sprintf(rfn, "%s%c%s", styd, DIRSEP, fn);
-			strext(rfn, ext);
-			if ((fp = fopen(rfn, "r")) == 0)
-				return 0;
-		}
+	if ((fp = fopen(rfn, "r")) != 0)
+		return fp;
+	if (in_fname != 0
+	    && (p = strrchr(in_fname, DIRSEP)) != 0) {
+		l = p - in_fname + 1;
+		strncpy(rfn, in_fname, l);
+		strcpy(&rfn[l], fn);
+		if ((fp = fopen(rfn, "r")) != 0)
+			return fp;
+		strext(&rfn[l], ext);
+		if ((fp = fopen(rfn, "r")) != 0)
+			return fp;
 	}
-	return fp;
+	if (*styd == '\0')
+		return 0;
+	sprintf(rfn, "%s%c%s", styd, DIRSEP, fn);
+	if ((fp = fopen(rfn, "r")) != 0)
+		return fp;
+	strext(rfn, ext);
+	if ((fp = fopen(rfn, "r")) != 0)
+		return fp;
+	return 0;
 }
 
 /* -- read a format file -- */
@@ -794,8 +801,15 @@ int read_fmt_file(char *fn)
 	FILE *fp;
 	char line[BSIZE], *p, *q;
 
-	if ((fp = open_file(fn, "fmt", line)) == 0)
+	line[0] = '\001';
+	if ((fp = open_file(fn, "fmt", &line[1])) == 0)
 		return -1;
+	if (strcmp(&line[strlen(line) - 3], ".ps") == 0) {
+		if (!file_initialized)
+			user_ps_add(line);
+		fclose(fp);
+		return 0;
+	}
 	for (;;) {
 		p = line;
 		if (!fgets(p, sizeof line, fp))
@@ -817,12 +831,8 @@ int read_fmt_file(char *fn)
 					continue;
 				if (strcmp(p, "endps") == 0)
 					break;
-#if 1
 				if (!file_initialized)
 					user_ps_add(p);
-#else
-				interpret_fmt_line("postscript", p, 0);
-#endif
 			}
 			continue;
 		}

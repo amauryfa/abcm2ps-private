@@ -1336,7 +1336,19 @@ void user_ps_write(void)
 		return;
 	user_ps = 0;
 	for (;;) {
-		fprintf(fout, "%s\n", t->text);
+		if (t->text[0] == '\001') {	/* PS file */
+			FILE *f;
+			char line[BSIZE];
+
+			if ((f = fopen(&t->text[1], "r")) == 0) {
+				error(1, 0, "Cannot open PS file '%s'",
+					&t->text[1]);
+			} else {
+				while (fgets(line, sizeof line, f))	/* copy the file */
+					fwrite(line, 1, strlen(line), fout);
+				fclose(f);
+			}
+		} else	fprintf(fout, "%s\n", t->text);
 		r = t->next;
 		free(t);
 		if ((t = r) == 0)

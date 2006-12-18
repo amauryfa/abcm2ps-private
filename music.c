@@ -1650,23 +1650,31 @@ static float set_staff(void)
 
 	/* compute the distance between the staves */
 	memset(delta_tb, 0, sizeof delta_tb);
-	mbot = 0;
-	for (s = first_voice->sym; s != 0; s = s->ts_next) {
-		switch (s->type) {
-		case CLEF:
-		case KEYSIG:
-		case TIMESIG:
-		case TEMPO:
-		case PART:
-		case STAVES:
-		case TUPLET:
-		case FMTCHG:
-		case WHISTLE:
-			continue;
+	if (cfmt.staffnonote) {
+		for (s = first_voice->sym; s != 0; s = s->ts_next) {
+			switch (s->type) {
+			case NOTE:
+			case REST:
+			case BAR:
+			case MREST:
+			case GRACE:
+				delta_tb[s->staff].not_empty = 1;
+				break;
+			}
 		}
-		delta_tb[s->staff].not_empty = 1;
+	} else {
+		for (s = first_voice->sym; s != 0; s = s->ts_next) {
+			switch (s->type) {
+			case NOTE:
+			case REST:
+				if (!s->as.u.note.invis)
+					delta_tb[s->staff].not_empty = 1;
+				break;
+			}
+		}
 	}
 /*fixme: should handle the staff scales*/
+	mbot = 0;
 	{
 		int i;
 		float v;
@@ -1704,6 +1712,23 @@ static float set_staff(void)
 		}
 	}
 
+	/* handle the tablatures without main staff */
+	{
+		struct VOICE_S *p_voice;
+
+		for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+			staff = p_voice->staff;
+			if (p_voice->tabheight == 0
+			    || !staff_tb[staff].empty)
+				continue;
+			if (staff < nstaff)
+				delta_tb[staff + 1].mtop += p_voice->tabheight;
+			else	mbot -= p_voice->tabheight;
+			delta_tb[staff].not_empty = 1;
+		}
+	}
+
+	/* scan the first voice to see if any part or tempo */
 	any_part = any_tempo = 0;
 	for (s = first_voice->sym->next; s != 0; s = s->next) {
 		switch (s->type) {
@@ -1763,7 +1788,7 @@ static float set_staff(void)
 	}
 	if (mbot == 0) {
 		for (staff = nstaff; staff >= 0; staff--) {
-			if (!staff_tb[staff].empty)
+			if (delta_tb[staff].not_empty)
 				break;
 		}
 		if (staff < 0)		/* no symbol in this system */
@@ -2590,7 +2615,8 @@ static void set_width(struct SYMBOL *s)
 			struct lyl *lyl;
 			float align = 0;
 
-			for (i = 0; i < MAXLY; i++) {
+			if (voice_tb[s->voice].tabheight == 0)
+			    for (i = 0; i < MAXLY; i++) {
 				float swfac, shift;
 				char *p;
 
@@ -2673,6 +2699,12 @@ static void set_width(struct SYMBOL *s)
 				}
 				if (xx > s->wr)
 					s->wr = xx;
+			} else {
+			    for (i = 0; i < MAXLY; i++) {
+				if ((lyl = ly->lyl[i]) == 0)
+					continue;
+				lyl->s = 0;
+			    }
 			}
 			if (align > 0) {
 				for (i = 0; i < MAXLY; i++) {

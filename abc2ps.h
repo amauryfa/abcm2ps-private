@@ -231,7 +231,7 @@ struct FORMAT { 		/* struct for page layout */
 	int infoline, gchordbox, graceslurs, comball, hyphencont;
 	int landscape, measurenb, measurefirst, measurebox, musiconly;
 	int oneperpage, partsbox, printparts, printtempo;
-	int setdefl, shifthnote, splittune, squarebreve;
+	int setdefl, shifthnote, splittune, squarebreve, staffnonote;
 	int straightflags, stretchstaff, stretchlast;
 	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
 	int vocalabove, withxrefs, writehistory;
@@ -354,7 +354,8 @@ struct VOICE_S {
 	struct SYMBOL *tie;	/* note with ties of previous line */
 	struct SYMBOL *rtie;	/* note with ties before 1st repeat bar */
 	char *tabhead;		/* tablature:	PS head function */
-	char *tabfunc;		/*		note function */
+	char *tabnote;		/*		note function */
+	char *tabbar;		/*		bar function */
 	float tabheight;	/*		height */
 	float scale;		/* scale */
 	float sep;		/* distance to the next staff */

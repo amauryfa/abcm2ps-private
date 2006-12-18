@@ -324,7 +324,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Read the format file <filename>.
+		Read the format (or PostScript) file <filename>.
 		When found in the command line, this parameter is the
 		same as '-F'.
 
@@ -693,6 +693,14 @@ List of the format parameters
 	Description:
 		Display the breve notes in square format.
 
+  staffnonote <bool>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		If not set, do not display the staves which have no note
+		in the music lines.
+
   staffsep <unit>
 	Default: 46pt
 	Compilation: none
@@ -1057,19 +1065,25 @@ List of the pseudo-comments treated while parsed
   staves <definition>
 	See 'features.txt' for description.
 
-  tablature <unit> <head-func> <note-func>
+  tablature <unit> <head-func> <note-func> <bar-func>
 	Define a tablature for the current voice.
 	<unit> gives the tablature height.
 	<head-func> is the PostScript function called at tablature
 	start. When called, the stack contains:
 		- the music line width,
+		- the x and y offsets,
+		- the number of w: lines.
+	<note-func> is the PostScript function called at each note.
+	When called, the stack contains:
+		- the string as defined by the 'w:' line.
 		- the x and y offsets.
-	<note-func> is the PostScript function called at each note
-	or bar. When called, the stack contains:
-		- the string as defined by the 'w:' line ('|' for
-		  a measure bar),
+		- the w: number (0 .. n-1).
+	<note-bar> is the PostScript function called at each bar.
+	When called, the stack contains:
+		- the ABC bar as a string.
 		- the x and y offsets.
-	See 'tablature.abc' for example.
+		- the w: number (0 .. n-1).
+	See 'accordion.abc' and 'banjo.abc' for examples.
 
   text <line of text>
 	Print one line of text.

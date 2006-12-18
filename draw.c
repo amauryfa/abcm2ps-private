@@ -213,7 +213,7 @@ static int calculate_beam(struct BEAM *bm,
 	/* have room for the symbols in the staff */
 	max_stem_err = 0;		/* check stem lengths */
 	s = s1;
-	if (two_dir) {
+	if (two_dir) {				/* 2 directions */
 /*fixme: more to do*/
 		if (!s1->as.u.note.grace)
 			ys = BEAM_SHIFT;
@@ -222,7 +222,7 @@ static int calculate_beam(struct BEAM *bm,
 		ys += BEAM_DEPTH;
 		ys *= 0.5 * s1->stem;
 		b += ys;
-	} else if (!s1->as.u.note.grace) {
+	} else if (!s1->as.u.note.grace) {	/* normal notes */
 		while (s->ts_prev->type == NOTE
 		       && s->ts_prev->time == s->time)
 			s = s->ts_prev;
@@ -285,7 +285,7 @@ static int calculate_beam(struct BEAM *bm,
 			if (stem_err > max_stem_err)
 				max_stem_err = stem_err;
 		}
-	} else {			/* grace notes */
+	} else {				/* grace notes */
 		for ( ; ; s = s->next) {
 			float stem_err;
 
@@ -676,11 +676,10 @@ static void draw_staff(struct VOICE_S *p_voice,
 		PUT0("0 T ");
 	}
 
-	putxy(x2 - x1, y);
-	PUT1("%d staff", nlines);
-	if (x1 != 0)
-		PUT0(" grestore");
-	PUT0("\n");
+	putx(x2 - x1);
+	PUT1("%d ", nlines);
+	putxy(x1, y);
+	PUT0("staff\n");
 }
 
 /* -- draw the time signature -- */
@@ -873,27 +872,18 @@ static void draw_keysig(struct VOICE_S *p_voice,
 		PUT0("\n");
 }
 
-/* -- draw a measure bar -- */
-static void draw_bar(float x, struct SYMBOL *s)
+/* -- convert the standard measure bars -- */
+static int bar_cnv(int bar_type)
 {
-	int staff, bar_type, dotted, longbar;
-	float y, staffb, stafft;
-	char *psf;
-
-	dotted = s->as.u.bar.dotted;
-	bar_type = s->as.u.bar.type;
 	switch (bar_type) {
 	case B_OBRA:
 	case B_CBRA:
 	case (B_OBRA << 4) + B_CBRA:
-		return;			/* invisible */
+		return 0;			/* invisible */
 	case B_COL:
-		dotted = 1;
-		bar_type = B_BAR;
-		break;
+		return B_BAR;			/* dotted */
 	case (B_CBRA << 4) + B_BAR:
-		bar_type = B_BAR;
-		break;
+		return B_BAR;
 	case (B_BAR << 4) + B_COL:
 		bar_type |= (B_OBRA << 8);
 		break;
@@ -913,6 +903,18 @@ static void draw_bar(float x, struct SYMBOL *s)
 		bar_type = (B_COL << 12) + (B_CBRA << 8) + (B_OBRA << 4) + B_COL;
 		break;
 	}
+	return bar_type;
+}
+
+/* -- draw a measure bar -- */
+static void draw_bar(float x, struct SYMBOL *s)
+{
+	int staff, bar_type, dotted, longbar;
+	float y, staffb, stafft;
+	char *psf;
+
+	dotted = s->as.u.bar.dotted | s->as.u.bar.type == B_COL;
+	bar_type = bar_cnv(s->as.u.bar.type);
 	staff = voice_tb[s->voice].staff;	/* (may be != s->staff) */
 	y = staff_tb[staff].y;
 	stafft = y + staff_tb[staff].topbar
@@ -2873,51 +2875,73 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 
 /* -- draw the lyrics under (or above) notes -- */
 /* !! this routine is tied to set_width() !! */
+
 static float draw_lyrics(struct VOICE_S *p_voice,
 			 int nly,
 			 float y,
 			 int incr)
 {
-	int hyflag, l, j, lflag, jtab;
+	int hyflag, l, j, lflag;
+	char *p;
 	float lastx, w, lskip, desc;
+	struct SYMBOL *s;
 	struct FONTSPEC *f;
+	struct lyrics *ly;
+	struct lyl *lyl;
+
+	/* treat the tablature */
+	if (p_voice->tabheight != 0) {
+		y -= p_voice->tabheight;
+		PUT2("/y{%.1f y%d}def ", y, p_voice->staff);
+			set_font(VOCALFONT);
+		PUT3("%.1f 0 y %d %s\n",
+			realwidth, nly, p_voice->tabhead);
+		for (j = 0; j < nly ; j++) {
+			for (s = p_voice->sym->next; s != 0; s = s->next) {
+				if ((ly = s->ly) == 0
+				    || (lyl = ly->lyl[j]) == 0) {
+					if (s->type == BAR) {
+						p = &tex_buf[16];
+						*p-- = '\0';
+						l = bar_cnv(s->as.u.bar.type);
+						while (l != 0) {
+							*p-- = "?|[]:???"[l & 0x07];
+							l >>= 4;
+						}
+						p++;
+						PUT4("(%s)%.1f y %d %s ",
+							p, s->x, j, p_voice->tabbar);
+					}
+					continue;
+				}
+				PUT4("(%s)%.1f y %d %s ",
+					lyl->t, s->x, j, p_voice->tabnote);
+			}
+			PUT0("\n");
+		}
+		return -p_voice->tabheight;
+	}
 
 	lskip = 0;			/* (compiler warning) */
 	f = 0;				/* (force new font) */
-	jtab = p_voice->tabheight == 0 ? -1 : nly - 1;
 	if (incr > 0) {			/* under the staff */
 		j = 0;
 /*fixme: may not be the current font*/
-		if (j != jtab) {
-			y -= cfmt.font_tb[VOCALFONT].size;
-			if (y > -cfmt.vocalspace)
-				y = -cfmt.vocalspace;
-		} else {
-			y -= p_voice->tabheight;
-		}
+		y -= cfmt.font_tb[VOCALFONT].size;
+		if (y > -cfmt.vocalspace)
+			y = -cfmt.vocalspace;
 	} else {
 		j = nly - 1;
 		nly = -1;
-		if (j != jtab) {
-			if (y < 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size)
-				y = 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size;
-		}
+		if (y < 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size)
+			y = 24 + cfmt.vocalspace - cfmt.font_tb[VOCALFONT].size;
 	}
 /*fixme: may not be the current font*/
-	if (j != jtab)
-		desc = cfmt.font_tb[VOCALFONT].size * 0.25;	/* descent */
-	else	desc = 0;
+	desc = cfmt.font_tb[VOCALFONT].size * 0.25;	/* descent */
 	for (; j != nly ; j += incr) {
-		struct SYMBOL *s;
 		float x0, shift;
 
 		PUT2("/y{%.1f y%d}def ", y + desc, p_voice->staff);
-		if (j == jtab) {
-			set_font(VOCALFONT);
-			f = 0;
-			PUT2("%.1f 0 y %s\n",
-				realwidth, p_voice->tabhead);
-		}
 		hyflag = lflag = 0;
 		if (p_voice->hy_st & (1 << j)) {
 			hyflag = 1;
@@ -2928,23 +2952,12 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 				break;
 		lastx = s->prev->x;
 		x0 = 0;
-		if (j != jtab) {
-			if (f != 0)
-				lskip = f->size * 1.1;
-		} else	lskip = p_voice->tabheight;
+		if (f != 0)
+			lskip = f->size * 1.1;
 		for ( ; s != 0; s = s->next) {
-			struct lyrics *ly;
-			struct lyl *lyl;
-			char *p;
-
 			if ((ly = s->ly) == 0
 			    || (lyl = ly->lyl[j]) == 0) {
 				switch (s->type) {
-				case BAR:
-					if (j == jtab)
-						PUT2("(|)%.1f y %s ",
-							s->x, p_voice->tabfunc);
-					break;
 				case REST:
 				case MREST:
 				case MREP:
@@ -2957,10 +2970,11 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 				}
 				continue;
 			}
-			if (j == jtab) {		/* if tablature */
-				PUT3("(%s)%.1f y %s ",
-					lyl->t, s->x, p_voice->tabfunc);
-				continue;
+			if (lyl->f != f) {		/* font change */
+				f = lyl->f;
+				set_font(f - cfmt.font_tb);
+				if (lskip < f->size * 1.1)
+					lskip = f->size * 1.1;
 			}
 			p = lyl->t;
 			w = lyl->w;
@@ -2997,12 +3011,6 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 			if (p[l] == '\x02') {		/* '-' at end */
 				p[l] = '\0';
 				hyflag = 1;
-			}
-			if (lyl->f != f) {		/* font change */
-				f = lyl->f;
-				set_font(f - cfmt.font_tb);
-				if (lskip < f->size * 1.1)
-					lskip = f->size * 1.1;
 			}
 			PUT2("%.1f y M(%s)lyshow ", x0, p);
 			lastx = x0 + w;
@@ -3298,6 +3306,8 @@ void draw_symbols(struct VOICE_S *p_voice)
 	float x, y, xstaff;
 	int staff, staff_st;
 
+	if (staff_tb[p_voice->staff].empty)
+		return;
 	bm.s2 = 0;
 	staff_st = p_voice == first_voice && nstaff != 0;
 	xstaff = 0;

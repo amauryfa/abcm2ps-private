@@ -488,9 +488,6 @@ static char ps_head[] =
 #if 1
 	/* accidentals in strings */
 	"/accfont{\n"
-	"	Encoding 8#201 /sharpchar put\n"
-	"	Encoding 8#202 /flatchar put\n"
-	"	Encoding 8#203 /natchar put\n"
 	"	/CharStrings CharStrings dup length 3 add dict copy def\n"
 	"	FontMatrix 0 get 1 eq{\n"
 	"	 CharStrings /sharpchar{pop\n"
@@ -525,7 +522,7 @@ static char ps_head[] =
 	"			}{\n"
 	"				exec pop\n"
 	"			}ifelse\n"
-	"		} bind def\n"
+	"		}bind def\n"
 	"	}if\n"
 	"	}!\n"
 #else
@@ -565,7 +562,7 @@ static char ps_head[] =
 	"	dup 3 sub 3 1 roll\n"		/* (dx-3) l dx */
 	"	dup .5 mul dup 1.5 sub 0 RM\n"	/* (dx-3) l dx (dx/2) */
 	"	exch 3 -1 roll\n"		/* (dx-3) (dx/2) dx l */
-	"	{pop 3 0 RL dup 0 RM} for stroke pop}!\n"
+	"	{pop 3 0 RL dup 0 RM}for stroke pop}!\n"
 	/* str lyshow - lyrics */
 	"/lyshow{show}!\n"
 
@@ -604,10 +601,9 @@ static char ps_head[] =
 	"/stsig{	M gsave/Times-Bold 18 selectfont 1.2 1 scale\n"
 	"	0 7 RM showc grestore}!\n"
 
-	/* l y n staff - staff with n lines*/
-	"/staff{	dlw 1 1 3 -1 roll{\n"
-	"		pop 0 1 index M 1 index 0 RL 6 add\n"
-	"	}for pop pop stroke}!\n"
+	/* width n x y staff - staff with n lines*/
+	"/staff{	dlw M{dup 0 RL dup neg 6 RM}repeat\n"
+	"	pop stroke}!\n"
 
 	/* l x sep0 - hline separator */
 	"/sep0{dlw 0 M 0 RL stroke}!\n"
@@ -869,7 +865,7 @@ void define_encoding(int enc,		/* index */
 	if (enc == ENC_NATIVE)
 		return;
 	if (enc < ENC_NATIVE) {
-		sprintf(enc_txt, "ISOLatin%dEncoding", enc > 0 ? enc : 1);
+		sprintf(enc_txt, "ISOLatin%dEncoding", enc);
 		ename = enc_txt;
 		if (enc > 0)
 		    fprintf(fout, "/%s [\n"
@@ -884,6 +880,14 @@ void define_encoding(int enc,		/* index */
 			"%s\n"
 			"] def\n",
 			ename, enc_tb[enc - 1]);
+		else fprintf(fout,
+			"/%s ISOLatin1Encoding dup length array copy def\n",
+			ename);
+		fprintf(fout,
+			"%s dup 8#201 /sharpchar put\n"
+			"dup 8#202 /flatchar put\n"
+			"8#203 /natchar put\n",
+			ename);
 	}
 	fprintf(fout, "/mkfontext%d{\n"
 		"	findfont dup length\n"
@@ -891,14 +895,12 @@ void define_encoding(int enc,		/* index */
 		"	 dict begin\n"
 		"		{1 index/FID ne{def}{pop pop}ifelse}forall\n",
 		enc);
-	if (enc < ENC_NATIVE)
-	   fprintf(fout,
-		"		/Encoding %s dup length array copy def\n"
-		"		accfont\n",
-		ename);
-	   else fprintf(fout,
+	fprintf(fout,
 		"		/Encoding %s def\n",
 		ename);
+	if (enc < ENC_NATIVE)
+		fprintf(fout,
+			"		accfont\n");
 	fprintf(fout,
 		"		currentdict\n"
 		"	end\n"
@@ -937,19 +939,17 @@ void define_symbols(void)
 	/* n len sfu - stem and n flags up */
 	fprintf(fout, "/sfu{	dlw x y M %.1f %.1f RM\n"
 		"	%.1f sub 0 exch RL currentpoint stroke\n"
-		"	M dup 1 eq\n"
-		"	  {\n"
+		"	M dup 1 eq{\n"
 		"		pop\n"
 		"		0.6 -5.6 9.6 -9 5.6 -18.4 RC\n"
 		"		1.6 6 -1.3 11.6 -5.6 12.8 RC\n"
 		"		fill\n"
 		"	  }{\n"
-		"		2 1 3 -1 roll{\n"
-		"			pop currentpoint\n"
+		"		1 sub{	currentpoint\n"
 		"			0.9 -3.7 9.1 -6.4 6 -12.4 RC\n"
 		"			1 5.4 -4.2 8.4 -6 8.4 RC\n"
 		"			fill -5.4 add M\n"
-		"		}for\n"
+		"		}repeat\n"
 		"		1.2 -3.2 9.6 -5.7 5.6 -14.6 RC\n"
 		"		1.6 5.4 -1 10.2 -5.6 11.4 RC\n"
 		"		fill\n"
@@ -959,19 +959,17 @@ void define_symbols(void)
 	/* n len sfd - stem and n flags down */
 	fprintf(fout, "/sfd{	dlw x y M %.1f %.1f RM\n"
 		"	%.1f add 0 exch RL currentpoint stroke\n"
-		"	M dup 1 eq\n"
-		"	  {\n"
+		"	M dup 1 eq{\n"
 		"		pop\n"
 		"		0.6 5.6 9.6 9 5.6 18.4 RC\n"
 		"		1.6 -6 -1.3 -11.6 -5.6 -12.8 RC\n"
 		"		fill\n"
 		"	  }{\n"
-		"		2 1 3 -1 roll{\n"
-		"			pop currentpoint\n"
+		"		1 sub{	currentpoint\n"
 		"			0.9 3.7 9.1 6.4 6 12.4 RC\n"
 		"			1 -5.4 -4.2 -8.4 -6 -8.4 RC\n"
 		"			fill 5.4 add M\n"
-		"		}for\n"
+		"		}repeat\n"
 		"		1.2 3.2 9.6 5.7 5.6 14.6 RC\n"
 		"		1.6 -5.4 -1 -10.2 -5.6 -11.4 RC\n"
 		"		fill\n"
@@ -982,23 +980,21 @@ void define_symbols(void)
 	fprintf(fout, "/sfs{	dup 0 lt{\n"
 		"		dlw x y M -%.1f -%.1f RM\n"
 		"		%.1f add 0 exch RL currentpoint stroke\n"
-		"		M 1 1 3 -1 roll{\n"
-		"			pop currentpoint\n"
+		"		M{	currentpoint\n"
 		"			7 %.1f RL\n"
 		"			0 %.1f RL\n"
 		"			-7 -%.1f RL\n"
 		"			fill 5.4 add M\n"
-		"		}for\n"
+		"		}repeat\n"
 		"	}{\n"
 		"		dlw x y M %.1f %.1f RM\n"
 		"		-%.1f add 0 exch RL currentpoint stroke\n"
-		"		M 1 1 3 -1 roll{\n"
-		"			pop currentpoint\n"
+		"		M{	currentpoint\n"
 		"			7 -%.1f RL\n"
 		"			0 -%.1f RL\n"
 		"			-7 %.1f RL\n"
 		"			fill -5.4 add M\n"
-		"		}for\n"
+		"		}repeat\n"
 		"	}ifelse}!\n",
 		STEM_XOFF, STEM_YOFF, STEM_YOFF,
 		BEAM_DEPTH, BEAM_DEPTH, BEAM_DEPTH,
@@ -1017,19 +1013,17 @@ void define_symbols(void)
 	/* n len sgu - gnote stem and n flag up */
 	fprintf(fout, "/sgu{	.6 SLW x y M %.1f 0 RM\n"
 		"	0 exch RL currentpoint stroke\n"
-		"	M dup 1 eq\n"
-		"	  {\n"
+		"	M dup 1 eq{\n"
 		"		pop\n"
 		"		0.6 -3.4 5.6 -3.8 3 -10 RC\n"
 		"		1.2 4.4 -1.4 7 -3 7 RC\n"
 		"		fill\n"
 		"	  }{\n"
-		"		1 1 3 -1 roll{\n"
-		"			pop currentpoint\n"
+		"		{	currentpoint\n"
 		"			1 -3.2 5.6 -2.8 3.2 -8 RC\n"
 		"			1.4 4.8 -2.4 5.4 -3.2 5.2 RC\n"
 		"			fill -3.5 add M\n"
-		"		}for\n"
+		"		}repeat\n"
 		"	  }\n"
 		"	ifelse}!\n",
 		GSTEM_XOFF);
@@ -1037,19 +1031,17 @@ void define_symbols(void)
 	/* n len sgd - gnote stem and n flag down */
 	fprintf(fout, "/sgd{	.6 SLW x y M %.1f 0 RM\n"
 		"	0 exch RL currentpoint stroke\n"
-		"	M dup 1 eq\n"
-		"	  {\n"
+		"	M dup 1 eq{\n"
 		"		pop\n"
 		"		0.6 3.4 5.6 3.8 3 10 RC\n"
 		"		1.2 -4.4 -1.4 -7 -3 -7 RC\n"
 		"		fill\n"
 		"	  }{\n"
-		"		1 1 3 -1 roll{\n"
-		"			pop currentpoint\n"
+		"		{	currentpoint\n"
 		"			1 3.2 5.6 2.8 3.2 8 RC\n"
 		"			1.4 -4.8 -2.4 -5.4 -3.2 -5.2 RC\n"
 		"			fill 3.5 add M\n"
-		"		}for\n"
+		"		}repeat\n"
 		"	  }\n"
 		"	ifelse}!\n",
 		-GSTEM_XOFF);
@@ -1057,10 +1049,9 @@ void define_symbols(void)
 	/* n len sgs - gnote stem and n straight flag up */
 	fprintf(fout, "/sgs{	.6 SLW x y M %.1f 0 RM\n"
 		"	0 exch RL currentpoint stroke\n"
-		"	M 1 1 3 -1 roll{\n"
-		"		pop currentpoint\n"
+		"	M{	currentpoint\n"
 		"		3 -1.5 RL 0 -2 RL -3 1.5 RL\n"
 		"		closepath fill -3 add M\n"
-		"	}for}!\n",
+		"	}repeat}!\n",
 		GSTEM_XOFF);
 }

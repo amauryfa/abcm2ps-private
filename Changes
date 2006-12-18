@@ -1,4 +1,15 @@
----- Version 5.2.1 - 06/12/?? ----
+---- Version 5.2.2 - 06/12/19 ----
+
+May insert PostScript files as format files (with '-F' or %%format).
+%%staffnonote added.
+Bad handling of escaped characters in lyric lines (w:) after
+	font change ($n).
+%%staves did not work in tune header since 5.2.1.
+Change some PS routines (!/staff arguments and encodings!).
+Change %%tablature syntax and associated functions arguments
+	(!compatibility!).
+
+---- Version 5.2.1 - 06/12/11 ----
 
 Bad encoding and calculated size when '$0" in a string.
 Handle some "$n" in lyrics under staff.

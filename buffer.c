@@ -114,6 +114,7 @@ static void init_ps(char *str, int is_epsf)
 		"/dlw{0.7 SLW}!\n"
 
 	/* (simple!) level2 emulation */
+		"/languagelevel where{}{/languagelevel 1 def}ifelse\n"
 		"languagelevel 1 eq{\n"
 		" /rectstroke{\n"
 		"	4 2 roll M 1 index 0 RL 0 exch RL neg 0 RL closepath\n"

@@ -342,7 +342,7 @@ static char *get_lyric(char *p)
 				if (ft == 0)
 					ft = cfmt.vof;
 				f = &cfmt.font_tb[ft];
-/*				str_font(ft); */
+				str_font(ft);
 				q += 2;
 			}
 			lyl = (struct lyl *) getarena(sizeof *s->ly->lyl[0]
@@ -1882,12 +1882,14 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			return as;
 		}
 		if (strcmp(w, "staves") == 0) {
-			if (as->state != ABC_S_TUNE
-			    && as->state != ABC_S_EMBED)
+			if (as->state == ABC_S_GLOBAL)
 				return as;
-			output_music();
-			buffer_eob();
-			voice_init();
+			if (as->state == ABC_S_TUNE
+			    || as->state == ABC_S_EMBED) {
+				output_music();
+				buffer_eob();
+				voice_init();
+			}
 			get_staves((struct SYMBOL *) as);
 			curvoice = first_voice;
 			staves_found = 1;
@@ -1919,7 +1921,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			if (as->state != ABC_S_TUNE
 			    && as->state != ABC_S_EMBED)
 				return as;
-			/* %%tablature <height> <head funct> <note funct> */
+			/* %%tablature <height> <head funct> <note funct> <bar funct */
 			curvoice->tabheight = scan_u(p);
 			while (*p != '\0' && !isspace((unsigned char) *p))
 				p++;
@@ -1929,14 +1931,26 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 				curvoice->tabhead = p;
 				while (*p != '\0' && !isspace((unsigned char) *p))
 					p++;
-				if (*p != '\0') {
-					*p = '\0';
+			}
+			if (*p != '\0') {
+				*p = '\0';
+				p++;
+				while (isspace((unsigned char) *p))
 					p++;
-					while (isspace((unsigned char) *p))
-						p++;
-					curvoice->tabfunc = p;
-				} else	curvoice->tabheight = 0;
-			} else	curvoice->tabheight = 0;
+				curvoice->tabnote = p;
+				while (*p != '\0' && !isspace((unsigned char) *p))
+					p++;
+			}
+			if (*p != '\0') {
+				*p = '\0';
+				p++;
+				while (isspace((unsigned char) *p))
+					p++;
+				curvoice->tabbar = p;
+			} else {
+				error(1, s, "Not enough values in %%%%tablature");
+				curvoice->tabheight = 0;
+			}
 		}
 		break;
 	case 'v':

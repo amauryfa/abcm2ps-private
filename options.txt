@@ -62,8 +62,10 @@ List of the options
 	Note: Filtering may raise problems, mainly on global definitions.
 
   -F<file>, +F
-	Read the format file <file>.fmt. In the form '+F', the default
-	format file ('default.fmt') is not read.
+	Read the format (or PostScript) file <file>.
+	When omitted, the default type of a format file is '.fmt'.
+	In the form '+F', the default format file ('default.fmt') is not
+	read.
 
   -f
 	See: format.txt - flatbeams <bool>
