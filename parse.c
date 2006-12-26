@@ -240,8 +240,10 @@ static char *get_lyric(char *p)
 			break;
 		switch (*p) {
 		case '|':
-			while (s != 0 && (s->type != BAR
-					   || s->as.u.bar.type == B_INVIS))
+			while (s != 0
+			       && (s->type != BAR
+				   || s->as.u.bar.type == B_OBRA
+				   || s->as.u.bar.type == B_CBRA))
 				s = s->next;
 			if (s == 0)
 				return "Not enough bar lines for lyric line";
@@ -894,7 +896,7 @@ static void get_bar(struct SYMBOL *s)
 		s->sflags |= S_NOREPBAR;
 
 	/* remove the invisible repeat bars when no shift needed */
-	if (bar_type == B_INVIS
+	if (bar_type == B_OBRA
 	    && (curvoice == first_voice
 		|| curvoice->second
 		|| staff_tb[curvoice->staff - 1].stop_bar)) {
@@ -1089,6 +1091,7 @@ void do_tune(struct abctune *t,
 				s2->as.linenum = as->linenum;
 				s2->as.colnum = as->colnum;
 				s2->as.u.note.invis = 1;
+				s2->sflags |= S_INVIS;
 				len /= as->u.bar.len;
 				s2->len = len;
 				curvoice->time += len;
@@ -1428,6 +1431,8 @@ static void get_note(struct SYMBOL *s)
 {
 	int i, m, type;
 
+	if (s->as.u.note.invis)
+		s->sflags |= S_INVIS;
 	s->nhd = m = s->as.u.note.nhd;
 	type = s->as.type == ABC_T_NOTE ? NOTE : REST;
 	if (!s->as.u.note.grace) {	/* normal note/rest */
@@ -1496,7 +1501,6 @@ static void get_note(struct SYMBOL *s)
 		for (i = 1; i <= m; i++) {
 			if (s->as.u.note.pits[i] < s->as.u.note.pits[i-1]) {
 				int k;
-
 #define xch(f) \
 	k = s->as.u.note.f[i]; \
 	s->as.u.note.f[i] = s->as.u.note.f[i-1]; \
@@ -1918,15 +1922,25 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			return as;
 		}
 		if (strcmp(w, "tablature") == 0) {
+			float h;
+
 			if (as->state != ABC_S_TUNE
 			    && as->state != ABC_S_EMBED)
 				return as;
-			/* %%tablature <height> <head funct> <note funct> <bar funct */
-			curvoice->tabheight = scan_u(p);
+/* %%tablature [<h above>] <h under> <head funct> <note funct> <bar funct> */
+			h = scan_u(p);
 			while (*p != '\0' && !isspace((unsigned char) *p))
 				p++;
 			while (isspace((unsigned char) *p))
 				p++;
+			if (isdigit(*p)) {
+				curvoice->tabha = h;
+				curvoice->tabhu = scan_u(p);
+				while (*p != '\0' && !isspace((unsigned char) *p))
+					p++;
+				while (isspace((unsigned char) *p))
+					p++;
+			} else	curvoice->tabhu = h;
 			if (*p != '\0') {
 				curvoice->tabhead = p;
 				while (*p != '\0' && !isspace((unsigned char) *p))
@@ -1948,8 +1962,8 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 					p++;
 				curvoice->tabbar = p;
 			} else {
-				error(1, s, "Not enough values in %%%%tablature");
-				curvoice->tabheight = 0;
+				error(1, s, "Wrong values in %%%%tablature");
+				curvoice->tabhead = 0;
 			}
 		}
 		break;

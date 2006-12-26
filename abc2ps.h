@@ -148,25 +148,26 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	signed char pits[MAXHD]; /* pitches for notes */
 	struct SYMBOL *ts_next, *ts_prev; /* time linkage */
 	int time;		/* starting time */
-	unsigned short sflags;	/* symbol flags */
+	unsigned int sflags;	/* symbol flags */
 #define S_EOLN		0x0001		/* end of line */
 #define S_WORD_ST	0x0002		/* word starts here */
 #define S_BEAM_BR1	0x0004		/* 2nd beam must restart here */
 #define S_OTHER_HEAD	0x0008		/* don't draw any note head */
 #define S_IN_TUPLET	0x0010		/* in a tuplet */
 #define S_TREM		0x0020		/* tremolo (when note) */
-#define S_RRBAR		0x0020		/* right repeat bar (when bar) */
-#define S_XSTEM		0x0040		/* cross-staff stem (when note) */
-#define S_NOREPBAR	0x0040		/* don't draw the repeat bar (when bar) */
-#define S_BEAM_ON	0x0080		/* continue beaming */
-#define S_SL1		0x0100		/* some chord slur start */
-#define S_SL2		0x0200		/* some chord slur end */
-#define S_TI1		0x0400		/* some chord tie start */
-#define S_DYNUP		0x0800		/* dynamic marks above the staff */
-#define S_DYNDN		0x1000		/* dynamic marks below the staff */
-#define S_ERROR		0x2000		/* error on this symbol */
-#define S_RBSTOP	0x4000		/* repeat bracket stop */
-#define S_BEAM_BR2	0x8000		/* 3rd beam must restart here */
+#define S_RRBAR		0x0040		/* right repeat bar (when bar) */
+#define S_XSTEM		0x0080		/* cross-staff stem (when note) */
+#define S_NOREPBAR	0x0100		/* don't draw the repeat bar (when bar) */
+#define S_BEAM_ON	0x0200		/* continue beaming */
+#define S_SL1		0x0400		/* some chord slur start */
+#define S_SL2		0x0800		/* some chord slur end */
+#define S_TI1		0x1000		/* some chord tie start */
+#define S_DYNUP		0x2000		/* dynamic marks above the staff */
+#define S_DYNDN		0x4000		/* dynamic marks below the staff */
+#define S_ERROR		0x8000		/* error on this symbol */
+#define S_RBSTOP	0x00010000	/* repeat bracket stop */
+#define S_BEAM_BR2	0x00020000	/* 3rd beam must restart here */
+#define S_INVIS		0x00040000	/* invisible */
 	unsigned char nhd;	/* number of notes in chord - 1 */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
@@ -204,8 +205,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	struct SYMBOL *grace;	/* grace notes */
 };
 
-/* bar types */
-#define B_INVIS B_OBRA		/* invisible; for endings without bars */
+/* bar types !tied to abcparse.h! */
 #define B_SINGLE B_BAR		/* |	single bar */
 #define B_DOUBLE 0x11		/* ||	thin double bar */
 #define B_THIN_THICK 0x13	/* |]	thick at section end  */
@@ -356,7 +356,8 @@ struct VOICE_S {
 	char *tabhead;		/* tablature:	PS head function */
 	char *tabnote;		/*		note function */
 	char *tabbar;		/*		bar function */
-	float tabheight;	/*		height */
+	float tabha;		/*		height above the staff */
+	float tabhu;		/*		height under the staff */
 	float scale;		/* scale */
 	float sep;		/* distance to the next staff */
 	float maxsep;		/* max distance to the next staff */
@@ -374,7 +375,7 @@ struct VOICE_S {
 	unsigned have_ly:1;	/* some lyrics in this voice */
 	unsigned whistle:1;	/* tin whistle for this voice */
 	short wmeasure;		/* measure duration while parsing */
-	signed char bar_start;	/* bar type at start of staff / -1 */
+	signed char bar_start;	/* bar type at start of staff / 0 */
 	signed char clone;	/* duplicate from this voice number */
 	unsigned char staff;	/* staff (0..n-1) */
 	unsigned char cstaff;	/* staff while parsing */

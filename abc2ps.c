@@ -123,16 +123,16 @@ int main(int argc,
 
 	/* initialize */
 	outfn[0] = '\0';
-	clrarena(0);			/* global desription */
+	clrarena(0);			/* global description */
 	clrarena(1);			/* tune description */
 	clrarena(2);			/* tune generation */
 	clrarena(3);			/* line generation */
 	clear_buffer();
 	abc_init((void *(*)(int size)) getarena, /* alloc */
-		 0,				/* free */
+		0,				/* free */
 		(void (*)(int level)) lvlarena, /* new level */
-		 sizeof(struct SYMBOL) - sizeof(struct abcsym),
-		 0);			/* don't keep comments */
+		sizeof(struct SYMBOL) - sizeof(struct abcsym),
+		0);				/* don't keep comments */
 	set_format();
 	s_argc = argc;
 	s_argv = argv;
@@ -346,7 +346,8 @@ int main(int argc,
 					aaa = p + 1;
 					if (*aaa == '\0') {
 						aaa = *++argv;
-						if (--argc <= 0 || *aaa == '-') {
+						if (--argc <= 0
+						    || (*aaa == '-' && c != 'O')) {
 							fprintf(stderr,
 								"++++ Missing parameter after flag -%c\n",
 								c);

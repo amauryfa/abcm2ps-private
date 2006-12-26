@@ -66,6 +66,7 @@ static void init_ps(char *str, int is_epsf)
 {
 	time_t ltime;
 	int i;
+	char version[32];
 
 	if (is_epsf) {
 /*fixme: no landscape for EPS?*/
@@ -76,10 +77,7 @@ static void init_ps(char *str, int is_epsf)
 			-bposy);
 		cur_lmarg = p_fmt->leftmargin - 10;
 	} else	fprintf(fout, "%%!PS-Adobe-2.0\n");
-
 	fprintf(fout, "%%%%Title: %s\n", str);
-
-	/* CreationDate */
 	time(&ltime);
 	strftime(tex_buf, TEX_BUF_SZ, "%b %e, %Y %H:%M", localtime(&ltime));
 	fprintf(fout, "%%%%Creator: abcm2ps-" VERSION "\n"
@@ -95,12 +93,15 @@ static void init_ps(char *str, int is_epsf)
 			s_argv[i]);
 	}
 	fprintf(fout, "\n\n");
-
 	if (is_epsf)
 		fprintf(fout,
 			"gsave /origstate save def mark\n"
 			"100 dict begin\n");
-
+	strcpy(version, "/creator [(abcm2ps) " VERSION "] def");
+	for (i = 0; i < strlen(version); i++) {
+		if (version[i] == '.')
+			version[i] = ' ';
+	}
 	fprintf(fout, "%%%%BeginSetup\n"
 		"/!{bind def}bind def\n"
 		"/bdef{bind def}!\n"		/* for compatibility */
@@ -114,7 +115,7 @@ static void init_ps(char *str, int is_epsf)
 		"/dlw{0.7 SLW}!\n"
 
 	/* (simple!) level2 emulation */
-		"/languagelevel where{}{/languagelevel 1 def}ifelse\n"
+		"/languagelevel where{pop}{/languagelevel 1 def}ifelse\n"
 		"languagelevel 1 eq{\n"
 		" /rectstroke{\n"
 		"	4 2 roll M 1 index 0 RL 0 exch RL neg 0 RL closepath\n"
@@ -124,7 +125,9 @@ static void init_ps(char *str, int is_epsf)
 		"	fill}!\n"
 		" /selectfont{exch findfont exch dup\n"
 		"	type/arraytype eq{makefont}{scalefont}ifelse setfont}!\n"
-		" }if\n");
+		" /product where{pop}{/product()def}ifelse\n"
+		" }if\n"
+		"%s\n", version);
 	define_symbols();
 	user_ps_write();
 	define_fonts();

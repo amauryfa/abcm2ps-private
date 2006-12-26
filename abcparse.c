@@ -743,7 +743,7 @@ static void parse_clef(struct clef_s *p_clef,
 		float sc;
 
 		sc = atof(scale);
-		if (sc >= 0.5 && sc <= 2)
+		if (sc >= 0.5 && sc <= 3)
 			p_clef->staffscale = sc;
 		else	syntax("Bad value of staffscale", scale);
 	}

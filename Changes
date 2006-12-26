@@ -1,3 +1,16 @@
+---- Version 5.2.3 - 06/12/27 ----
+
+Correct alignment of voice names when scale != 1 and/or stafflines != 5.
+Accept '-O -' (space after 'O') in the command line.
+Add the height above the staff in %%tablature.
+May have !invisible! on rests and measure bars.
+May have V: staffscale up to 3.
+'creator' added in the PostScript output.
+Ignore the invisible notes when calculating the beams.
+%%staffbreak did not work since 5.2.2.
+May have tablatures above the staff.
+Bad font when tablature with forced font and normal lyrics.
+
 ---- Version 5.2.2 - 06/12/19 ----
 
 May insert PostScript files as format files (with '-F' or %%format).

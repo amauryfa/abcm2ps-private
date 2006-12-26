@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.2.2
+VERSION = 5.2.3
 
 CC = gcc
 INSTALL = /usr/bin//install -c
@@ -62,7 +62,6 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/abcparse.c \
 	abcm2ps-$(VERSION)/abcparse.h \
 	abcm2ps-$(VERSION)/accordion.abc \
-	abcm2ps-$(VERSION)/banjo.abc \
 	abcm2ps-$(VERSION)/buffer.c \
 	abcm2ps-$(VERSION)/configure \
 	abcm2ps-$(VERSION)/configure.in \

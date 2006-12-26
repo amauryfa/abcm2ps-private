@@ -120,16 +120,16 @@ List of the options
 	See: format.txt - writehistory <bool>
 
   -O[<directory>][<name>], +O
-	Define the output file name.
-	By default, the output file goes to the current directory.
-	By default, the output file name is 'Out.ps' for PS, and
-	'Outnnn.eps' for EPS (see option '-E').
-	With this option, it will be <name> or <name>nnn.eps.
+	Define the output file directory and/or name.
+	By default, the output file goes to the current directory
+	with a name 'Out.ps' for PS, and 'Outnnn.eps' for EPS (see
+	option '-E').
+	With this option, the file name may be <name> or <name>nnn.eps.
 	If <name> is '=', the output file is the name of the ABC
 	source file with the extension '.ps' for PS, or the title
 	of the tune for EPS.
 	If <name> is '-', the result is output on stdout (PS only).
-	'+O' is the same as '-O'.
+	'+O' resets the output file directory and name to their defaults.
 
   -s<float>
 	See: format.txt - scale <float>

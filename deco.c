@@ -771,11 +771,7 @@ void deco_cnv(struct deco *dc,
 		default:
 			continue;
 		case 32:		/* 32 = invisible */
-			if (s->type != NOTE)
-				error(1, s,
-				      "Cannot have +%s+ on a rest or a bar",
-				       dd->name);
-			else	s->as.u.note.invis = 1;
+			s->sflags |= S_INVIS;
 			break;
 		case 33:		/* 33 = beamon */
 			s->sflags |= S_BEAM_ON;
@@ -1374,8 +1370,7 @@ void draw_deco_staff(void)
 					break;
 				if (s->type != BAR)
 					continue;
-				if (((s->as.u.bar.type & 0xf0)	/* if complex bar */
-				     && s->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
+				if ((s->as.u.bar.type & 0xf0)	/* if complex bar */
 				    || s->as.u.bar.type == B_CBRA
 				    || s->as.u.bar.repeat_bar)
 					break;
@@ -1430,8 +1425,7 @@ void draw_deco_staff(void)
 					break;
 				if (s->type != BAR)
 					continue;
-				if (((s->as.u.bar.type & 0xf0)	/* if complex bar */
-				     && s->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
+				if ((s->as.u.bar.type & 0xf0)	/* if complex bar */
 				    || s->as.u.bar.type == B_CBRA
 				    || s->as.u.bar.repeat_bar)
 					break;
@@ -1441,7 +1435,7 @@ void draw_deco_staff(void)
 			if (s1 == s2)
 				break;
 			x = s1->x;
-			if ((s1->as.u.bar.type & 0x0f) == B_COL)
+			if ((s1->as.u.bar.type & 0x03) == B_COL)
 				x -= 4;
 			i = 0;			/* no bracket end */
 			w = s2->x - x - 8;
@@ -1449,8 +1443,7 @@ void draw_deco_staff(void)
 				;
 			else if (s2->type != BAR)
 				w = realwidth - x - 4;
-			else if (((s2->as.u.bar.type & 0xf0)	/* if complex bar */
-				   && s2->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
+			else if ((s2->as.u.bar.type & 0xf0)	/* if complex bar */
 				 || s2->as.u.bar.type == B_CBRA) {
 				i =  2;		/* bracket start and stop */
 				if ((s2->as.u.bar.type & 0x0f) == B_COL)
