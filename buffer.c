@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -37,6 +37,7 @@ static float ln_pos[BUFFLN];	/* vertical positions of buffered lines */
 static int ln_buf[BUFFLN];	/* buffer location of buffered lines */
 static float ln_lmarg[BUFFLN];	/* left margin of buffered lines */
 static float ln_scale[BUFFLN];	/* scale of buffered lines */
+static signed char ln_font[BUFFLN];	/* font of buffered lines */
 static char buf[BUFFSZ];	/* output buffer.. should hold one tune */
 static float cur_lmarg = 0;	/* current left margin */
 static float cur_scale = 1.0;	/* current scale */
@@ -129,6 +130,7 @@ static void init_ps(char *str, int is_epsf)
 		" }if\n"
 		"%s\n", version);
 	define_symbols();
+	define_encodings();
 	user_ps_write();
 	define_fonts();
 	fprintf(fout, "%%%%EndSetup\n");
@@ -179,6 +181,7 @@ void close_page(void)
 		"showpage\n");
 	cur_lmarg = 0;
 	cur_scale = 1.0;
+	outft = -1;
 }
 
 /* -- output a header/footer element -- */
@@ -267,7 +270,9 @@ static float headfooter(int header,
 	char *p, *q, *r;
 	float size, y, wsize;
 	struct FONTSPEC *f, f_sav;
+	int defft_sav;
 
+	defft_sav = get_str_font();
 	memcpy(&f_sav, &cfmt.font_tb[0], sizeof f_sav);
 	if (header) {
 		p = cfmt.header;
@@ -339,6 +344,7 @@ static float headfooter(int header,
 		y -= size;
 	}
 	memcpy(&cfmt.font_tb[0], &f_sav, sizeof cfmt.font_tb[0]);
+	str_font(defft_sav);
 	return wsize;
 }
 
@@ -404,6 +410,7 @@ static void init_page(void)
 	if (cfmt.footer != 0)
 		posy -= headfooter(0, pwidth, pheight);
 	pagenum++;
+	outft = -1;
 }
 
 /* -- open the output file -- */
@@ -570,17 +577,27 @@ void write_buffer(void)
 {
 	int i, l, b2, np;
 	float p1, dp;
+	int outft_sav;
 
 	if (nbuf == 0 || multicol_start != 0)
 		return;
+	outft_sav = outft;
 	i = 0;
 	p1 = 0;
 	for (l = 0; l < ln_num; l++) {
 		b2 = ln_buf[l];
 		dp = ln_pos[l] - p1;
 		np = posy + dp < 0 && !epsf;
-		if (np)
+		if (np) {
 			newpage();
+			if (ln_font[l] >= 0) {
+				struct FONTSPEC *f;
+
+				f = &cfmt.font_tb[ln_font[l]];
+				fprintf(fout, "%.1f F%d\n",
+					f->size, f->fnum);
+			}
+		}
 		if (ln_scale[l] != cur_scale) {
 			fprintf(fout, "%.2f dup scale\n",
 				ln_scale[l] / cur_scale);
@@ -630,6 +647,7 @@ void write_buffer(void)
 	}
 	fwrite(&buf[i], 1, nbuf - i, fout);
 	clear_buffer();
+	outft = outft_sav;
 }
 
 /* -- handle completed block in buffer -- */
@@ -651,6 +669,7 @@ void buffer_eob(void)
 	ln_pos[ln_num] = bposy;
 	ln_lmarg[ln_num] = cfmt.leftmargin;
 	ln_scale[ln_num] = cfmt.scale;
+	ln_font[ln_num] = outft;
 	ln_num++;
 	if (!use_buffer) {
 		write_buffer();

@@ -1,7 +1,7 @@
 /*
  * abcm2ps: a program to typeset tunes written in abc format using PostScript
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  *
  * Adapted from abc2ps-1.2.5:
  *  Copyright (C) 1996,1997  Michael Methfessel
@@ -77,7 +77,6 @@ int nwhistle;
 
 /* -- local variables -- */
 
-static int deco_old;		/* abc2ps decorations */
 static int def_fmt_done = 0;	/* default format read */
 static struct SYMBOL notitle;
 
@@ -281,7 +280,10 @@ int main(int argc,
 					cfmt.printtempo = 1;
 					lock_fmt(&cfmt.printtempo);
 					break;
-				case 'u': deco_old = 1; break;
+				case 'u':
+					cfmt.abc2pscompat = 1;
+					lock_fmt(&cfmt.abc2pscompat);
+					break;
 				case 'V':
 					write_version();
 					return 0;
@@ -533,7 +535,7 @@ static void output_file(char *sel)
 	default_info.title = &notitle;
 	notitle.as.text = "T:";
 	memcpy(&info, &default_info, sizeof info);
-	reset_deco(deco_old);
+	reset_deco();
 	memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
 	if (!epsf)
 		open_output_file();
@@ -738,7 +740,7 @@ static void usage(void)
 		"  .input file selection/options:\n"
 		"     -e pattern\n"
 		"             xref list of tunes to select\n"
-		"     -u      abc2ps implicit decorations\n"
+		"     -u      abc2ps behaviour\n"
 		"     -L n    set char encoding to Latin number n\n"
 		"  .help/configuration:\n"
 		"     -V      show program version\n"

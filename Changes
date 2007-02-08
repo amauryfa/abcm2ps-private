@@ -1,3 +1,44 @@
+---- Version 5.3.0 - 07/02/09 ----
+
+Bad head when unisson on voices with different scales.
+May have long decorations between different voices on a same staff.
+Bad horizontal spacing when no bar at end of previous line.
+Better place for the measure numbers.
+Change the calculation of decorations near the notes and the
+	PS definition of /dot end /emb (!compatibility!).
+Clash of decorations and tuplets.
+Room for the box of guitar chords.
+Clash of gchord/upper annotations.
+Better vertical offset of rests when voices inverted on the staff.
+%%abc2pscompat added, 'CLEF_TRANSPOSE' (config.h) removed
+	 (!compatibility!).
+Crash when annotation or guitar chord not closed.
+Bad measure bars when empty staves.
+Don't print a staff when 'staffnonote' and visible rests only.
+
+---- Version 5.2.5 - 07/01/27 ----
+
+Fix some cases of bad vertical offset of rests in multi-voice staves.
+%%shifthnote removed, replaced by %%shiftunisson.
+Better beams when inverted or multi-staves stems.
+Adjust the stem height when different number of flags at the ends
+	of beams.
+Clash of arpeggio with previous note.
+Bad tie at start of line if tie to other voice.
+Change 'Dbar' to 'Dcroat' in latin 2, 4 and 6 encodings.
+Adjust again the horizontal spacing at start of music lines.
+Bad font in some new page cases.
+
+---- Version 5.2.4 - 07/01/15 ----
+
+Smaller horizontal spacing of key and time signatures at start of
+	staff.
+Have the g# above the staff in explicit key signature.
+Put the dynamics of grace notes under the staff if asked for normal
+	notes.
+Bad decorations when put before a grace note sequence.
+Output the encodings before the user global PostScript.
+
 ---- Version 5.2.3 - 06/12/27 ----
 
 Correct alignment of voice names when scale != 1 and/or stafflines != 5.

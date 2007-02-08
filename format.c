@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -53,6 +53,7 @@ static struct format {
 	char subtype;		/* special cases - see code */
 	short lock;
 } format_tb[] = {
+	{"abc2pscompat", &cfmt.abc2pscompat, FORMAT_B, 0},
 	{"alignbars", &cfmt.alignbars, FORMAT_I, 0},
 	{"aligncomposer", &cfmt.aligncomposer, FORMAT_I, 0},
 	{"autoclef", &cfmt.autoclef, FORMAT_B, 0},
@@ -120,7 +121,8 @@ static struct format {
 #if FONT_UMAX!=5
 #	error Bad number of user fonts
 #endif
-	{"shifthnote", &cfmt.shifthnote, FORMAT_B, 0},
+	{"shifthnote", &cfmt.shiftunisson, FORMAT_B, 0},	/*to remove*/
+	{"shiftunisson", &cfmt.shiftunisson, FORMAT_B, 0},
 	{"slurheight", &cfmt.slurheight, FORMAT_R, 0},
 	{"splittune", &cfmt.splittune, FORMAT_B, 0},
 	{"squarebreve", &cfmt.squarebreve, FORMAT_B, 0},
@@ -256,8 +258,8 @@ static void fontspec(struct FONTSPEC *f,
 		cfmt.vof = dfont_set(f);
 }
 
-/* -- output the font definitions with their encodings -- */
-void define_fonts(void)
+/* -- output the encodings -- */
+void define_encodings(void)
 {
 	int i, enc;
 
@@ -273,6 +275,13 @@ void define_fonts(void)
 			define_encoding(i, enc_name[i]);
 		enc >>= 1;
 	}
+}
+
+/* -- output the font definitions with their encodings -- */
+void define_fonts(void)
+{
+	int i;
+
 	for (i = 0; i < nfontnames; i++) {
 		if (used_font[i])
 			define_font(fontnames[i], i, font_enc[i]);

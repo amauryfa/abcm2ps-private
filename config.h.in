@@ -12,9 +12,6 @@
 /* Define to handle the european A4 format.  */
 #undef A4_FORMAT
 
-/* Define to have clef definition changing the note pitch.  */
-#undef CLEF_TRANSPOSE
-
 /* Define to have ~ as roll instead of twiddle.  */
 #undef DECO_IS_ROLL
 

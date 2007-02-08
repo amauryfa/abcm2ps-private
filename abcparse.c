@@ -1,7 +1,7 @@
 /*++
  * Generic ABC parser.
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996, 1997  Michael Methfessel
  *
  * Original site: http://moinejf.free.fr/
@@ -1966,6 +1966,7 @@ static int parse_line(struct abctune *t,
 	struct abcsym *s;
 	char *comment, *q, c;
 	struct abcsym *last_note_sav = 0;
+	struct deco dc_sav;
 	int i;
 	char sappo = 0;
 	static char qtb[10] = {0, 1, 3, 2, 3, 0, 2, 0, 3, 0};
@@ -2068,8 +2069,11 @@ again:					/* for history */
 
 			/* loop till any 'x:' or '%%' */
 			for (;;) {
-				if ((p = get_line()) == 0)
-					break;
+				if ((p = get_line()) == 0) {
+					syntax("EOF while parsing H:",
+					       scratch_line);
+					return 1;
+				}
 				if (p[1] == ':'
 				    || (p[1] == '%' && *p == '%'))
 					goto again;
@@ -2121,7 +2125,7 @@ again:					/* for history */
 				if ((p = get_line()) == 0) {
 					syntax("EOF reached while parsing guitar chord",
 					       p);
-					break;
+					return 1;
 				}
 			}
 			break;
@@ -2136,12 +2140,15 @@ again:					/* for history */
 				char_tb['}'] = CHAR_GRACE;
 				last_note_sav = curvoice->last_note;
 				curvoice->last_note = 0;
+				memcpy(&dc_sav, &dc, sizeof dc);
+				dc.n = dc.h = dc.s = 0;
 			} else {
 				char_tb['{'] = CHAR_GRACE;
 				char_tb['}'] = CHAR_BAD;
 /*fixme:bad*/
 				t->last_sym->u.note.word_end = 1;
 				curvoice->last_note = last_note_sav;
+				memcpy(&dc, &dc_sav, sizeof dc);
 			}
 			break;
 		case CHAR_DECO:
@@ -2410,6 +2417,7 @@ again:					/* for history */
 		if (curvoice->last_note != 0)
 			curvoice->last_note->u.note.word_end = 1;
 		curvoice->last_note = last_note_sav;
+		memcpy(&dc, &dc_sav, sizeof dc);
 	}
 
 	/* add eoln */

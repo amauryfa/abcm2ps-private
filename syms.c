@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -74,7 +74,7 @@ static char ps_head[] =
 	"	-4 -0.2 -4.8 -3.1 -2.7 -5.7 RC\n"
 	"	fill}!\n"
 
-	"/stclef{exch 0.85 div exch 0.85 div gsave 0.85 dup scale tclef grestore}!\n"
+	"/stclef{gsave T .85 dup scale 0 0 tclef grestore}!\n"
 
 	/* x y octu - upper '8' */
 	"/octu{/Times-Roman 12 selectfont M -1.5 36 RM(8)show}!\n"
@@ -91,15 +91,11 @@ static char ps_head[] =
 	"	-3 -1.4 -5.7 2.3 -1.9 7 RC\n"
 	"	2.6 2.3 11.4 0.6 10.1 -8 RC\n"
 	"	-0.1 -4.6 -5 -10.2 -13.3 -11.5 RC\n"
-	"	15.5 17 RM\n"
-	"	0 1.5 2 1.5 2 0 RC\n"
-	"	0 -1.5 -2 -1.5 -2 0 RC\n"
-	"	0 -5.5 RM\n"
-	"	0 1.5 2 1.5 2 0 RC\n"
-	"	0 -1.5 -2 -1.5 -2 0 RC\n"
+	"	16 17.5 RM currentpoint 1.1 0 360 arc\n"
+	"	-1.1 -6 RM currentpoint 1.1 0 360 arc\n"
 	"	fill}!\n"
 
-	"/sbclef{exch 0.85 div exch 0.85 div gsave 0.85 dup scale 0 3 T bclef grestore}!\n"
+	"/sbclef{gsave T .85 dup scale 0 3 bclef grestore}!\n"
 
 	"/cchalf{0 12 M\n"
 	"	2.6 5 RL\n"
@@ -117,8 +113,7 @@ static char ps_head[] =
 	"	-5.5 0 3 24 rectfill\n"
 	"	-0.5 0 M 0 24 RL 0.7 SLW stroke grestore}!\n"
 
-	"/scclef{exch .85 div exch .85 div gsave .85 dup scale\n"
-	"	2 add cclef grestore}!\n"
+	"/scclef{gsave T .85 dup scale 0 2 cclef grestore}!\n"
 
 	/* x y pclef */
 	"/pclef{	exch 2.7 sub exch 2 add 5.4 20\n"
@@ -251,11 +246,11 @@ static char ps_head[] =
 	"	-5 -8.5 -5.5 4.5 -10 -2 RC fill}!\n"
 
 	/* x y stc - staccato mark */
-	"/stc{M currentpoint 1.2 0 360 arc fill}!\n"
+	"/stc{3 add M currentpoint 1.2 0 360 arc fill}!\n"
 
 	/* x y emb - emphasis bar */
 	"/emb{	1.2 SLW 1 setlinecap M\n"
-	"	-2.5 0 RM 5 0 RL stroke 0 setlinecap}!\n"
+	"	-2.5 3 RM 5 0 RL stroke 0 setlinecap}!\n"
 
 	/* x y cpu - roll sign above head */
 	"/cpu{	M -6 0 RM\n"
@@ -792,11 +787,11 @@ static char *enc_tb[MAXENC] = {
 	/* (300) */
 	"/Racute/Aacute/Acircumflex/Abreve/Adieresis/Lacute/Cacute/Ccedilla\n"
 	"/Ccaron/Eacute/Eogonek/Edieresis/Ecaron/Iacute/Icircumflex/Dcaron\n"
-	"/Dbar/Nacute/Ncaron/Oacute/Ocircumflex/Ohungarumlaut/Odieresis/multiply\n"
+	"/Dcroat/Nacute/Ncaron/Oacute/Ocircumflex/Ohungarumlaut/Odieresis/multiply\n"
 	"/Rcaron/Uring/Uacute/Uhungarumlaut/Udieresis/Yacute/Tcedilla/germandbls\n"
 	"/racute/aacute/acircumflex/abreve/adieresis/lacute/cacute/ccedilla\n"
 	"/ccaron/eacute/eogonek/edieresis/ecaron/iacute/icircumflex/dcaron\n"
-	"/dbar/nacute/ncaron/oacute/ocircumflex/ohungarumlaut/odieresis/divide\n"
+	"/dcroat/nacute/ncaron/oacute/ocircumflex/ohungarumlaut/odieresis/divide\n"
 	"/rcaron/uring/uacute/uhungarumlaut/udieresis/yacute/tcedilla/dotaccent",
 	/* 3 */
 	"/space/Hstroke/breve/sterling/currency/yen/Hcircumflex/section\n"
@@ -824,7 +819,7 @@ static char *enc_tb[MAXENC] = {
 	"/Oslash/Uogonek/Uacute/Ucircumflex/Udieresis/Utilde/Umacron/germandbls\n"
 	"/amacron/aacute/acircumflex/atilde/adieresis/aring/ae/iogonek\n"
 	"/ccaron/eacute/eogonek/edieresis/edotaccent/iacute/icircumflex/imacron\n"
-	"/dbar/ncedilla/omacron/kcedilla/ocircumflex/otilde/odieresis/divide\n"
+	"/dcroat/ncedilla/omacron/kcedilla/ocircumflex/otilde/odieresis/divide\n"
 	"/oslash/uogonek/uacute/ucircumflex/udieresis/utilde/umacron/dotaccent",
 	/* 5 */
 	"/space/exclamdown/cent/sterling/currency/yen/brokenbar/section\n"
@@ -843,12 +838,12 @@ static char *enc_tb[MAXENC] = {
 	/* 6 */
 	"/space/Aogonek/Emacron/Gcedilla/Imacron/Itilde/Kcedilla/Lcedilla\n"
 	"/acute/Rcedilla/Scaron/Tbar/Zcaron/hyphen/kra/Eng\n"
-	"/dbar/aogonek/emacron/gcedilla/imacron/itilde/kcedilla/lcedilla\n"
+	"/dcroat/aogonek/emacron/gcedilla/imacron/itilde/kcedilla/lcedilla\n"
 	"/nacute/rcedilla/scaron/tbar/zcaron/section/germandbls/eng\n"
 	/* (300) */
 	"/Amacron/Aacute/Acircumflex/Atilde/Adieresis/Aring/AE/Iogonek\n"
 	"/Ccaron/Eacute/Eogonek/Edieresis/Edotaccent/Iacute/Icircumflex/Idieresis\n"
-	"/Dbar/Ncedilla/Omacron/Oacute/Ocircumflex/Otilde/Odieresis/Utilde\n"
+	"/Dcroat/Ncedilla/Omacron/Oacute/Ocircumflex/Otilde/Odieresis/Utilde\n"
 	"/Oslash/Uogonek/Uacute/Ucircumflex/Udieresis/Yacute/Thorn/Umacron\n"
 	"/amacron/aacute/acircumflex/atilde/adieresis/aring/ae/iogonek\n"
 	"/ccaron/eacute/eogonek/edieresis/edotaccent/iacute/icircumflex/idieresis\n"
@@ -1024,8 +1019,7 @@ void define_symbols(void)
 		"			1.4 4.8 -2.4 5.4 -3.2 5.2 RC\n"
 		"			fill -3.5 add M\n"
 		"		}repeat\n"
-		"	  }\n"
-		"	ifelse}!\n",
+		"	  }ifelse}!\n",
 		GSTEM_XOFF);
 
 	/* n len sgd - gnote stem and n flag down */
@@ -1042,8 +1036,7 @@ void define_symbols(void)
 		"			1.4 -4.8 -2.4 -5.4 -3.2 -5.2 RC\n"
 		"			fill 3.5 add M\n"
 		"		}repeat\n"
-		"	  }\n"
-		"	ifelse}!\n",
+		"	  }ifelse}!\n",
 		-GSTEM_XOFF);
 
 	/* n len sgs - gnote stem and n straight flag up */

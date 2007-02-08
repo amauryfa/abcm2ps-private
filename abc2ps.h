@@ -197,7 +197,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	float xmx;		/* max h-pos of a head rel to top */
 	float xs, ys;		/* offset of stem end */
 	float wl, wr;		/* left, right min width */
-	float space, stretch;	/* natural and maxi width */
+	float stretch;		/* max space before symbol */
 	float xmin, xmax;	/* min and max x offsets */
 	float shhd[MAXHD];	/* horizontal shift for heads */
 	float shac[MAXHD];	/* horizontal shift for accidentals */
@@ -225,13 +225,14 @@ struct FORMAT { 		/* struct for page layout */
 	float scale, maxshrink, lineskipfac, parskipfac, sysstaffsep;
 	float indent, infospace, slurheight, notespacingfactor;
 	float maxstaffsep, maxsysstaffsep, stemheight;
-	int alignbars, aligncomposer, autoclef, barsperstaff, breathlow;
-	int bstemdown, combinevoices, contbarnb, continueall, dynalign;
+	int abc2pscompat, alignbars, aligncomposer, autoclef;
+	int barsperstaff, breathlow, bstemdown;
+	int combinevoices, contbarnb, continueall, dynalign;
 	int encoding, exprabove, exprbelow, flatbeams, freegchord;
 	int infoline, gchordbox, graceslurs, comball, hyphencont;
 	int landscape, measurenb, measurefirst, measurebox, musiconly;
 	int oneperpage, partsbox, printparts, printtempo;
-	int setdefl, shifthnote, splittune, squarebreve, staffnonote;
+	int setdefl, shiftunisson, splittune, squarebreve, staffnonote;
 	int straightflags, stretchstaff, stretchlast;
 	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
 	int vocalabove, withxrefs, writehistory;
@@ -439,7 +440,7 @@ float draw_partempo(float top,
 		    int any_part,
 		    int any_tempo);
 void draw_measnb(void);
-void reset_deco(int deco_old);
+void reset_deco(void);
 void set_defl(int new_defl);
 float tempo_width(struct SYMBOL *s);
 void write_tempo(struct SYMBOL *s,
@@ -467,6 +468,7 @@ void puty(float y);
 void putxy(float x, float y);
 /* format.c */
 void define_fonts(void);
+void define_encodings(void);
 int get_textopt(char *p);
 void interpret_fmt_line(char *w, char *p, int lock);
 void lock_fmt(void *fmt);
@@ -498,6 +500,7 @@ void error(int sev, struct SYMBOL *s, char *fmt, ...);
 float scan_u(char *str);
 void add_to_text_block(char *s, int job);
 float cwid(unsigned char c);
+int get_str_font(void);
 void put_history(void);
 void put_words(struct SYMBOL *words);
 void set_font(int ft);

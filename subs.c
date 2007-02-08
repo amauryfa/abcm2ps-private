@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,8 +31,8 @@
 #include "abcparse.h"
 #include "abc2ps.h" 
 
-char tex_buf[512];		/* result of tex_str() */
-int outft;			/* last font in the output file */
+char tex_buf[TEX_BUF_SZ];	/* result of tex_str() */
+int outft = -1;			/* last font in the output file */
 
 static char *strop;		/* current string output operation */
 static float strlw;		/* line width */
@@ -353,10 +353,10 @@ float tex_str(char *s)
 				*d++ = c2;
 				*d++ = s[1];
 				c1 = ((c1 - '0') << 6) + ((c2 - '0') << 3) + s[1] - '0';
-#endif
 				w += cwid((unsigned char) c1) * swfac;
 				s += 2;
 				break;
+#endif
 			}
 			/* convert to rfc1345 */
 			switch (c1) {
@@ -429,6 +429,12 @@ float tex_str(char *s)
 void str_font(int ft)
 {
 	curft = defft = ft;
+}
+
+/* -- get the current default font -- */
+int get_str_font(void)
+{
+	return defft;
 }
 
 /* -- output one string -- */

@@ -135,6 +135,7 @@ T:Explicit clef transposition
 [K:clef=c]"clef=c""A"A"B"B"c"c"d"d|\
 [K:clef=f]"clef=f""a"a"b"b"c'"c'"d'"d'|
 T:abc2ps compatible clef transposition
+%%abc2pscompat 1
 [K:treble]"treble""A,"A,"B,"B,"C"C"D"D|\
 [K:alto]"alto""A"A"B"B"c"c"d"d|\
 [K:bass]"bass""a"a"b"b"c'"c'"d'"d'|

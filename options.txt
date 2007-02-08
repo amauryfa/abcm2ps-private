@@ -135,7 +135,7 @@ List of the options
 	See: format.txt - scale <float>
 
   -u
-	Select the abc2ps implicit decorations.
+	See: format.txt - abc2pscompat <bool>
 
   -V
 	Show the version number.

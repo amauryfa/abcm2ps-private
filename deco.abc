@@ -26,6 +26,15 @@
 /opchnot{	% usage: x y opchnot
 	M -10.5 -3 RM /Times-Roman 15 selectfont(\(   \))show}!
 %
+% -- sforzando accent
+/sfa{		% usage: x y sfa	
+	1.2 SLW M -2.4 4.8 RM
+	2.4 8.0 RL
+	2.4 -7.4 RL
+	-1.0 0.0 RL
+	-1.8 6.4 RL
+	stroke}!
+%
 % -- draw octava indication
 /octava{	% usage: w x y octava
 	exch -10 add exch 2 copy
@@ -332,6 +341,10 @@
 % actual syntax (see format.txt):
 %	%%deco <name> <c_func> <ps_func> <h> <wl> <wr> [<str>]
 %
+% -- accent near the note / sforzando
+%%deco accn 0 accent 8 4 4
+%%deco sfa 3 sfa 12 5 5
+%
 % -- dynamic indication below the staff
 %%deco fp 6 pf 18 5 11 fp
 %%deco cresc 6 crdc 20 4 28 Cresc.
@@ -421,13 +434,17 @@
 X:1
 T:Customized decorations
 M:C
+L:1/8
 K:C treble-8
 !biga!y!fp!"C"C!t2ub!C !cresc!"D"D!t3tab!D !decresc!"E"E!ubt3ta!E !dimin!"F"F!tbt3!F|\
 !mp!"G"G!t2ta!G !(p)!A!t3b!c T!b!!(pp)!A2 P!#!!(f)!B2|M!=!!(ff)!c8|
+%
 K: clef=treble
 !8(!!riten!EF !-!G2 !ped!GA!ped-end!B!8)!c|!8b(!!bigb!C2!()!E2 !tr(!G3!tr)!!8b)!c!alcoda!|\
 CE!-(!G2!-)!!/!C2"free text"!/!c2|
-"Dm"!Dm!e3/d/ d6 | "Bb"!Bb!z2 d/d3/ "C7"!C7!cB/A/- AG |
+%
+"Dm"!Dm!e3/d/ d6 | "Bb"!Bb!z2 d/d3/ "C7"!C7!cB/A/- AG |\
+F!accent!G!accn!AB !sfa!c4||
 
 X:3
 T:Decorations with abcm2ps 4.x.x

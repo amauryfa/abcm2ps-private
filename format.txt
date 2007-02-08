@@ -37,6 +37,15 @@ of the same font.
 List of the format parameters
 -----------------------------
 
+  abc2pscompat <bool>
+	Default: 0
+	Compilation: none
+	Command line: -u
+	Description:
+		When true, set 'M' as the +tenuto+ decoration and do a
+		pitch translation if the notes are too high for a bass
+		clef.
+
   alignbars <int>
 	Default: 0
 	Compilation: none
@@ -104,7 +113,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		When set, the stem of the note on the middle of the
+		When set, the stem of the note in the middle of the
 		staff goes downwards. Otherwise, it goes upwards
 		or downwards according to the previous note.
 
@@ -660,15 +669,16 @@ List of the format parameters
 		its default value.
 		Note: <size> is mandatory at the first definition..
 
-  shifthnote <bool>
+  shiftunisson <bool>
 	Default: 0
 	Compilation: none
 	Command line: none
 	Description:
-		In multivoice tunes, when voices go to unisson with
-		a minim (half note) and a note smaller than crotchet
-		(black note), there is only one note head, the minim
-		one. When this flag is set, a note shift is done.
+		In multivoice tunes, when voices go to unisson, there
+		is often only one head. Setting this flag keeps the
+		two notes with a shift when there is a minim (half note)
+		and a note smaller than crotchet (black note), and also
+		when one note is dotted and not the other one.
 
   slurheight <float>
 	Default: 1.0
@@ -1084,8 +1094,9 @@ List of the pseudo-comments treated while parsed
 		- the ABC bar as a string.
 		- the x and y offsets.
 		- the w: line number (0 .. n-1).
-	See 'accordion.abc', 'http://moinejf.free.fr/banjo.abc'
-	and 'http://moinejf.free.fr/bataille.abc' for examples.
+	See 'accordion.abc', 'http://moinejf.free.fr/abc/banjo.abc',
+	'http://moinejf.free.fr/abc/bataille.abc'
+	and 'http://moinejf.free.fr/abc/tabyf1.abc' for examples.
 
   text <line of text>
 	Print one line of text.
