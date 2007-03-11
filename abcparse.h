@@ -163,8 +163,8 @@ struct abcsym {
 			unsigned char value;
 		} user;
 		struct staff_s {	/* %%staves */
-			unsigned char voice;
-			char flags;
+			short voice;
+			unsigned char flags[2];
 #define OPEN_BRACE 0x01
 #define CLOSE_BRACE 0x02
 #define OPEN_BRACKET 0x04
@@ -172,7 +172,7 @@ struct abcsym {
 #define OPEN_PARENTH 0x10
 #define CLOSE_PARENTH 0x20
 #define STOP_BAR 0x40
-			char *name;
+#define FL_VOICE 0x80
 		} staves[MAXVOICE];
 		struct {		/* voice overlay */
 			char type;

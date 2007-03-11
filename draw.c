@@ -571,31 +571,27 @@ static void draw_beams(struct BEAM *bm)
 /* -- draw the left side of the staves -- */
 static void draw_lstaff(float x)
 {
-	int i, j, brace, bracket;
-	float y, yb, x0, y0;
+	int i, j, l, istart, iend;
+	float yt, yb;
 
 	if (cfmt.alignbars)
 		return;
-	brace = 0;
+	l = 0;
 	for (i = 0; i < nstaff; i++) {
-		if (staff_tb[i].brace || staff_tb[i].bracket)
-			brace++;
-		if (staff_tb[i].brace_end || staff_tb[i].bracket_end)
-			brace--;
+		if (staff_tb[i].flags[0] & (OPEN_BRACE | OPEN_BRACKET))
+			l++;
 		if (!staff_tb[i].empty
 		    && staff_tb[i].clef.stafflines != 0)
 			break;
+		if (staff_tb[i].flags[0] & (CLOSE_BRACE | CLOSE_BRACKET))
+			l--;
 	}
 	for (j = nstaff; j > i; j--) {
-		if (staff_tb[i].brace || staff_tb[i].bracket)
-			brace++;
-		if (staff_tb[i].brace_end || staff_tb[i].bracket_end)
-			brace--;
 		if (!staff_tb[j].empty
 		    && staff_tb[j].clef.stafflines != 0)
 			break;
 	}
-	if (i == j && brace == 0)
+	if (i == j && l == 0)
 		return;
 	set_scale(-1);
 	yb = staff_tb[j].y + staff_tb[j].botbar * staff_tb[j].clef.staffscale;
@@ -603,56 +599,42 @@ static void draw_lstaff(float x)
 	     staff_tb[i].y + staff_tb[i].topbar * staff_tb[i].clef.staffscale
 		- yb,
 	     x, yb);
-	x0 = y0 = yb = 0;
-	brace = bracket = 0;
-	for (i = 0; i <= nstaff; i++) {
-		if (staff_tb[i].empty
-		    || staff_tb[i].clef.stafflines == 0) {
-			if (staff_tb[i].brace)
-				brace++;
-			if (staff_tb[i].bracket)
-				bracket++;
-			if (staff_tb[i].brace_end)
-				brace--;
-			if (staff_tb[i].bracket_end)
-				bracket--;
-			continue;
+	for (l = 0; l <= 1; l++) {		/* two levels */
+		for (i = 0; i <= nstaff; i++) {
+			if (!(staff_tb[i].flags[l]
+					& (OPEN_BRACE | OPEN_BRACKET)))
+				continue;
+			j = i;
+			while (staff_tb[j].empty
+			       || staff_tb[j].clef.stafflines == 0) {
+				if (staff_tb[j].flags[l]
+						& (CLOSE_BRACE | CLOSE_BRACKET))
+					break;
+				j++;
+			}
+			if (staff_tb[j].empty
+			    || staff_tb[j].clef.stafflines == 0)
+				continue;
+			istart = iend = j;
+			for (;;) {
+				if (!staff_tb[j].empty
+				    && staff_tb[j].clef.stafflines != 0)
+					iend = j;
+				if (staff_tb[j].flags[l]
+						& (CLOSE_BRACE | CLOSE_BRACKET))
+					break;
+				j++;
+			}
+			yt = staff_tb[istart].y + staff_tb[istart].topbar
+				* staff_tb[istart].clef.staffscale;
+			yb = staff_tb[iend].y + staff_tb[iend].botbar
+				* staff_tb[iend].clef.staffscale;
+			PUT4("%.1f %.1f %.1f %s\n",
+			     yt - yb, x, yt,
+			     (staff_tb[i].flags[l] & OPEN_BRACE)
+				? "brace" : "bracket");
 		}
-		y = staff_tb[i].y;
-		if (staff_tb[i].brace || brace) {
-			x0 = x;
-			y0 = yb;
-			yb = y + staff_tb[i].topbar
-				* staff_tb[i].clef.staffscale;
-			x -= 6;
-			if (brace)
-				brace = 0;
-		}
-		if (staff_tb[i].bracket || bracket) {
-			x0 = x;
-			y0 = yb;
-			yb = y + staff_tb[i].topbar
-				* staff_tb[i].clef.staffscale;
-			x -= 6;
-			if (bracket)
-				bracket = 0;
-		}
-		if (staff_tb[i].brace_end) {
-			x += 6;
-			y += staff_tb[i].botbar
-				* staff_tb[i].clef.staffscale;
-			PUT3("%.1f %.1f %.1f brace\n",
-			     yb - y, x, yb);
-			yb = y0;
-		}
-		if (staff_tb[i].bracket_end) {
-			x += 6;
-			y += staff_tb[i].botbar
-				* staff_tb[i].clef.staffscale;
-			PUT3("%.1f %.1f %.1f bracket\n",
-			     yb - y, x, yb);
-			yb = y0;
-		}
+		x -= 6;
 	}
 }
 
@@ -913,7 +895,7 @@ static int bar_cnv(int bar_type)
 static void draw_bar(float x, struct SYMBOL *s)
 {
 	int staff, bar_type, dotted;
-	float y, staffb, stafft;
+	float yb, h;
 	char *psf;
 
 	dotted = s->as.u.bar.dotted || s->as.u.bar.type == B_COL;
@@ -921,14 +903,9 @@ static void draw_bar(float x, struct SYMBOL *s)
 	if (bar_type == 0)
 		return;				/* invisible */
 	staff = voice_tb[s->voice].staff;	/* (may be != s->staff) */
-	y = staff_tb[staff].y;
-	staffb = y + staff_tb[staff].botbar
+	yb = staff_tb[staff].y + staff_tb[staff].botbar
 			* staff_tb[staff].clef.staffscale;
-	if (staff == 0 || staff_tb[staff - 1].stop_bar)
-		stafft = y + staff_tb[staff].topbar
-				* staff_tb[staff].clef.staffscale;
-	else	stafft = staff_tb[staff - 1].y + staff_tb[staff - 1].botbar
-				* staff_tb[staff + 1].clef.staffscale;
+	h = staff_tb[staff].bar_height;
 	for (;;) {
 		psf = "bar";
 		switch (bar_type & 0x07) {
@@ -948,12 +925,11 @@ static void draw_bar(float x, struct SYMBOL *s)
 		switch (bar_type & 0x07) {
 		default:
 			set_scale(-1);
-			PUT4("%.1f %.1f %.1f %s ",
-			     stafft - staffb, x, staffb, psf);
+			PUT4("%.1f %.1f %.1f %s ", h, x, yb, psf);
 			break;
 		case B_COL:
 			set_sscale(staff);
-			putxy(x + 1, y);
+			putxy(x + 1, staff_tb[staff].y);
 			PUT0("rdots ");
 			break;
 		}
@@ -3322,17 +3298,16 @@ void draw_sym_near(void)
 }
 
 /* -- draw remaining symbols when the staves are defined -- */
-void draw_symbols(struct VOICE_S *p_voice)
+static void draw_symbols(struct VOICE_S *p_voice,
+			 int first)
 {
 	struct BEAM bm;
 	struct SYMBOL *s;
 	float x, y, xstaff;
 	int staff, staff_st;
 
-	if (staff_tb[p_voice->staff].empty)
-		return;
 	bm.s2 = 0;
-	staff_st = p_voice == first_voice && nstaff != 0;
+	staff_st = first;
 	xstaff = 0;
 	for (s = p_voice->sym; s != 0; s = s->next) {
 		x = s->x;
@@ -3455,8 +3430,7 @@ void draw_symbols(struct VOICE_S *p_voice)
 
 				x2 = s->prev->x;
 				staff = p_voice->staff;
-				if (!p_voice->second
-				    && !staff_tb[staff].empty) {
+				if (!p_voice->second) {
 					if (s->prev->type != BAR)
 						x2 += s->prev->wr;
 					draw_staff(p_voice, xstaff, x2);
@@ -3464,9 +3438,8 @@ void draw_symbols(struct VOICE_S *p_voice)
 				if (staff_st)
 					draw_lstaff(xstaff);
 				xstaff = s->xmx != 0 ? x : x2;
-				if (p_voice != first_voice)
-					break;
-				staff_st = nstaff != 0 && s->xmx > .5 CM;
+				if (first)
+					staff_st = s->xmx > .5 CM;
 				break;
 			}
 			if (s->u == PSSEQ) {
@@ -3486,15 +3459,28 @@ void draw_symbols(struct VOICE_S *p_voice)
 
 	/* draw the (end of the) staff */
 	if (!p_voice->second) {
-		staff = p_voice->staff;
-		if (!staff_tb[staff].empty)
-			draw_staff(p_voice, xstaff, realwidth);
+		draw_staff(p_voice, xstaff, realwidth);
 		if (staff_st)
 			draw_lstaff(xstaff);
 	}
 
 	set_scale(p_voice - voice_tb);
 	draw_all_ties(p_voice);
+}
+
+/* -- draw all symbols -- */
+void draw_all_symb(void)
+{
+	struct VOICE_S *p_voice;
+	int first;
+
+	first = nstaff != 0;
+	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+		if (staff_tb[p_voice->staff].empty)
+			continue;
+		draw_symbols(p_voice, first);
+		first = 0;
+	}
 }
 
 /* -- draw the name/subname of the voices -- */
@@ -3528,7 +3514,8 @@ void draw_vname(int first_line,
 		staff = p_voice->staff;
 		if (staff_tb[staff].empty)
 			continue;
-		if (staff_tb[staff].brace_end)
+		if ((staff_tb[staff].flags[0] & CLOSE_BRACE)
+		    || (staff_tb[staff].flags[1] & CLOSE_BRACE))
 			staff--;
 		staff_p = &staff_d[staff];
 		if (first_line) {
@@ -3560,7 +3547,8 @@ void draw_vname(int first_line,
 				* staff_tb[staff].clef.staffscale
 			+ 9 * (staff_p->nl - 1)
 			- cfmt.font_tb[VOICEFONT].size * .3;
-		if (staff_tb[staff].brace)
+		if ((staff_tb[staff].flags[0] & OPEN_BRACE)
+		    || (staff_tb[staff].flags[1] & OPEN_BRACE))
 			y -= (staff_tb[staff].y - staff_tb[staff + 1].y) * .5;
 		for (n = 0; n < staff_p->nl; n++) {
 			p = staff_p->v[n];

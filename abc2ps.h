@@ -60,16 +60,10 @@
 #define GCHPRE		0.4	/* portion of guitar chord before note */
 
 /* -- Parameters for note spacing -- */
-/* -- bnn determines how strongly the first note enters into the spacing.
-      For bnn=1, the spacing is calculated using the first note.
-      For bnn=0, the spacing is the average for the two notes.
-   -- fnn multiplies the spacing under a beam, to compress the notes a bit
-   -- gnn multiplies the spacing a second time within a tuplet
+/* -- fnn multiplies the spacing under a beam, to compress the notes a bit
  */
 
-#define bnnp 0.9
 #define fnnp 0.9
-#define gnnp 0.8
 
 /* -- macros for program internals -- */
 
@@ -327,15 +321,12 @@ extern char **s_argv;
 
 struct STAFF_S {
 	struct clef_s clef;	/* base clef */
-	unsigned brace:1;	/* 1st staff of a brace */
-	unsigned brace_end:1;	/* 2nd staff of a brace */
-	unsigned bracket:1;	/* 1st staff of a bracket */
-	unsigned bracket_end:1;	/* last staff of a bracket */
-	unsigned forced_clef:1;	/* explicit clef */
-	unsigned stop_bar:1;	/* stop drawing measure bar on this staff */
-	unsigned empty:1;	/* no symbol on this staff */
+	char flags[2];		/* brace and bracket flags (from %%staves) */
+	char forced_clef;	/* explicit clef */
+	char empty;		/* no symbol on this staff */
 	short botbar, topbar;	/* bottom and top of bar */
 	float y;		/* y position */
+	float bar_height;	/* height of measure bars */
 	float sep;		/* distance to the next staff */
 	float maxsep;		/* max distance to the next staff */
 	float top[YSTEP], bot[YSTEP];	/* top/bottom y offsets */
@@ -458,7 +449,7 @@ void y_set(struct SYMBOL *s,
 	   float y);
 /* draw.c */
 void draw_sym_near(void);
-void draw_symbols(struct VOICE_S *p_voice);
+void draw_all_symb(void);
 void draw_vname(int mline, float indent);
 void draw_whistle(void);
 void set_scale(int staff);

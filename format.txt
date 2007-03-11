@@ -53,7 +53,8 @@ List of the format parameters
 	Description:
 		Align the bars of the next <int> music lines.
 		Such an alignment works only when there is only one
-		voice in the music lines (no V: or %%staves allowed).
+		voice in each music line (no V:, %%staves or %%score
+		is allowed).
 
   aligncomposer <int>
 	Default: 1
@@ -1050,6 +1051,9 @@ List of the pseudo-comments treated while parsed
 	The repeat brackets are normally displayed as found in a voice.
 	'%%repbra 0' prevents displaying them for the current voice.
 
+  score <definition>
+	See the ABC standard version 2.0 for description.
+
   sep [<h1> <h2> <len>]
 	Print a separator of length <len> with space <h1> above and
 	space <h2> below (defaults: h1 = h2 = 0.5cm, len = 3.0cm).
@@ -1089,7 +1093,7 @@ List of the pseudo-comments treated while parsed
 		- the string as defined by the 'w:' line.
 		- the x and y offsets.
 		- the w: line number (0 .. n-1).
-	<note-bar> is the PostScript function called at each bar.
+	<bar-func> is the PostScript function called at each bar.
 	When called, the stack contains:
 		- the ABC bar as a string.
 		- the x and y offsets.

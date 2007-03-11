@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2006 Jean-François Moine
+ * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -447,7 +447,7 @@ static void get_over(struct SYMBOL *s)
 /* -- get staves definition (%%staves) -- */
 static void get_staves(struct SYMBOL *s)
 {
-	int i, staff, flags, dup_voice, v;
+	int i, staff, flags0, dup_voice, v;
 	struct staff_s *p_staff;
 	struct VOICE_S *p_voice, *p_voice2;
 
@@ -465,7 +465,7 @@ static void get_staves(struct SYMBOL *s)
 	p_voice2 = 0;
 	dup_voice = MAXVOICE;
 	for (i = 0, p_staff = s->as.u.staves;
-	     i < MAXVOICE && p_staff->name;
+	     i < MAXVOICE && p_staff->voice>= 0;
 	     i++, p_staff++) {
 		p_voice = &voice_tb[p_staff->voice];
 
@@ -484,8 +484,6 @@ static void get_staves(struct SYMBOL *s)
 			p_staff->voice = dup_voice;
 		}
 
-		p_voice->name = p_staff->name;
-
 		/* link the voices */
 		if ((p_voice->prev = p_voice2) == 0)
 			first_voice = p_voice;
@@ -497,12 +495,12 @@ static void get_staves(struct SYMBOL *s)
 	memset(staff_tb, 0, sizeof staff_tb);
 	staff = -1;
 	for (i = 0, p_staff = s->as.u.staves;
-	     i < MAXVOICE && p_staff->name;
+	     i < MAXVOICE && p_staff->voice >= 0;
 	     i++, p_staff++) {
-		flags = p_staff->flags;
+		flags0 = p_staff->flags[0];
 #if MAXSTAFF < MAXVOICE
 		if (staff >= MAXSTAFF - 1) {
-			error(1, s, "Too many staves");
+			error(1, s, "Too many staves - aborting");
 			exit(2);
 		}
 #endif
@@ -511,29 +509,23 @@ static void get_staves(struct SYMBOL *s)
 		p_voice = &voice_tb[p_staff->voice];
 		p_voice->staff = p_voice->cstaff = staff;
 
-		if ((flags & (OPEN_PARENTH | CLOSE_PARENTH))
+		if ((flags0 & (OPEN_PARENTH | CLOSE_PARENTH))
 				== (OPEN_PARENTH | CLOSE_PARENTH))
-			flags &= ~(OPEN_PARENTH | CLOSE_PARENTH);
-		if (flags == 0)
+			flags0 &= ~(OPEN_PARENTH | CLOSE_PARENTH);
+		if (flags0 == 0 && p_staff->flags[1] == 0)
 			continue;
-		if (flags & STOP_BAR)
-			staff_tb[staff].stop_bar = 1;
-		if (flags & OPEN_BRACKET)
-			staff_tb[staff].bracket = 1;
-		if (flags & CLOSE_BRACKET)
-			staff_tb[staff].bracket_end = 1;
-		if (flags & OPEN_BRACE) {
+		staff_tb[staff].flags[0] = flags0;
+		staff_tb[staff].flags[1] = p_staff->flags[1];
+		if ((flags0 & OPEN_BRACE)
+		    || (p_staff->flags[1] & OPEN_BRACE)) {
 			for (v = i + 1; v < MAXVOICE; v++)
-				if (s->as.u.staves[v].flags & CLOSE_BRACE)
+				if ((s->as.u.staves[v].flags[0] & CLOSE_BRACE)
+				    || (s->as.u.staves[v].flags[1] & CLOSE_BRACE))
 					break;
 			switch (v - i) {
-			case 1:				/* {a b} */
-				if (flags & OPEN_PARENTH)
-					goto err;
-				break;
 			case 2:				/* {a b c} */
-				if (flags & OPEN_PARENTH
-				    || (p_staff[1].flags & OPEN_PARENTH))
+				if (flags0 & OPEN_PARENTH
+				    || (p_staff[1].flags[0] & OPEN_PARENTH))
 					break;
 				i++;
 				p_staff++;
@@ -543,51 +535,33 @@ static void get_staves(struct SYMBOL *s)
 				p_voice->staff = p_voice->cstaff = staff;
 				break;
 			case 3:				/* {a b c d} */
-				if (flags & OPEN_PARENTH
-				    || (p_staff[1].flags & OPEN_PARENTH)
-				    || (p_staff[2].flags & OPEN_PARENTH))
+				if (flags0 & OPEN_PARENTH
+				    || (p_staff[1].flags[0] & OPEN_PARENTH)
+				    || (p_staff[2].flags[0] & OPEN_PARENTH))
 					break;
+/*fixme:to remove*/
 				/* -> {(a b) (c d)} */
-				p_staff->flags |= OPEN_PARENTH;
-				flags |= OPEN_PARENTH;
-				p_staff[1].flags |= CLOSE_PARENTH;
-				p_staff[2].flags |= OPEN_PARENTH;
-				p_staff[3].flags |= CLOSE_PARENTH;
+				flags0 |= OPEN_PARENTH;
+				p_staff[1].flags[0] |= CLOSE_PARENTH;
+				p_staff[2].flags[0] |= OPEN_PARENTH;
+				p_staff[3].flags[0] |= CLOSE_PARENTH;
 				break;
 			}
-			staff_tb[staff].brace = 1;
 		}
-		if (flags & CLOSE_BRACE)
-			staff_tb[staff].brace_end = 1;
-		if (flags & OPEN_PARENTH) {
+		if (flags0 & OPEN_PARENTH) {
 			while (i < MAXVOICE) {
 				i++;
 				p_staff++;
 				p_voice = &voice_tb[p_staff->voice];
 				p_voice->second = 1;
 				p_voice->staff = p_voice->cstaff = staff;
-				if (p_staff->flags & CLOSE_PARENTH)
+				if (p_staff->flags[0] & CLOSE_PARENTH)
 					break;
 			}
-			if (p_staff->flags & STOP_BAR)
-				staff_tb[staff].stop_bar = 1;
-			if (p_staff->flags & CLOSE_BRACKET)
-				staff_tb[staff].bracket_end = 1;
-			if (p_staff->flags & CLOSE_BRACE) {
-				staff_tb[staff].brace_end = 1;
-			}
+			staff_tb[staff].flags[0] |= p_staff->flags[0];
+			staff_tb[staff].flags[1] |= p_staff->flags[1];
 		}
 	}
-	goto ok;
-
-	/* when error, let one voice per staff */
-err:
-	error(1, s, "Cannot handle this %%%%staves");
-	for (p_voice = voice_tb, staff = 0;
-	     p_voice != 0;
-	     p_voice = p_voice->next, staff++)
-		p_voice->staff = p_voice->cstaff = staff;
-ok:
 	if (staff < 0)
 		staff = 0;
 	nstaff = staff;
@@ -899,7 +873,7 @@ static void get_bar(struct SYMBOL *s)
 	if (bar_type == B_OBRA
 	    && (curvoice == first_voice
 		|| curvoice->second
-		|| staff_tb[curvoice->staff - 1].stop_bar)) {
+		|| (staff_tb[curvoice->staff - 1].flags[0] & STOP_BAR))) {
 		s2 = curvoice->last_symbol;
 		if (s2 != 0 && s2->type == BAR
 		    && s2->as.text == 0) {
@@ -2000,7 +1974,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			cfmt.alignbars = nstaff + 1;
 		first_voice = curvoice = p_voice = &voice_tb[0];
 		for (i = 0; i < cfmt.alignbars; i++) {
-			staff_tb[i].stop_bar = 1;
+			staff_tb[i].flags[0] |= STOP_BAR;
 			p_voice->staff = p_voice->cstaff = i;
 			if (i > 0)
 				p_voice->prev = p_voice - 1;

@@ -1,5 +1,5 @@
-	Features of abcm2ps 5.1.0 (J.F. Moine, September 2006)
-	======================================================
+	Features of abcm2ps 5.3.1 (J.F. Moine, March 2007)
+	==================================================
 
 abcm2ps tries to follow the ABC standard version 2.0:
 
@@ -134,13 +134,15 @@ Data format.
 
 ABC Stylesheet specification.
 
-	- '%%score' is not implemented. '%%staves' shall be used instead.
-	  The differences are:
-		- continued bar lines are drawn when there is no '|'
-		  between the voice names (this feature is inverted in
-		  %%score).
-		- '*' is not accepted. A floating voice may be only the
-		  second one in a 3 voices brace.
+	- The star ('*' = floating voice) is not treated in '%%score'.
+
+	- '%%staves' coexists with '%%score'.
+	  The differences in '%%staves' are:
+		- measure bars are drawn between staves when there is
+		  no '|' between the voice names (this feature is inverted
+		  in %%score).
+		- A floating voice may be only the second one in a
+		  3 voices brace.
 
 	- Some formatting directives are not implemented, and some new
 	  ones are defined. See the file 'format.txt' for details.

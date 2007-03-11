@@ -1150,56 +1150,56 @@ static char *top_err = "Cannot identify meter top";
 			ulen = BASE_LEN / 8;
 		else	ulen = BASE_LEN / 16;
 	}
-
 	return 0;
 }
 
 /* -- treat %%staves -- */
 static void parse_staves(char *p,
-			 struct abcsym *s)
+			 struct abcsym *s,
+			 int score)
 {
-	int voice, flags_st;
-	char flags, flags2;
+	int voice, flags_st, brace, bracket, parenth;
+	char flags[2];
 	struct staff_s *p_staff;
 
 	/* define the voices */
-	flags = flags2 = 0;
+	flags[0] = score ? STOP_BAR : 0;
+	flags[1] = 0;
+	brace = bracket = parenth = 0;
 	flags_st = 0;
 	voice = 0;
-
 	while (*p != '\0') {
 		switch (*p) {
 		case ' ':
 		case '\t':
 			break;
 		case '[':
-#if 1
-/*fixme: should limit at 2 open bracket*/
-			if (flags2 & OPEN_PARENTH)
-#else
-			if (flags2 & (OPEN_BRACKET | OPEN_PARENTH))
-#endif
+			if (parenth || brace + bracket >= 2)
 				goto err;
-			flags2 |= OPEN_BRACKET;
-			flags |= OPEN_BRACKET;
+			flags[brace + bracket] |= OPEN_BRACKET;
+			bracket++;
 			flags_st <<= 8;
 			flags_st |= OPEN_BRACKET;
 			break;
 		case '{':
-			if (flags2 & (OPEN_BRACE | OPEN_PARENTH))
+			if (parenth || brace || bracket >= 2)
 				goto err;
-			flags2 |= OPEN_BRACE;
-			flags |= OPEN_BRACE;
+			flags[bracket] |= OPEN_BRACE;
+			brace++;
 			flags_st <<= 8;
 			flags_st |= OPEN_BRACE;
 			break;
 		case '(':
-			if (flags2 & OPEN_PARENTH)
+			if (parenth)
 				goto err;
-			flags2 |= OPEN_PARENTH;
-			flags |= OPEN_PARENTH;
+			flags[0] |= OPEN_PARENTH;
+			parenth++;
 			flags_st <<= 8;
 			flags_st |= OPEN_PARENTH;
+			break;
+		case '*':
+			flags[0] |= FL_VOICE;
+			p++;
 			break;
 		default:
 			if (!isalnum((unsigned) *p) && *p != '_')
@@ -1214,8 +1214,6 @@ static void parse_staves(char *p,
 				p = def_voice(p, &v);
 				p_staff = &s->u.staves[voice++];
 				p_staff->voice = v;
-				p_staff->name = alloc_f(strlen(voice_tb[v].name) + 1);
-				strcpy(p_staff->name, voice_tb[v].name);
 			}
 			for (;;) {
 				switch (*p) {
@@ -1226,36 +1224,40 @@ static void parse_staves(char *p,
 				case ']':
 					if (!(flags_st & OPEN_BRACKET))
 						goto err;
+					bracket--;
+					flags[brace + bracket] |= CLOSE_BRACKET;
 					flags_st >>= 8;
-					flags2 &= ~OPEN_BRACKET;
-					flags |= CLOSE_BRACKET;
 					p++;
 					continue;
 				case '}':
 					if (!(flags_st & OPEN_BRACE))
 						goto err;
+					brace--;
+					flags[bracket] |= CLOSE_BRACE;
 					flags_st >>= 8;
-					flags2 &= ~OPEN_BRACE;
-					flags |= CLOSE_BRACE;
 					p++;
 					continue;
 				case ')':
 					if (!(flags_st & OPEN_PARENTH))
 						goto err;
+					parenth--;
+					flags[0] |= CLOSE_PARENTH;
 					flags_st >>= 8;
-					flags2 &= ~OPEN_PARENTH;
-					flags |= CLOSE_PARENTH;
 					p++;
 					continue;
 				case '|':
-					flags |= STOP_BAR;
+					if (!score)
+						flags[0] |= STOP_BAR;
+					else	flags[0] &= ~STOP_BAR;
 					p++;
 					continue;
 				}
 				break;
 			}
-			p_staff->flags = flags;
-			flags = 0;
+			p_staff->flags[0] = flags[0];
+			p_staff->flags[1] = flags[1];
+			flags[0] = score ? STOP_BAR : 0;
+			flags[1] = 0;
 			if (*p == '\0')
 				break;
 			continue;
@@ -1264,11 +1266,24 @@ static void parse_staves(char *p,
 			break;
 		p++;
 	}
-	if (flags2 == 0)
-		return;
-
+	if (flags_st == 0)
+		goto ok;
 err:
 	syntax("%%staves error", p);
+	{
+		int i;
+
+		for (i = 0; i < voice; i++) {
+			s->u.staves[i].flags[0] &= ~(OPEN_PARENTH | CLOSE_PARENTH
+						| OPEN_BRACKET | CLOSE_BRACKET
+						| OPEN_BRACE | OPEN_BRACE);
+			s->u.staves[i].flags[1] &= ~(OPEN_BRACKET | CLOSE_BRACKET
+						| OPEN_BRACE | OPEN_BRACE);
+		}
+	}
+ok:
+	if (voice < MAXVOICE)
+		s->u.staves[voice].voice = -1;
 }
 
 /* -- get a possibly quoted string -- */
@@ -2047,7 +2062,9 @@ again:					/* for history */
 				/* not reached */
 			}
 			if (strncmp(p, "staves ", 7) == 0)
-				parse_staves(p + 7, s);
+				parse_staves(p + 7, s, 0);
+			else if (strncmp(p, "score ", 6) == 0)
+				parse_staves(p + 6, s, 1);
 			return 0;
 		}
 		/* fall thru */

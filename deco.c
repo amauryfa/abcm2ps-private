@@ -610,7 +610,7 @@ static void d_upstaff(struct deco_elt *de)
 				break;
 		if (s != 0)
 			x += (s->x - x) * 0.4;
-		else	x += 10;
+		else	x += (realwidth - x) * 0.4;
 		break;
 	    }
 	case 20:	/* invertedturn */
@@ -1460,7 +1460,7 @@ void draw_deco_staff(void)
 					 || s2->as.u.bar.type == (B_CBRA << 4) + B_BAR)
 					w += 8;		/* explicit repeat end */
 				if (p_voice != first_voice
-				    && !staff_tb[s->staff - 1].stop_bar)
+				    && !(staff_tb[s->staff - 1].flags[0] & STOP_BAR))
 					w -= 4;
 			}
 			p = s1->as.text;

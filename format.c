@@ -58,7 +58,6 @@ static struct format {
 	{"aligncomposer", &cfmt.aligncomposer, FORMAT_I, 0},
 	{"autoclef", &cfmt.autoclef, FORMAT_B, 0},
 	{"annotationfont", &cfmt.font_tb[ANNOTATIONFONT], FORMAT_F, 0},
-	{"barnumbers", &cfmt.measurenb, FORMAT_I, 0},
 	{"barsperstaff", &cfmt.barsperstaff, FORMAT_I, 0},
 	{"botmargin", &cfmt.botmargin, FORMAT_U, 0},
 	{"bstemdown", &cfmt.bstemdown, FORMAT_B, 0},
@@ -563,32 +562,43 @@ void interpret_fmt_line(char *w,		/* keyword */
 {
 	struct format *fd;
 
-	if (strcmp(w, "deco") == 0) {
-		deco_add(p);
-		return;
-	}
-	if (!strcmp(w, "font")) {
-		int fnum, encoding;
-		char fname[80];
+	switch (w[0]) {
+	case 'b':
+		if (strcmp(w, "barnumbers") == 0)
+			w = "measurenb";
+		break;
+	case 'd':
+		if (strcmp(w, "deco") == 0) {
+			deco_add(p);
+			return;
+		}
+		break;
+	case 'f':
+		if (strcmp(w, "font") == 0) {
+			int fnum, encoding;
+			char fname[80];
 
-		p = get_str(fname, p, sizeof fname);
-		if (*p == '\0')
-			encoding = cfmt.encoding;
-		else	encoding = get_encoding(p);
-		fnum = get_font(fname, encoding);
-		def_font_enc[fnum] = encoding;
-		used_font[fnum] = 1;
-		return;
-	}
-	if (strcmp(w, "format") == 0) {
-		if (read_fmt_file(p) < 0)
-			error(1, 0, "No such format file '%s'", p);
-		return;
-	}
-	if (strcmp(w, "postscript") == 0) {
-		if (!file_initialized)
-			user_ps_add(p);
-		return;
+			p = get_str(fname, p, sizeof fname);
+			if (*p == '\0')
+				encoding = cfmt.encoding;
+			else	encoding = get_encoding(p);
+			fnum = get_font(fname, encoding);
+			def_font_enc[fnum] = encoding;
+			used_font[fnum] = 1;
+			return;
+		}
+		if (strcmp(w, "format") == 0) {
+			if (read_fmt_file(p) < 0)
+				error(1, 0, "No such format file '%s'", p);
+			return;
+		}
+		break;
+	case 'p':
+		if (strcmp(w, "postscript") == 0) {
+			if (!file_initialized)
+				user_ps_add(p);
+			return;
+		}
 	}
 	for (fd = format_tb; fd->name; fd++)
 		if (strcmp(w, fd->name) == 0)

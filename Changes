@@ -1,3 +1,13 @@
+---- Version 5.3.1 - 07/03/12 ----
+
+Better horizontal offset of short/medium/long phrases at end of line.
+Bad measure bars when some empty voices in a staff system.
+%%score added (ABC standard version 2).
+Better braces/brackets at start of staff systems.
+Better check of misplaced measure bars.
+Command line option '-j<n>' did not work when '%%measurenb' in tune.
+Change the horizontal spacing algorithm.
+
 ---- Version 5.3.0 - 07/02/09 ----
 
 Bad head when unisson on voices with different scales.
