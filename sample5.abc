@@ -14,4 +14,5 @@ Q:"Tempo in the tune header"
 K:C
 %%printtempo 1
 Q:"Tempo in the tune body"
-"C"C"Dm	G"D2"C"C|cccc|cccc|c4||
+"C"C"Dm	G"D2"C"C|"^<- guitar chords between symbols"cccc|cccc|c4||
+"^measure repeat"GABc|[I:mesrep 1]GABc|G2d2|B2d2|[I:mesrep 2]G2d2|B2d2|c4||

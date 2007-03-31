@@ -830,21 +830,15 @@ static void write_version(void)
 #ifdef A4_FORMAT
 		" A4_FORMAT"
 #endif
-#ifdef CLEF_TRANSPOSE
-		" CLEF_TRANSPOSE"
-#endif
 #ifdef DECO_IS_ROLL
 		" DECO_IS_ROLL"
 #endif
-#if !defined(A4_FORMAT) && !defined(CLEF_TRANSPOSE) \
-     && !defined(DECO_IS_ROLL)
+#if !defined(A4_FORMAT) && !defined(DECO_IS_ROLL)
 		" NONE"
 #endif
 		"\n");
-
 	if (strlen(styd) > 0)
-		fprintf(stderr,
-			"Default format directory: %s\n", styd);
+		fprintf(stderr, "Default format directory: %s\n", styd);
 }
 
 /* -- arena routines -- */

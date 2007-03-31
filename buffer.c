@@ -272,8 +272,6 @@ static float headfooter(int header,
 	struct FONTSPEC *f, f_sav;
 	int defft_sav;
 
-	defft_sav = get_str_font();
-	memcpy(&f_sav, &cfmt.font_tb[0], sizeof f_sav);
 	if (header) {
 		p = cfmt.header;
 		f = &cfmt.font_tb[HEADERFONT];
@@ -286,6 +284,13 @@ static float headfooter(int header,
 		y = - (pheight - cfmt.topmargin - cfmt.botmargin)
 			- size + 2;
 	}
+	if (*p == '-') {
+		if (pagenum == 1)
+			return 0;
+		p++;
+	}
+	defft_sav = get_str_font();
+	memcpy(&f_sav, &cfmt.font_tb[0], sizeof f_sav);
 	wsize = 0;
 	str_font(f - cfmt.font_tb);
 	fprintf(fout, "%.1f F%d ", size, f->fnum);
@@ -298,7 +303,6 @@ static float headfooter(int header,
 		wsize += size;
 		*r = '\0';
 	}
-
 	for (;;) {
 		tex_str(p);
 		strcpy(str, tex_buf);

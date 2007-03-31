@@ -1,3 +1,19 @@
+---- Version 5.4.0 - 07/04/01 ----
+
+Rests alone on a staff should now be vertically centered in all cases.
+Better double measure repeat when at end of line.
+%%measrep added.
+Problem when voice overlay and bar at start of tune.
+Changes in the structures of the ABC parser.
+Bad height of some measure bars.
+Better grace notes on different staves.
+Bad horizontal spacing when many voices and grace notes after measure bars.
+Suppress header/footer on the 1st page when format starts with '-'.
+Always indent the 1st line when %%indent set.
+Display the voice name when appearing inside a tune.
+Avoid clash of hyphen in lyrics under staff at end of line.
+Put lyrics after tune before any later text.
+
 ---- Version 5.3.1 - 07/03/12 ----
 
 Better horizontal offset of short/medium/long phrases at end of line.

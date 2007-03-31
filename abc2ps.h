@@ -130,15 +130,14 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define STAVES		8
 #define MREST		9
 #define PART		10
-#define MREP		11
-#define GRACE		12
-#define FMTCHG		13
-#define TUPLET		14
-#define WHISTLE		15
+#define GRACE		11
+#define FMTCHG		12
+#define TUPLET		13
+#define WHISTLE		14
 	unsigned char seq;	/* sequence # - see parse.c */
 	unsigned char voice;	/* voice (0..nvoice) */
 	unsigned char staff;	/* staff (0..nstaff) */
-	int len;		/* main note length */
+	int dur;		/* main note duration */
 	signed char pits[MAXHD]; /* pitches for notes */
 	struct SYMBOL *ts_next, *ts_prev; /* time linkage */
 	int time;		/* starting time */
@@ -158,10 +157,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_TI1		0x1000		/* some chord tie start */
 #define S_DYNUP		0x2000		/* dynamic marks above the staff */
 #define S_DYNDN		0x4000		/* dynamic marks below the staff */
-#define S_ERROR		0x8000		/* error on this symbol */
-#define S_RBSTOP	0x00010000	/* repeat bracket stop */
-#define S_BEAM_BR2	0x00020000	/* 3rd beam must restart here */
-#define S_INVIS		0x00040000	/* invisible */
+#define S_RBSTOP	0x8000		/* repeat bracket stop */
+#define S_BEAM_BR2	0x00010000	/* 3rd beam must restart here */
 	unsigned char nhd;	/* number of notes in chord - 1 */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
@@ -191,7 +188,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	float xmx;		/* max h-pos of a head rel to top */
 	float xs, ys;		/* offset of stem end */
 	float wl, wr;		/* left, right min width */
-	float stretch;		/* max space before symbol */
+	float space;		/* natural space before symbol */
 	float xmin, xmax;	/* min and max x offsets */
 	float shhd[MAXHD];	/* horizontal shift for heads */
 	float shac[MAXHD];	/* horizontal shift for accidentals */
@@ -224,7 +221,7 @@ struct FORMAT { 		/* struct for page layout */
 	int combinevoices, contbarnb, continueall, dynalign;
 	int encoding, exprabove, exprbelow, flatbeams, freegchord;
 	int infoline, gchordbox, graceslurs, comball, hyphencont;
-	int landscape, measurenb, measurefirst, measurebox, musiconly;
+	int landscape, measurebox, measurefirst, measurenb, musiconly;
 	int oneperpage, partsbox, printparts, printtempo;
 	int setdefl, shiftunisson, splittune, squarebreve, staffnonote;
 	int straightflags, stretchstaff, stretchlast;
@@ -366,6 +363,7 @@ struct VOICE_S {
 	unsigned norepbra:1;	/* don't display the repeat brackets */
 	unsigned have_ly:1;	/* some lyrics in this voice */
 	unsigned whistle:1;	/* tin whistle for this voice */
+	unsigned new_name:1;	/* redisplay the voice name */
 	short wmeasure;		/* measure duration while parsing */
 	signed char bar_start;	/* bar type at start of staff / 0 */
 	signed char clone;	/* duplicate from this voice number */
@@ -450,7 +448,7 @@ void y_set(struct SYMBOL *s,
 /* draw.c */
 void draw_sym_near(void);
 void draw_all_symb(void);
-void draw_vname(int mline, float indent);
+void draw_vname(float indent);
 void draw_whistle(void);
 void set_scale(int staff);
 void putf(float f);

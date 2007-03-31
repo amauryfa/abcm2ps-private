@@ -315,22 +315,6 @@
 	M 3 1.3 RM
 	-1 2.5 -6.5 0 -5.5 -2.5 RC
 	1 -2.5 6.5 0 5.5 2.5 RC fill}!
-% repeat measure
-/hrmes{		% usage: x y hrmes
-	12 sub 2 copy 2 copy
-	M -5 16 RM currentpoint 1.4 0 360 arc
-	M 5 8 RM currentpoint 1.4 0 360 arc
-	M -7 6 RM 11 12 RL 3 0 RL -11 -12 RL -3 0 RL
-	fill}!
-/rmes2{		% usage: x y rmes2
-	26 sub 2 copy 2 copy
-	M -5 18 RM currentpoint 1.4 0 360 arc
-	M 5 6 RM currentpoint 1.4 0 360 arc fill
-	M 1.8 SLW -7 4 RM 14 10 RL -14 -4 RM 14 10 RL
-	stroke}!
-/rmes2s{	% usage: str x y rmes2s
-	2 copy 5 add M 3 -1 roll /Helvetica 12 selectfont showc
-	rmes2}!
 % -- measure bar between two staves (1 and 2)
 /hbar{		% usage: x y hbar
 	dlw pop dup 0 y0 M 24 y1 lineto stroke}!
@@ -425,11 +409,6 @@
 %
 % -- measure bar between two staves
 %%deco hbar 3 hbar 0 0 0
-%
-% -- repeat measures
-%%deco head-rmes 0 hrmes 0 0 0
-%%deco rmes2 3 rmes2 0 0 0
-%%deco rmes2s 3 rmes2s 0 0 0 2
 
 X:1
 T:Customized decorations
@@ -454,9 +433,7 @@ L:1/4
 K:C
 V:1
 !arpu![!op!C!op!Gc]4 !hbar!] !breath!!opbrth!!arpd![CGc]4 |\
-	!arps![CGc]4 | !head-rmes!z4 |
-z3/[!head-x!B]/ [c!m!eg]2 | c4 | x4!rmes2s!| x4 ||
+	!arps![CGc]4 | z3/[!head-x!B]/ [c!m!eg]2 | c4 ||
 V:2
 !arpeggio![C,,G,,C,]4 ] [C,,G,,C,]4 |\
-	!arpe![C,,G,,C,]4 | !head-rmes!z4 |
-[C,,!head-shd!C,][G,,!head-shd!G,]C,2 | C,4 | x4!rmes2!| x4 ||
+	!arpe![C,,G,,C,]4 | [C,,!head-shd!C,][G,,!head-shd!G,]C,2 | C,4 ||

@@ -770,7 +770,7 @@ void deco_cnv(struct deco *dc,
 		default:
 			continue;
 		case 32:		/* 32 = invisible */
-			s->sflags |= S_INVIS;
+			s->as.flags |= ABC_F_INVIS;
 			break;
 		case 33:		/* 33 = beamon */
 			s->sflags |= S_BEAM_ON;
@@ -784,9 +784,9 @@ void deco_cnv(struct deco *dc,
 			}
 			s->sflags |= S_TREM;
 			s->sflags &= ~S_WORD_ST;
-			s->as.u.note.word_end = 1;
+			s->as.flags |= ABC_F_WORD_END;
 			s->prev->sflags |= (S_TREM | S_WORD_ST);
-			s->prev->as.u.note.word_end = 0;
+			s->prev->as.flags &= ~ABC_F_WORD_END;
 			s->nflags = s->prev->nflags = dd->name[4] - '0';
 			for (j = 0; j <= s->nhd; j++)
 				s->as.u.note.lens[j] *= 2;
@@ -1151,7 +1151,7 @@ static void deco_create(struct SYMBOL *s,
 		de->s = s;
 		de->t = dd - deco_def_tb;
 		de->staff = s->staff;
-		if (s->type == NOTE && s->as.u.note.grace)
+		if (s->type == NOTE && (s->as.flags & ABC_F_GRACE))
 			de->flags = DE_GRACE;
 		l = strlen(dd->name) - 1;
 		if (l > 0) {
@@ -1845,10 +1845,6 @@ void draw_measnb(void)
 		case MREST:
 			nbar += s->as.u.bar.len - 1;
 			continue;
-		case MREP:
-			if (s->as.u.bar.len > 2)
-				nbar += s->as.u.bar.len - 2;
-			continue;
 		default:
 			continue;
 		case BAR:
@@ -1873,9 +1869,7 @@ void draw_measnb(void)
 		    || s->next == 0
 		    || cfmt.measurenb == 0
 		    || (nbar % cfmt.measurenb) != 0
-		    || nbar <= 1
-		    || (s->next->type == MREP
-			&& s->next->as.u.bar.len > 1))
+		    || nbar <= 1)
 			continue;
 		if (!any_nb) {
 			any_nb = 1;

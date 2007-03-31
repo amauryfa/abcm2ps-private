@@ -236,7 +236,7 @@ static struct SYMBOL *t;
 		fprintf(stderr, "in line %d.%d",
 			s->as.linenum, s->as.colnum);
 		if (showerror) {
-			s->sflags |= S_ERROR;
+			s->as.flags |= ABC_F_ERROR;
 			showerror++;
 		}
 	}

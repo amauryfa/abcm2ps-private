@@ -301,8 +301,8 @@ List of the format parameters
 		In each lines 3 areas may be defined: left, center and
 		right.
 		These areas are separated by tabulations (real TABs,
-		not '\t') and may be empty (if the left area is empty,
-		quote the string - see sample3.abc for example).
+		not "\t") and may be empty (if the left area is empty,
+		double quote the string - see sample3.abc for example).
 		The character '$' introduces variable expansion:
 			- '$d' is the date and time of the last modification
 			   of the current ABC input file,
@@ -317,9 +317,8 @@ List of the format parameters
 		as:
 			%%header "$P0		$P1"
 		(note the 2 TABs).
-		A little trick: when a header or footer is defined inside
-		a tune, it is printed on the next page. This may be used
-		for example to have no header/footer on the 1st page.
+		If the footer (or header) starts with '-' (hyphen/minus),
+		it is not printed on the first page.
 
   footerfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 12
@@ -1027,6 +1026,10 @@ List of the pseudo-comments treated while parsed
 
   endtext
 	See 'begintext'.
+
+  measrep <n>
+	Change the following <n> measures to the 'measure repeat' symbol
+	('%' like). This command must appear after a measure bar.
 
   multicol <command>
 	Define multicolomn printing.
