@@ -1,3 +1,17 @@
+---- Version 4.12.30 - 07/05/28 ----
+
+Double number in tune title when %%withxrefs.
+Crash when '&' at start of tune.
+
+---- Version 4.12.29 - 07/03/26 ----
+
+Crash when voice name in a brace system with one staff.
+
+---- Version 4.12.28 - 07/02/04 ----
+
+Crash when annotation or guitar chord not closed.
+Bad decorations when put before a grace note sequence.
+
 ---- Version 4.12.27 - 06/09/19 ----
 
 Start a new page when a multicol sequence crosses a page.

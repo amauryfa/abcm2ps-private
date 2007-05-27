@@ -991,8 +991,6 @@ void write_title(struct SYMBOL *s)
 	else	PUT1("%.1f 0 M(",
 		     0.5 * ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 		     - cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale);
-	if (s == info.title && cfmt.withxrefs)
-		PUT1("%s.  ", info.xref);
 	tex_str(p);
 	PUT2("%s)show%s\n", tex_buf, cfmt.titleleft ? "" : "c");
 }

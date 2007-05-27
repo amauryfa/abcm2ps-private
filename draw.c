@@ -3673,7 +3673,7 @@ void draw_vname(int first_line,
 		staff = p_voice->staff;
 		if (staff_tb[staff].empty)
 			continue;
-		if (staff_tb[staff].brace_end)
+		if (staff_tb[staff].brace_end && !staff_tb[staff].brace) /*4.12.29*/
 			staff--;
 		staff_p = &staff_d[staff];
 		if (first_line) {
@@ -3702,7 +3702,7 @@ void draw_vname(int first_line,
 			continue;
 		y = staff_tb[staff].y + 12 + 9 * (staff_p->nl - 1)
 			- cfmt.voicefont.size * 0.3;
-		if (staff_tb[staff].brace)
+		if (staff_tb[staff].brace && !staff_tb[staff].brace_end) /*4.12.29*/
 			y -= (staff_tb[staff].y - staff_tb[staff + 1].y) * 0.5;
 		for (n = 0; n < staff_p->nl; n++) {
 			p = staff_p->v[n];
