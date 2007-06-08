@@ -1,3 +1,37 @@
+---- Version 5.4.3 - 07/06/09 ----
+
+Bad spacing when grace notes after a measure bar and multi-voice.
+Don't count incomplete measures in %%barsperstaff.
+Don't output %%text, %%center, %%begin/endtext and %%EPS when
+	%%textoption = 4 (skip).
+Apply %%textoption to %%text.
+Bad placement of P: when between two bars and at start of line.
+May have 'C', 'C|', 'c', ... in complex time signatures.
+
+---- Version 5.4.2 - 07/05/01 ----
+
+Lyrics after tune did not work.
+Crash when '&' at start of tune.
+Crash when $Ix in %%header/%%footer.
+
+---- Version 5.4.1 - 07/04/26 ----
+
+Bad merge of rests in %%combinevoices.
+%%measrep changed to %%repeat and extension to note sequence repeat.
+Ancient time signatures added ('o' / 'c' [ '.' ]).
+Smaller shift at ends of slurs.
+Lack of helper lines on some breve and longa rests.
+Bad handling of voice overlay when starts with invisible rest.
+Change glyph and alignment of long notes/rests (>= semibreve).
+%%score did not work.
+Don't stop the repeat brackets on invisible bar.
+Bad clef insertion when near a repeat sequence.
+Better horizontal offset of end of repeat bars.
+More compact output of %%writehistory.
+%%infoname added.
+'$Ix' added in %%header/%%footer.
+Any information fields range 'A' to 'Z' may go in %%titleformat.
+
 ---- Version 5.4.0 - 07/04/01 ----
 
 Rests alone on a staff should now be vertically centered in all cases.

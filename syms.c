@@ -138,19 +138,19 @@ static char ps_head[] =
 
 	/* x y r00 - longa rest */
 	"/r00{	xymove\n"
-	"	-1 -6 RM currentpoint 3 12 rectfill}!\n"
+	"	-1.5 -6 RM currentpoint 3 12 rectfill}!\n"
 
 	/* x y r0 - breve rest */
 	"/r0{	xymove\n"
-	"	-1 0 RM currentpoint 3 6 rectfill}!\n"
+	"	-1.5 0 RM currentpoint 3 6 rectfill}!\n"
 
 	/* x y r1 - rest */
 	"/r1{	xymove\n"
-	"	-3 3 RM currentpoint 7 3 rectfill}!\n"
+	"	-3.5 3 RM currentpoint 7 3 rectfill}!\n"
 
 	/* x y r2 - half rest */
 	"/r2{	xymove\n"
-	"	-3 0 RM currentpoint 7 3 rectfill}!\n"
+	"	-3.5 0 RM currentpoint 7 3 rectfill}!\n"
 
 	/* x y r4 - quarter rest */
 	"/r4{	xymove\n"
@@ -409,8 +409,8 @@ static char ps_head[] =
 	"/hl1{	.8 SLW x -7 add exch M\n"
 	"	14 0 RL stroke}!\n"
 	/* y hl2 - more longer helper line */
-	"/hl2{	.8 SLW x -8 add exch M\n"
-	"	16 0 RL stroke}!\n"
+	"/hl2{	.7 SLW x -9 add exch M\n"
+	"	18 0 RL stroke}!\n"
 
 	/* -- accidentals -- */
 	/* x y sh0 - sharp sign */
@@ -587,6 +587,12 @@ static char ps_head[] =
 	/* x y ctsig - C| timesig */
 	"/ctsig{dlw 2 copy csig 4 add M 0 16 RL stroke}!\n"
 
+	/* x y xxsig - old time signatures ('o', 'o.', 'c' 'c.') */
+	"/pmsig{0.3 SLW 12 add M currentpoint 5 0 360 arc stroke}!\n"
+	"/pMsig{2 copy pmsig 12 add M currentpoint 1.3 0 360 arc fill}!\n"
+	"/imsig{0.3 SLW 12 add 2 copy 5 add M 5 90 270 arc stroke}!\n"
+	"/iMsig{2 copy imsig 12 add M currentpoint 1.3 0 360 arc fill}!\n"
+
 	/* (top) (bot) x y tsig - time signature */
 	"/tsig{	M gsave/Times-Bold 16 selectfont 1.2 1 scale\n"
 	"	0 1 RM currentpoint 3 -1 roll showc\n"
@@ -631,8 +637,8 @@ static char ps_head[] =
 
 	/* x y mrep - measure repeat */
 	"/mrep{	2 copy 2 copy\n"
-	"	M -5 16 RM currentpoint 1.4 0 360 arc\n"
-	"	M 5 8 RM currentpoint 1.4 0 360 arc\n"
+	"	M -5 15 RM currentpoint 1.4 0 360 arc\n"
+	"	M 5 9 RM currentpoint 1.4 0 360 arc\n"
 	"	M -7 6 RM 11 12 RL 3 0 RL -11 -12 RL -3 0 RL\n"
 	"	fill}!\n"
 
@@ -643,6 +649,10 @@ static char ps_head[] =
 	"	M 1.8 SLW\n"
 	"	-7 4 RM 14 10 RL -14 -4 RM 14 10 RL\n"
 	"	stroke}!\n"
+
+	/* x y srep - sequence repeat */
+	"/srep{	M -1 6 RM 11 12 RL 3 0 RL -11 -12 RL -3 0 RL\n"
+	"	fill}!\n"
 
 	/* str dy bracket_type dx x y repbra - repeat bracket */
 	"/repbra{gsave dlw T 0 -20 M\n"
@@ -661,15 +671,6 @@ static char ps_head[] =
 	"/strw{stringwidth pop w add/w exch def}!\n"
 	"/jshow{w 0 32 4 -1 roll widthshow}!\n"
 
-	/* texts which may be translated */
-	"/wbook{0 0 M(Book:)show}!\n"
-	"/wdisco{0 0 M(Discography:)show}!\n"
-	"/whisto{0 0 M(History:)show}!\n"
-	"/wnotes{0 0 M(Notes:)show}!\n"
-	"/wrhythm{0 0 M(Rhythm:)show}!\n"
-	"/wsource{0 0 M(Source:)show}!\n"
-	"/wtrans{0 0 M(Transcription:)show}!\n"
-
 	/* -- note heads -- */
 	/* x y hd - full head */
 	"/hd{	xymove\n"
@@ -687,14 +688,14 @@ static char ps_head[] =
 	"	fill}!\n"
 	/* x y HD - open head for whole */
 	"/HD{	xymove\n"
-	"	-1.6 2.4 RM\n"
-	"	2.8 1.6 6 -3.2 3.2 -4.8 RC\n"
-	"	-2.8 -1.6 -6 3.2 -3.2 4.8 RC\n"
-	"	7.2 -2.4 RM\n"
-	"	0 1.8 -2.2 3.2 -5.6 3.2 RC\n"
-	"	-3.4 0 -5.6 -1.4 -5.6 -3.2 RC\n"
-	"	0 -1.8 2.2 -3.2 5.6 -3.2 RC\n"
-	"	3.4 0 5.6 1.4 5.6 3.2 RC\n"
+	"	-2.7 1.4 RM\n"
+	"	1.5 2.8 6.9 0 5.3 -2.7 RC\n"
+	"	-1.5 -2.8 -6.9 0 -5.3 2.7 RC\n"
+	"	8.3 -1.4 RM\n"
+	"	0 1.5 -2.2 3 -5.6 3 RC\n"
+	"	-3.4 0 -5.6 -1.5 -5.6 -3 RC\n"
+	"	0 -1.5 2.2 -3 5.6 -3 RC\n"
+	"	3.4 0 5.6 1.5 5.6 3 RC\n"
 	"	fill}!\n"
 	/* x y HDD - round breve */
 	"/HDD{	dlw HD\n"

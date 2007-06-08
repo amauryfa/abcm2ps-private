@@ -308,6 +308,8 @@ List of the format parameters
 			   of the current ABC input file,
 			- '$D' is the current date and time,
 			- '$F' is the current input file name,
+			- '$Ix' is any header information type ('x' is a
+			   letter range 'A' to 'Z').
 			- '$P' is the current page number,
 			- '$P0' and '$P1' are also the page number, but only
 			   when this one is even ('0') or odd ('1'),
@@ -317,7 +319,7 @@ List of the format parameters
 		as:
 			%%header "$P0		$P1"
 		(note the 2 TABs).
-		If the footer (or header) starts with '-' (hyphen/minus),
+		If the footer (or header) begins with '-' (hyphen/minus),
 		it is not printed on the first page.
 
   footerfont <font> [<encoding>] [<size>]
@@ -422,6 +424,21 @@ List of the format parameters
 	Description:
 		Display the rhythm and origin on a same line, and also
 		display the area ('A:').
+
+  infoname <uppercase letter> <information name>
+	Default:
+		R "Rhythm: "
+		B "Book: "
+		S "Source: "
+		D "Discography: "
+		N "Notes: "
+		Z "Transcription: "
+		H History: "
+	Compilation: none
+	Command line: none
+	Description:
+		Define the information types and names to be printed
+		after the tunes when 'writehistory' (or -n) is set.
 
   infospace <unit>
 	Default: 0
@@ -799,7 +816,8 @@ List of the format parameters
 	Command line: none
 	Description:
 		Set the default text option to <int>. This option is
-		used for text between '%%begintext' and '%%endtext'.
+		used for text between '%%begintext' and '%%endtext',
+		'%%text' and '%%EPS'.
 		<int> may be an integer or a keyword. The values are:
 			0: obeylines
 			1: justify
@@ -807,6 +825,8 @@ List of the format parameters
 			3: center
 			4: skip
 			5: right
+		When <int> is 4 (skip), neither text (including %%center)
+		nor EPS is output.
 
   textspace <unit>
 	Default: 0.5cm
@@ -851,8 +871,7 @@ List of the format parameters
 		plus and minus signs. Unrecognized characters are ignored.
 
 		A letter gives the ABC header infomation type. It may be
-		'A', 'B', 'C', 'D', 'H', 'N', 'O', 'P', 'Q', 'R', 'S',
-		'T', 'X' or 'Z'.
+		any type range 'A' to 'Z'.
 
 		Alignment is defined by a number and/or a minus sign
 		following the letter. It may be:
@@ -998,7 +1017,7 @@ List of the format parameters
 	Compilation: none
 	Command line: -n
 	Description:
-		Output notes, history...
+		Output the information defined by 'infoname'.
 
 
 List of the pseudo-comments treated while parsed
@@ -1027,10 +1046,6 @@ List of the pseudo-comments treated while parsed
   endtext
 	See 'begintext'.
 
-  measrep <n>
-	Change the following <n> measures to the 'measure repeat' symbol
-	('%' like). This command must appear after a measure bar.
-
   multicol <command>
 	Define multicolomn printing.
 	<command> may be:
@@ -1053,6 +1068,19 @@ List of the pseudo-comments treated while parsed
   repbra <bool>
 	The repeat brackets are normally displayed as found in a voice.
 	'%%repbra 0' prevents displaying them for the current voice.
+
+  repeat [<n> [k]]
+	Try to replace a sequence by one or many repeat signs.
+	When placed after a bar, <n> indicates the number of measures
+	to be repeated. It may be only one or two. If <n> is one,
+	<k> indicates how many times the previous measure is to be
+	repeated. If <n> is two, <k> is not used.
+	When placed after a note or rest, <n> indicates the number of
+	notes and rests to be repeated, and <k> how many times this
+	repetition occurs.
+	When omitted, <n> and <k> default to 1.
+	No check is done on the equality of the sequences.
+	See 'sample5.abc' for examples.
 
   score <definition>
 	See the ABC standard version 2.0 for description.

@@ -159,6 +159,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_DYNDN		0x4000		/* dynamic marks below the staff */
 #define S_RBSTOP	0x8000		/* repeat bracket stop */
 #define S_BEAM_BR2	0x00010000	/* 3rd beam must restart here */
+#define S_REPEAT	0x00020000	/* sequence / measure repeat */
 	unsigned char nhd;	/* number of notes in chord - 1 */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
@@ -182,6 +183,10 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define STBRK 0				/* staff break
 					 *	xmx: width */
 #define PSSEQ 1				/* postscript sequence */
+#define REPEAT 2			/* repeat sequence or measure
+					 *	doty: # measures if > 0
+					 *	      # notes/rests if < 0
+					 *	nohdix: # repeat */
 	float x;		/* x offset */
 	short y;
 	short ymn, ymx, yav;	/* min, max, avg note head height */
@@ -258,24 +263,8 @@ struct FORMAT { 		/* struct for page layout */
 extern struct FORMAT cfmt;	/* current local format for output */
 extern struct FORMAT dfmt;	/* current global format for output */
 
-struct ISTRUCT {		/* information fields */
-	struct SYMBOL *area;
-	struct SYMBOL *book;
-	struct SYMBOL *comp;
-	struct SYMBOL *disco;
-	struct SYMBOL *histo;
-	struct SYMBOL *notes;
-	struct SYMBOL *orig;
-	struct SYMBOL *parts;
-	struct SYMBOL *rhythm;
-	struct SYMBOL *src;
-	struct SYMBOL *tempo;
-	struct SYMBOL *title;
-	char *xref;
-	struct SYMBOL *trans;
-};
-
-extern struct ISTRUCT info, default_info;
+typedef struct SYMBOL *INFO[26];	/* information fields */
+extern INFO info, default_info;
 
 extern char *mbf;		/* where to PUTx() */
 extern int nbuf;		/* number of bytes buffered */

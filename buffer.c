@@ -232,6 +232,12 @@ static void format_hf(char *p)
 			fprintf(fout, "%s", tex_buf);
 #endif
 			break;
+		case 'I':		/* information field */
+			p++;
+			if (*p < 'A' || *p > 'Z' || info[*p - 'A'] == 0)
+				break;
+			fprintf(fout, "%s", &info[*p - 'A']->as.text[2]);
+			break;
 		case 'P':		/* page number */
 			if (p[1] == '0') {
 				p++;
@@ -245,7 +251,7 @@ static void format_hf(char *p)
 			fprintf(fout, "%d", pagenum);
 			break;
 		case 'T':		/* tune title */
-			q = &info.title->as.text[2];
+			q = &info['T' - 'A']->as.text[2];
 			while (isspace((unsigned char) *q))
 				q++;
 			tex_str(q);
@@ -360,7 +366,7 @@ static void init_page(void)
 	if (in_page)
 		return;
 
-	p_fmt = info.xref == 0 ? &cfmt : &dfmt;	/* global format */
+	p_fmt = info['X' - 'A'] == 0 ? &cfmt : &dfmt;	/* global format */
 
 	if (!file_initialized)
 		init_ps(in_fname, 0);
@@ -491,7 +497,7 @@ void write_eps(void)
 	long m;
 	char *p, fnm[STRL1], finf[STRL1];
 
-	p_fmt = info.xref == 0 ? &cfmt : &dfmt;	/* global format */
+	p_fmt = info['X' - 'A'] == 0 ? &cfmt : &dfmt;	/* global format */
 	close_output_file();
 	strcpy(fnm, outfn);
 	if (fnm[0] == '\0')
@@ -499,7 +505,7 @@ void write_eps(void)
 	cutext(fnm);
 	i = strlen(fnm) - 1;
 	if (fnm[i] == '=') {
-		p = &info.title->as.text[2];
+		p = &info['T' - 'A']->as.text[2];
 		while (isspace((unsigned char) *p))
 			p++;
 		strncpy(&fnm[i], p, sizeof fnm - i - 4);
@@ -511,7 +517,7 @@ void write_eps(void)
 		fprintf(stderr, "Cannot open output file %s\n", fnm);
 		exit(2);
 	}
-	sprintf(finf, "%.72s (%.4s)", in_fname, info.xref);
+	sprintf(finf, "%.72s (%.4s)", in_fname, &info['X' - 'A']->as.text[2]);
 	init_ps(finf, 1);
 	fprintf(fout, "0 %.1f T\n", -bposy);
 	write_buffer();

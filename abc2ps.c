@@ -48,7 +48,7 @@
 
 /* -- global variables -- */
 
-struct ISTRUCT info, default_info;
+INFO info, default_info;
 unsigned char deco_glob[256], deco_tune[256];
 struct SYMBOL *sym;		/* (points to the symbols of the current voice) */
 
@@ -132,7 +132,11 @@ int main(int argc,
 		(void (*)(int level)) lvlarena, /* new level */
 		sizeof(struct SYMBOL) - sizeof(struct abcsym),
 		0);				/* don't keep comments */
+	memset(&info, 0, sizeof info);
+	info['T' - 'A'] = &notitle;
+	notitle.as.text = "T:";
 	set_format();
+	memcpy(&default_info, &info, sizeof default_info);
 	s_argc = argc;
 	s_argv = argv;
 
@@ -531,9 +535,6 @@ static void output_file(char *sel)
 	/* initialize if not already done */
 	if (fout == 0)
 		set_page_format();
-	memset(&default_info, 0, sizeof default_info);
-	default_info.title = &notitle;
-	notitle.as.text = "T:";
 	memcpy(&info, &default_info, sizeof info);
 	reset_deco();
 	memcpy(&deco_tune, &deco_glob, sizeof deco_tune);

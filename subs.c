@@ -222,10 +222,10 @@ void error(int sev,	/* 0: warning, 1: error */
 	va_list args;
 static struct SYMBOL *t;
 
-	if (t != info.title) {
+	if (t != info['T' - 'A']) {
 		char *p;
 
-		t = info.title;
+		t = info['T' - 'A'];
 		p = &t->as.text[2];
 		while (isspace((unsigned char) *p))
 			p++;
@@ -583,7 +583,7 @@ static void put_inf2r(struct SYMBOL *s1,
 	while (isspace((unsigned char) *p))
 		p++;
 	if (s1->as.text[0] == 'T' && s1->as.text[1] == ':')
-		p = trim_title(p, s1 == info.title);
+		p = trim_title(p, s1 == info['T' - 'A']);
 	if (s2 != 0) {
 		buf[sizeof buf - 1] = '\0';
 		strncpy(buf, p, sizeof buf - 1);
@@ -887,40 +887,31 @@ void put_words(struct SYMBOL *words)
 	buffer_eob();
 }
 
-/* -- output history lines -- */
-static void put_text(char *head,
-		     struct SYMBOL *s)
-{
-	float h;
-
-	if (s == 0)
-		return;
-	set_font(HISTORYFONT);
-	h = cfmt.font_tb[HISTORYFONT].size * cfmt.lineskipfac;
-	bskip(h * 1.2);
-	PUT1("w%s ", head);
-	bskip(h);
-	do {
-		PUT0("50 0 M ");
-		put_inf(s);
-		bskip(h);
-	} while ((s = s->next) != 0);
-	buffer_eob();
-}
-
 /* -- output history -- */
 void put_history(void)
 {
+	struct SYMBOL *s, *s2;
+	float h;
+
 	bskip(cfmt.textspace);
 	str_font(HISTORYFONT);
-	if (!cfmt.infoline)
-		put_text("rhythm", info.rhythm);
-	put_text("book", info.book);
-	put_text("source", info.src);
-	put_text("disco", info.disco);
-	put_text("notes", info.notes);
-	put_text("trans", info.trans);
-	put_text("histo", info.histo);
+	for (s = info['I' - 'A']; s != 0; s = s->next) {
+		if ((s2 = info[s->as.text[0] - 'A']) == 0)
+			continue;
+		get_str(tex_buf, &s->as.text[1], 256);
+		h = cfmt.font_tb[HISTORYFONT].size * cfmt.lineskipfac;
+		set_font(HISTORYFONT);
+		PUT1("0 0 M(%s)show ", tex_buf);
+		for (;;) {
+			put_inf(s2);
+			if ((s2 = s2->next) == 0)
+				break;
+			bskip(h);
+			PUT0("50 0 M ");
+		}
+		bskip(h * 1.2);
+		buffer_eob();
+	}
 }
 
 /* -- move trailing "The" to front, set to uppercase letters or add xref -- */
@@ -943,7 +934,7 @@ static char buf[256];
 		return p;	/* keep the title as it is */
 	b = buf;
 	if (first && cfmt.withxrefs)
-		b += sprintf(b, "%s.  ", info.xref);
+		b += sprintf(b, "%s.  ", &info['X' - 'A']->as.text[2]);
 	if (q != 0) {
 		strcpy(b, q + 2);
 		b += strlen(q + 2);
@@ -969,8 +960,8 @@ void write_title(struct SYMBOL *s)
 		p++;
 	if (*p == '\0')
 		return;
-	p = trim_title(p, s == info.title);
-	if (s == info.title) {
+	p = trim_title(p, s == info['T' - 'A']);
+	if (s == info['T' - 'A']) {
 		bskip(cfmt.titlespace + cfmt.font_tb[TITLEFONT].size);
 		set_font(TITLEFONT);
 	} else {
@@ -990,48 +981,27 @@ void write_title(struct SYMBOL *s)
 static void write_headform(float lwidth)
 {
 	char *p, *q;
-	struct SYMBOL *s, xref_sym;
+	struct SYMBOL *s;
 	struct FONTSPEC *f;
 	int align, i, j;
 	float x, y, xa[3], ya[3], sz, yb[3];
 	char inf_nb[26];
-	struct SYMBOL *inf_s[26];
+	INFO inf_s;
 	char inf_ft[26];
 	float inf_sz[26];
 	signed char fmt[64];
 
-	s = 0;
-	xref_sym.as.text = info.xref;
-	xref_sym.next = 0;
 	memset(inf_nb, 0, sizeof inf_nb);
+	memset(inf_ft, HISTORYFONT, sizeof inf_ft);
 	inf_ft['A' - 'A'] = INFOFONT;
-	inf_ft['B' - 'A'] = HISTORYFONT;
 	inf_ft['C' - 'A'] = COMPOSERFONT;
-	inf_ft['D' - 'A'] = HISTORYFONT;
-	inf_ft['H' - 'A'] = HISTORYFONT;
-	inf_ft['N' - 'A'] = HISTORYFONT;
 	inf_ft['O' - 'A'] = COMPOSERFONT;
 	inf_ft['P' - 'A'] = PARTSFONT;
 	inf_ft['Q' - 'A'] = TEMPOFONT;
 	inf_ft['R' - 'A'] = INFOFONT;
-	inf_ft['S' - 'A'] = HISTORYFONT;
 	inf_ft['T' - 'A'] = TITLEFONT;
 	inf_ft['X' - 'A'] = TITLEFONT;
-	inf_ft['Z' - 'A'] = HISTORYFONT;
-	inf_s['A' - 'A'] = info.area;
-	inf_s['B' - 'A'] = info.book;
-	inf_s['C' - 'A'] = info.comp;
-	inf_s['D' - 'A'] = info.disco;
-	inf_s['H' - 'A'] = info.histo;
-	inf_s['N' - 'A'] = info.notes;
-	inf_s['O' - 'A'] = info.orig;
-	inf_s['P' - 'A'] = info.parts;
-	inf_s['Q' - 'A'] = info.tempo;
-	inf_s['R' - 'A'] = info.rhythm;
-	inf_s['S' - 'A'] = info.src;
-	inf_s['T' - 'A'] = info.title;
-	inf_s['X' - 'A'] = &xref_sym;
-	inf_s['Z' - 'A'] = info.trans;
+	memcpy(inf_s, info, sizeof inf_s);
 	memset(inf_sz, 0, sizeof inf_sz);
 	inf_sz['A' - 'A'] = cfmt.infospace;
 	inf_sz['C' - 'A'] = cfmt.composerspace;
@@ -1137,7 +1107,7 @@ static void write_headform(float lwidth)
 				while (isspace((unsigned char) *q))
 					q++;
 				if (i == 'T' - 'A')
-					q = trim_title(q, s == info.title);
+					q = trim_title(q, s == inf_s['T' - 'A']);
 				strncpy(buf, q, sizeof buf - 1);
 				buf[sizeof buf - 1] = '\0';
 				j = strlen(buf);
@@ -1172,7 +1142,7 @@ static void write_headform(float lwidth)
 				}
 				write_tempo(s, 0, 0.75);
 			} else	put_inf2r(s, 0, align);
-			if (inf_s[i] == info.title) {
+			if (inf_s[i] == info['T' - 'A']) {
 				inf_ft[i] = SUBTITLEFONT;
 				str_font(SUBTITLEFONT);
 				f = &cfmt.font_tb[SUBTITLEFONT];
@@ -1220,12 +1190,12 @@ void write_heading(struct abctune *t)
 	}
 
 	/* titles */
-	for (s = info.title; s != 0; s = s->next)
+	for (s = info['T' - 'A']; s != 0; s = s->next)
 		write_title(s);
 
 	/* rhythm, composer, origin */
 	down1 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
-	rhythm = (first_voice->key.bagpipe && !cfmt.infoline) ? info.rhythm : 0;
+	rhythm = (first_voice->key.bagpipe && !cfmt.infoline) ? info['R' - 'A'] : 0;
 	if (rhythm) {
 		str_font(COMPOSERFONT);
 		PUT1("0 %.1f M ",
@@ -1235,9 +1205,9 @@ void write_heading(struct abctune *t)
 	}
 	area = author = 0;
 	if (t->abc_vers < 2)
-		area = info.area;
-	else	author = info.area;
-	if ((s = info.comp) != 0 || info.orig || author != 0) {
+		area = info['A' - 'A'];
+	else	author = info['A' - 'A'];
+	if ((s = info['C' - 'A']) != 0 || info['O' - 'A'] || author != 0) {
 		float xcomp;
 		int align;
 
@@ -1264,7 +1234,7 @@ void write_heading(struct abctune *t)
 					break;
 			}
 		}
-		if ((s = info.comp) != 0 || info.orig) {
+		if ((s = info['C' - 'A']) != 0 || info['O' - 'A']) {
 			if (cfmt.aligncomposer >= 0
 			    && down1 != down2)
 				bskip(down1 - down2);
@@ -1272,7 +1242,7 @@ void write_heading(struct abctune *t)
 				bskip(cfmt.font_tb[COMPOSERFONT].size);
 				PUT1("%.1f 0 M ", xcomp);
 				put_inf2r(s,
-					  (s == 0 || s->next == 0) ? info.orig : 0,
+					  (s == 0 || s->next == 0) ? info['O' - 'A'] : 0,
 					  align);
 				if (s == 0)
 					break;
@@ -1284,7 +1254,7 @@ void write_heading(struct abctune *t)
 				bskip(down2 - down1);
 		}
 
-		rhythm = rhythm ? 0 : info.rhythm;
+		rhythm = rhythm ? 0 : info['R' - 'A'];
 		if ((rhythm || area) && cfmt.infoline) {
 
 			/* if only one of rhythm or area then do not use ()'s
@@ -1299,7 +1269,7 @@ void write_heading(struct abctune *t)
 	} else	down2 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
 
 	/* parts */
-	if (info.parts) {
+	if (info['P' - 'A']) {
 		down1 = cfmt.partsspace + cfmt.font_tb[PARTSFONT].size - down1;
 		if (down1 > 0)
 			down2 += down1;
@@ -1307,7 +1277,7 @@ void write_heading(struct abctune *t)
 			bskip(down2);
 		str_font(PARTSFONT);
 		PUT0("0 0 M ");
-		put_inf(info.parts);
+		put_inf(info['P' - 'A']);
 		down2 = 0;
 	}
 	bskip(down2 + cfmt.musicspace);

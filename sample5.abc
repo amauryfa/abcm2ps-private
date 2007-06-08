@@ -1,5 +1,9 @@
 % sample5.abc - this file is part of abcm2ps
 
+%%writehistory 1
+%%infoname F "This file comes from "
+F:abcm2ps sources at http://moinejf.free.fr/
+
 X:1
 %%titleformat T,TTQ-1C1A1
 T:New features in abcm2ps-5.x.x
@@ -7,12 +11,17 @@ T:Subtitle one
 T:Subtitle two
 C:This is the composer field
 A:This is the Area/Author field
-M:C
+N:Here are some notes
+N:on two lines
+M:c. C=4/4
 L:1/4
 Q:"Tempo in the tune header"
 %%printtempo 0
 K:C
 %%printtempo 1
 Q:"Tempo in the tune body"
-"C"C"Dm	G"D2"C"C|"^<- guitar chords between symbols"cccc|cccc|c4||
-"^measure repeat"GABc|[I:mesrep 1]GABc|G2d2|B2d2|[I:mesrep 2]G2d2|B2d2|c4||
+"C"C"Dm	G"D2"C"C"^<- guitar chords between symbols"|\
+	C//E//G//E// \
+	[I:repeat 4 3]C//E//G//E// "^sequence repeat"C//E//G//E// C//E//G//E//|
+"^measure repeat"GABc|[I:repeat 1 2]GABc|GABc|\
+	G2d2|B2d2|[I:repeat 2]G2d2|B2d2|c4||

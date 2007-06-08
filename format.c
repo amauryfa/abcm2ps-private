@@ -312,6 +312,45 @@ void make_font_list(void)
 	used_font[f->font_tb[WORDSFONT].fnum] = 1;
 }
 
+/* -- set the name an information header type -- */
+/* the argument is
+ *	<letter> [ <possibly quoted string> ]
+ * this information is kept in the 'I' information */
+static void set_infoname(char *p)
+{
+	struct SYMBOL *s, *prev;
+
+	if (*p == 'I')
+		return;
+	s = info['I' - 'A'];
+	prev = 0;
+	while (s != 0) {
+		if (s->as.text[0] == *p)
+			break;
+		prev = s;
+		s = s->next;
+	}
+	if (p[1] == '\0') {		/* if delete */
+		if (s != 0) {
+			if ((prev->next = s->next) != 0)
+				prev->next->prev = prev;
+		}
+		return;
+	}
+	if (s == 0) {
+		s = (struct SYMBOL *) getarena(sizeof *s);
+		memset(s, 0, sizeof *s);
+		if (prev == 0)
+			info['I' - 'A'] = s;
+		else {
+			prev->next = s;
+			s->prev = prev;
+		}
+	}
+	s->as.text = (char *) getarena(strlen(p) + 1);
+	strcpy(s->as.text, p);
+}
+
 /* -- set the default format -- */
 void set_format(void)
 {
@@ -375,6 +414,13 @@ void set_format(void)
 	fontspec(&f->font_tb[VOCALFONT], "Times-Bold", 0, 13.0);
 	fontspec(&f->font_tb[VOICEFONT], "Times-Bold", 0, 13.0);
 	fontspec(&f->font_tb[WORDSFONT], "Times-Roman", 0, 16.0);
+	set_infoname("R \"Rhythm: \"");
+	set_infoname("B \"Book: \"");
+	set_infoname("S \"Source: \"");
+	set_infoname("D \"Discography: \"");
+	set_infoname("N \"Notes: \"");
+	set_infoname("Z \"Transcription: \"");
+	set_infoname("H \"History: \"");
 }
 
 /* -- print the current format -- */
@@ -495,7 +541,7 @@ int get_textopt(char *p)
 	return option;
 }
 
-/* -- read a boolean value -- */
+/* -- get a boolean value -- */
 static int g_logv(char *p)
 {
 	switch (*p) {
@@ -520,13 +566,13 @@ static int g_logv(char *p)
 	return 0;
 }
 
-/* --  read a float variable, no units -- */
+/* --  get a float variable, no units -- */
 static float g_fltv(char *p)
 {
 	return atof(p);
 }
 
-/* -- read a font specifier -- */
+/* -- get a font specifier -- */
 static void g_fspc(char *p,
 		   struct FONTSPEC *f)
 {
@@ -590,6 +636,17 @@ void interpret_fmt_line(char *w,		/* keyword */
 		if (strcmp(w, "format") == 0) {
 			if (read_fmt_file(p) < 0)
 				error(1, 0, "No such format file '%s'", p);
+			return;
+		}
+		break;
+	case 'i':
+		if (strcmp(w, "infoname") == 0) {
+			if (*p < 'A' || *p > 'Z') {
+				error(1, 0, "Bad info type '%c' in %%%%infoname",
+					*p);
+				return;
+			}
+			set_infoname(p);
 			return;
 		}
 		break;

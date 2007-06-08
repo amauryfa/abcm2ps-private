@@ -1052,75 +1052,86 @@ static char *top_err = "Cannot identify meter top";
 	wmeasure = 0;
 	if (*p == 'N' || *p == 'n')
 		p++;				/* no meter */
-	else if (*p == 'C') {
-		s->u.meter.meter[0].top[0] = *p++;
-		if (*p == '|')
-			s->u.meter.meter[0].top[1] = *p++;
-		wmeasure = 4 * BASE_LEN / 4;
-		nm = 1;
-	} else while (*p != '\0') {
+	else while (*p != '\0') {
 		if (*p == '=')
 			break;
 		if (nm >= MAX_MEASURE)
 			return "Too many values in M:";
-		if (*p == '(') {
+		switch (*p) {
+		case 'C':
+			s->u.meter.meter[nm].top[0] = *p++;
+			if (*p == '|')
+				s->u.meter.meter[nm].top[1] = *p++;
+			m1 = 4;
+			m2 = 4;
+			break;
+		case 'c':
+		case 'o':
+			if (*p == 'c')
+				m1 = 4;
+			else	m1 = 3;
+			m2 = 4;
+			s->u.meter.meter[nm].top[0] = *p++;
+			if (*p == '.')
+				s->u.meter.meter[nm].top[1] = *p++;
+			break;
+		case '(':
 			q = p + 1;
 			while (*q != '\0') {
 				if (*q == ')' || *q == '/')
 					break;
 				q++;
 			}
-			if (*q == ')')
-				p++;	/* stay on top */
-		}
-		if (*p == '(' || *p == ')') {
-			in_parenth = *p == '(';
-			s->u.meter.meter[nm].top[0] = *p++;
-			nm++;
-			continue;
-		}
-		if (sscanf(p, "%d", &m1) != 1
-		    || m1 <= 0)
-			return top_err;
-		i = 0;
-		m2 = 2;			/* default when no bottom value */
-		for (;;) {
-			while (isdigit((unsigned) *p)
-			       && i < sizeof s->u.meter.meter[0].top)
-				s->u.meter.meter[nm].top[i++] = *p++;
-			if (*p == ')')
-				p++;
-			if (*p == '/') {
-				p++;
-				if (sscanf(p, "%d", &m2) != 1
-				    || m2 <= 0)
-					return "Cannot identify meter bottom";
-				i = 0;
-				while (isdigit((unsigned) *p)
-				       && i < sizeof s->u.meter.meter[0].bot)
-					s->u.meter.meter[nm].bot[i++] = *p++;
-				break;
+			if (*q == ')') {
+				p++;		/* stay on top */
+				continue;
 			}
-			if (*p != ' ' && *p != '+')
-				break;
-			s->u.meter.meter[nm].top[i++] = *p++;
-			if (sscanf(p, "%d", &d) != 1
-			    || d <= 0)
+		case ')':
+			in_parenth = *p == '(';
+			s->u.meter.meter[nm++].top[0] = *p++;
+			continue;
+		default:
+			if (sscanf(p, "%d", &m1) != 1
+			    || m1 <= 0)
 				return top_err;
-			if (p[-1] == ' ') {
-				if (d > m1)
-					m1 = d;
-			} else	m1 += d;
+			i = 0;
+			m2 = 2;			/* default when no bottom value */
+			for (;;) {
+				while (isdigit((unsigned) *p)
+				       && i < sizeof s->u.meter.meter[0].top)
+					s->u.meter.meter[nm].top[i++] = *p++;
+				if (*p == ')')
+					p++;
+				if (*p == '/') {
+					p++;
+					if (sscanf(p, "%d", &m2) != 1
+					    || m2 <= 0)
+						return "Cannot identify meter bottom";
+					i = 0;
+					while (isdigit((unsigned) *p)
+					       && i < sizeof s->u.meter.meter[0].bot)
+						s->u.meter.meter[nm].bot[i++] = *p++;
+					break;
+				}
+				if (*p != ' ' && *p != '+')
+					break;
+				s->u.meter.meter[nm].top[i++] = *p++;
+				if (sscanf(p, "%d", &d) != 1
+				    || d <= 0)
+					return top_err;
+				if (p[-1] == ' ') {
+					if (d > m1)
+						m1 = d;
+				} else	m1 += d;
+			}
 		}
 		if (!in_parenth)
 			wmeasure += m1 * BASE_LEN / m2;
 		nm++;
 		if (*p == ' ')
 			p++;
-		else if (*p == '+') {
-			s->u.meter.meter[nm].top[0] = *p++;
-			nm++;
-		}
+		else if (*p == '+')
+			s->u.meter.meter[nm++].top[0] = *p++;
 	}
 	if (*p == '=') {
 		if (sscanf(++p, "%d/%d", &m1, &m2) != 2
@@ -1130,7 +1141,6 @@ static char *top_err = "Cannot identify meter top";
 		wmeasure = m1 * BASE_LEN / m2;
 		s->u.meter.expdur = 1;
 	}
-
 	s->u.meter.wmeasure = wmeasure;
 	s->u.meter.nmeter = nm;
 
@@ -2342,6 +2352,11 @@ again:					/* for history */
 		case CHAR_VOV:			/* '&' */
 			if (*p != ')'
 			    || vover == 0) {		/*??*/
+				if (t->last_sym->type != ABC_T_NOTE
+				    && t->last_sym->type != ABC_T_REST) {
+					syntax("Bad start of voice overlay", p);
+					break;
+				}
 				s = abc_new(t, 0, 0);
 				s->type = ABC_T_V_OVER;
 				/*s->u.v_over.type = V_OVER_V; */

@@ -1377,7 +1377,8 @@ void draw_deco_staff(void)
 					break;
 				if (s->type != BAR)
 					continue;
-				if ((s->as.u.bar.type & 0xf0)	/* if complex bar */
+				if (((s->as.u.bar.type & 0xf0)	/* if complex bar */
+				     && s->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
 				    || s->as.u.bar.type == B_CBRA
 				    || s->as.u.bar.repeat_bar)
 					break;
@@ -1432,7 +1433,8 @@ void draw_deco_staff(void)
 					break;
 				if (s->type != BAR)
 					continue;
-				if ((s->as.u.bar.type & 0xf0)	/* if complex bar */
+				if (((s->as.u.bar.type & 0xf0)	/* if complex bar */
+				     && s->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
 				    || s->as.u.bar.type == B_CBRA
 				    || s->as.u.bar.repeat_bar)
 					break;
@@ -1444,25 +1446,26 @@ void draw_deco_staff(void)
 			x = s1->x;
 			if ((s1->as.u.bar.type & 0x03) == B_COL)
 				x -= 4;
-			i = 0;			/* no bracket end */
-			w = s2->x - x - 8;
+			i = 0;				/* no bracket end */
 			if (s2->sflags & S_RBSTOP)
-				;
+				w = 8;			/* (w = left shift) */
 			else if (s2->type != BAR)
-				w = realwidth - x - 4;
-			else if ((s2->as.u.bar.type & 0xf0)	/* if complex bar */
+				w = s2->x - realwidth + 4;
+			else if (((s2->as.u.bar.type & 0xf0)	/* if complex bar */
+				   && s2->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
 				 || s2->as.u.bar.type == B_CBRA) {
-				i =  2;		/* bracket start and stop */
-				if ((s2->as.u.bar.type & 0x0f) == B_COL)
-					w -= 4;
-				else if (!(s2->sflags & S_RRBAR)
-					 || s2->as.u.bar.type == B_CBRA
-					 || s2->as.u.bar.type == (B_CBRA << 4) + B_BAR)
-					w += 8;		/* explicit repeat end */
-				if (p_voice != first_voice
+				i =  2;			/* bracket start and stop */
+				if (s->staff > 0
 				    && !(staff_tb[s->staff - 1].flags[0] & STOP_BAR))
-					w -= 4;
-			}
+					w = s2->wl;
+				else if (!(s2->sflags & S_RRBAR)
+					 || s2->as.u.bar.type == B_CBRA)
+					w = 0;		/* explicit repeat end */
+				else if ((s2->as.u.bar.type & 0x0f) == B_COL)
+					w = 12;
+				else	w = 8;
+			} else	w = 8;
+			w = s2->x - x - w;
 			p = s1->as.text;
 			if (p == 0) {
 				i--;		/* no bracket start (1) or not draw */

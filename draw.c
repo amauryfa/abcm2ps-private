@@ -695,24 +695,48 @@ static void draw_timesig(float x,
 				l2 = sizeof s->as.u.meter.meter[i].bot;
 			if (l2 > l)
 				l = l2;
-		} else {
-			if (s->as.u.meter.meter[i].top[0] == 'C') {
+		} else switch (s->as.u.meter.meter[i].top[0]) {
+			case 'C':
 				if (s->as.u.meter.meter[i].top[1] != '|')
 					f = "csig";
-				else	f = "ctsig";
+				else {
+					f = "ctsig";
+					l--;
+				}
 				meter[0] = '\0';
-			} else if (s->as.u.meter.meter[i].top[0] == '('
-				   || s->as.u.meter.meter[i].top[0] == ')') {
+				break;
+			case 'c':
+				if (s->as.u.meter.meter[i].top[1] != '.')
+					f = "imsig";
+				else {
+					f = "iMsig";
+					l--;
+				}
+				meter[0] = '\0';
+				break;
+			case 'o':
+				if (s->as.u.meter.meter[i].top[1] != '.')
+					f = "pmsig";
+				else {
+					f = "pMsig";
+					l--;
+				}
+				meter[0] = '\0';
+				break;
+			case '(':
+			case ')':
 				sprintf(meter, "(\\%s)",
 					s->as.u.meter.meter[i].top);
 				f = "stsig";
-			} else {
+				break;
+			default:
 				sprintf(meter, "(%.8s)",
 					s->as.u.meter.meter[i].top);
 				f = "stsig";
-			}
+				break;
 		}
-		PUT1("%s ", meter);
+		if (meter[0] != '\0')
+			PUT1("%s ", meter);
 		dx = (float) (13 * l);
 		putxy(x + dx * .5, staff_tb[staff].y);
 		PUT1("%s\n", f);
@@ -1016,6 +1040,24 @@ static char *rest_tb[NFLAGS_SZ] = {
 		return;
 
 	staffb = staff_tb[s->staff].y;		/* bottom of staff */
+
+	if (s->sflags & S_REPEAT) {
+		putxy(x, staffb);
+		if (s->doty < 0)
+			PUT0("srep\n");
+		else {
+			PUT0("mrep\n");
+			if (s->doty > 1
+			    && s->voice == first_voice - voice_tb) {
+/*fixme				set_font(s->gcf); */
+				set_font(cfmt.anf);
+				putxy(x, staffb + 24 + 4);
+				PUT1("M(%d)showc\n", s->doty);
+			}
+		}
+		return;
+	}
+
 	y = s->y;
 
 	if (s->sflags & S_OTHER_HEAD) {
@@ -1030,7 +1072,7 @@ static char *rest_tb[NFLAGS_SZ] = {
 	putxy(x, y + staffb);
 	PUT1("%s ", rest_tb[i]);
 
-	/* add helper line(s) when greater than minim*/
+	/* add helper line(s) when greater than minim */
 	if (i >= 6) {
 		int yb, yt;
 
@@ -1070,21 +1112,15 @@ static char *rest_tb[NFLAGS_SZ] = {
 			}
 			break;
 		default:
-			if (y >= yt - 6) {
+			if (y < yb || y >= yt - 6) {
 				puty(y + 6 + staffb);
 				PUT0("hl ");
-				break;
 			}
-			if (i == 8) {			/* breve */
-				if (y <= yb) {
-					puty(y + staffb);
-					PUT0("hl ");
-				}
-			} else {			/* longa */
-				if (y <= yb + 6) {
-					puty(y - 6 + staffb);
-					PUT0("hl ");
-				}
+			if (i == 9)			/* longa */
+				y -= 6;
+			if (y <= yb || y >= yt) {
+				puty(y + staffb);
+				PUT0("hl ");
 			}
 			break;
 		}
@@ -1386,6 +1422,8 @@ static void draw_note(float x,
 	if (cfmt.setdefl)
 		set_defl(s->stem >= 0 ? DEF_STEMUP : 0);
 	ma = s->stem >= 0 ? 0 : s->nhd;
+	if (s->head >= H_OVAL)
+		x += 1;
 	draw_basic_note(x, s, ma, y_tb);
 
 	staffb = staff_tb[s->staff].y;
@@ -1670,7 +1708,7 @@ static int draw_slur(struct SYMBOL *k1,
 		     int dotted)
 {
 	struct SYMBOL *k;
-	float x1, y1, x2, y2, height, addx, addy;
+	float x1, y1, x2, y2, height, addy;
 	float a, y, z, h, dx, dy;
 	int s, nn, upstaff, two_staves;
 
@@ -1797,6 +1835,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 		}
 	}
 
+#if 0
 	/* shift endpoints */
 	addx = .04 * (x2 - x1);
 	if (addx > 3.0)
@@ -1814,6 +1853,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 	if (k2->staff == upstaff)
 		y2 += s * addy;
 	else	y2 = -6;
+#endif
 
 	a = (y2 - y1) / (x2 - x1);		/* slur steepness */
 	if (a > SLUR_SLOPE || a < -SLUR_SLOPE) {

@@ -1,4 +1,4 @@
-	Features of abcm2ps 5.3.1 (J.F. Moine, March 2007)
+	Features of abcm2ps 5.4.1 (J.F. Moine, April 2007)
 	==================================================
 
 abcm2ps tries to follow the ABC standard version 2.0:
@@ -39,15 +39,15 @@ Features that work differently.
 File structure.
 
 	- The X header field may be omitted in tunebooks in which case
-	  a tune will start on a T header field.
+	  a tune starts on a T header field.
 
-	- The T header field may be omitted (when some 'X' is present).
+	- The T header field may be omitted (when 'X' is present).
 
 	- There is no notion of 'file header': any valid ABC field
 	  found outside the tunes is considered as global, and applies
 	  to the remaining tunes.
 
-	- When the %%abc-version is lower than '2.0', a backslash as the
+	- When the %%abc-version is less than '2.0', a backslash as the
 	  last character of a line means 'concatenate the next line of the
 	  same type to this one'.
 	  This works only for music lines and 'd', 's' and 'w' fields.
@@ -71,7 +71,7 @@ Information fields.
 	  or a-g and immediately followed by a colon are interpreted as
 	  information fields.
 
-	- When the %%abc-version is lower than '2.0', the field 'A' is
+	- When the %%abc-version is less than '2.0', the field 'A' is
 	  'Area', and not 'Author of lyrics'. It is displayed only when
 	  'infoline' is set.
 
@@ -160,7 +160,9 @@ Information fields.
 
 	- The field 'M' may specify more complex meters with a
 	  combination of digits, parenthesis, slashes and blanks.
-	  It may also specify ancient meters as 'M:2' or 'M:3'.
+	  It may also specify ancient meters as 'M:2' or 'M:3',
+	  and also 'M:o' (perfect minor), 'M:o.' (perfect major),
+	  'M:c' (imperfect minor) and 'M:c.' (imperfect major).
 	  An explicit measure duration may be specified putting its
 	  value after an '=' sign (ex: 'M:C|=2/1').
 
