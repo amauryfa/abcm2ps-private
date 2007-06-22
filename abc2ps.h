@@ -49,8 +49,6 @@
 #define DOTSHIFT	5	/* dot shift when up flag on note */
 #define GSTEM		14	/* grace note stem length */
 #define GSTEM_XOFF	1.6	/* x offset for grace note stem */
-#define GSPACE0		12.0	/* space from grace note to big note */
-#define GSPACE		8.0	/* space between grace notes */
 
 #define BETA_C		0.1	/* max expansion for flag -c */
 #define ALFA_X		1.0	/* max compression before complaining */
@@ -222,10 +220,10 @@ struct FORMAT { 		/* struct for page layout */
 	float indent, infospace, slurheight, notespacingfactor;
 	float maxstaffsep, maxsysstaffsep, stemheight;
 	int abc2pscompat, alignbars, aligncomposer, autoclef;
-	int barsperstaff, breathlow, bstemdown;
+	int barsperstaff, breathlow, bstemdown, comball;
 	int combinevoices, contbarnb, continueall, dynalign;
 	int encoding, exprabove, exprbelow, flatbeams, freegchord;
-	int infoline, gchordbox, graceslurs, comball, hyphencont;
+	int infoline, gchordbox, graceslurs, gracespace, hyphencont;
 	int landscape, measurebox, measurefirst, measurenb, musiconly;
 	int oneperpage, partsbox, printparts, printtempo;
 	int setdefl, shiftunisson, splittune, squarebreve, staffnonote;

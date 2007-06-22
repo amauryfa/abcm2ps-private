@@ -991,8 +991,11 @@ static float set_graceoffs(struct SYMBOL *s)
 {
 	struct SYMBOL *g, *next;
 	int m;
-	float xx;
+	float xx, gspleft, gspinside, gspright;
 
+	gspleft = (cfmt.gracespace >> 16) * 0.1;
+	gspinside = ((cfmt.gracespace >> 8) & 0xff) * 0.1;
+	gspright = (cfmt.gracespace & 0xff) * 0.1;
 	xx = 0;
 	g = s->grace;
 	g->sflags |= S_WORD_ST;
@@ -1021,13 +1024,23 @@ static float set_graceoffs(struct SYMBOL *s)
 			g->as.flags |= ABC_F_WORD_END;
 		if (g->as.flags & ABC_F_WORD_END) {
 			next->sflags |= S_WORD_ST;
-			xx += GSPACE / 4;
+			xx += gspinside / 4;
 		}
 		if (g->nflags <= 0)
-			xx += GSPACE / 4;
+			xx += gspinside / 4;
 		if (g->y > next->y + 8)
 			xx -= 1.6;
-		xx += GSPACE;
+		xx += gspinside;
+	}
+
+	xx += gspleft + gspright;
+	if ((next = s->next) != 0
+	    && next->type == NOTE) {		/* if before a note */
+		if (g->y >= (float) (3 * (next->pits[next->nhd] - 18)))
+			xx -= 1;		/* above, a bit closer */
+		else if ((g->sflags & S_WORD_ST)
+			 && g->y < (float) (3 * (next->pits[0] - 18) - 7))
+			xx += 2;	/* below with flag, a bit further */
 	}
 
 	/* return the whole width */
@@ -1586,22 +1599,7 @@ static void set_width(struct SYMBOL *s)
 #endif
 		break;
 	case GRACE:
-		s->wl = set_graceoffs(s) + GSPACE * 0.8;
-		w = GSPACE0;
-		if ((s2 = s->next) != 0
-		    && s2->type == NOTE) {
-			struct SYMBOL *g;
-
-			g = s->grace;
-			while (g->next != 0)
-				g = g->next;
-			if (g->y >= (float) (3 * (s2->pits[s2->nhd] - 18)))
-				w -= 1;	/* above, a bit closer */
-			else if ((g->sflags & S_WORD_ST)
-				 && g->y < (float) (3 * (s2->pits[0] - 18) - 7))
-				w += 2;	/* below with flag, a bit further */
-		}
-		s->wl += w;
+		s->wl = set_graceoffs(s);
 		break;
 	case FMTCHG:
 		if (s->u != STBRK || (s->wl = s->xmx) == 0)
@@ -3827,9 +3825,9 @@ static void set_sym_glue(float width)
 	/* if the last symbol is not a bar, add some extra space */
 	if (s->type != BAR) {
 		xmin += s->wr + 3;
-		if (tsnext != 0 && tsnext->x * 0.8 > s->wr + 4) {
-			x += tsnext->x * 0.8 * spafac;
-			xmax += tsnext->x * 0.8 * spafac * 1.8;
+		if (tsnext != 0 && tsnext->space * 0.8 > s->wr + 4) {
+			x += tsnext->space * 0.8 * spafac;
+			xmax += tsnext->space * 0.8 * spafac * 1.8;
 		} else {
 /*fixme:should calculate the space according to the last symbol duration */
 			x += (s->wr + 4) * spafac;
@@ -3898,7 +3896,7 @@ static void set_sym_glue(float width)
 
 			if ((g = s->grace) == 0)
 				continue;
-			x = s->x - s->wl + GSPACE * 0.8;
+			x = s->x - s->wl + (cfmt.gracespace >> 16) * 0.1;
 			for ( ; g != 0; g = g->next)
 				g->x += x;
 		}

@@ -79,6 +79,7 @@ static struct format {
 	{"gchordbox", &cfmt.gchordbox, FORMAT_B, 0},
 	{"gchordfont", &cfmt.font_tb[GCHORDFONT], FORMAT_F, 3},
 	{"graceslurs", &cfmt.graceslurs, FORMAT_B, 0},
+	{"gracespace", &cfmt.gracespace, FORMAT_I, 5},
 	{"header", &cfmt.header, FORMAT_S, 0},
 	{"headerfont", &cfmt.font_tb[HEADERFONT], FORMAT_F, 0},
 	{"historyfont", &cfmt.font_tb[HISTORYFONT], FORMAT_F, 0},
@@ -395,6 +396,7 @@ void set_format(void)
 	f->notespacingfactor = 1.414;
 	f->stemheight = STEM;
 	f->dateformat = strdup("\\%b \\%e, \\%Y \\%H:\\%M");
+	f->gracespace = (65 << 16) | (80 << 8) | 120;	/* left-inside-right - unit 1/10 pt */
 	f->textoption = T_LEFT;
 	f->ndfont = FONT_DYN;
 	fontspec(&f->font_tb[ANNOTATIONFONT], "Helvetica", 0, 12.0);
@@ -445,6 +447,15 @@ static char yn[2][5]={"no","yes"};
 					cfmt.tuplets >> 8,
 					(cfmt.tuplets >> 4) & 0x0f,
 					cfmt.tuplets & 0x0f);
+				break;
+			case 5:			/* gracespace */
+				printf("%d.%d %d.%d %d.%d\n",
+					(cfmt.gracespace >> 16) / 10,
+					(cfmt.gracespace >> 16) % 10,
+					((cfmt.gracespace >> 8) & 0xff) / 10,
+					((cfmt.gracespace >> 8) & 0xff) % 10,
+					(cfmt.gracespace & 0xff) / 10,
+					(cfmt.gracespace & 0xff) % 10);
 				break;
 			}
 			break;
@@ -667,17 +678,34 @@ void interpret_fmt_line(char *w,		/* keyword */
 	fd->lock |= lock;
 	switch (fd->type) {
 	case FORMAT_I:
-		if (fd->subtype == 3) {
+		if (fd->subtype == 3) {		/* tuplets */
 			unsigned i1, i2, i3;
 
 			if (sscanf(p, "%d %d %d", &i1, &i2, &i3) != 3
 			    || i1 > 2 || i2 > 2 || i3 > 2) {
 				error(1, 0,
-				      "Bad 'tuplets' value '%s' - ignored",
+				      "Bad 'tuplets' values '%s' - ignored",
 				      p);
 				return;
 			}
 			cfmt.tuplets = (i1 << 8) | (i2 << 4) | i3;
+			break;
+		}
+		if (fd->subtype == 5) {		/* gracespace */
+			unsigned i1, i2, i3;
+			float f1, f2, f3;
+
+			if (sscanf(p, "%f %f %f", &f1, &f2, &f3) != 3
+			    || f1 > 256 || f2 > 256 || f3 > 256) {
+				error(1, 0,
+				      "Bad 'gracespace' values '%s' - ignored",
+				      p);
+				return;
+			}
+			i1 = f2 * 10;
+			i2 = f2 * 10;
+			i3 = f3 * 10;
+			cfmt.gracespace = (i1 << 16) | (i2 << 8) | i3;
 			break;
 		}
 		if (fd->subtype == 1 && !isdigit(*p))	/* 'encoding' */

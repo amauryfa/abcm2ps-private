@@ -372,6 +372,13 @@ List of the format parameters
 	Description:
 		Draw slurs on grace notes.
 
+  gracespace <float> <float> <float>
+	Default: 6.5 8.0 12.0
+	Compilation: none
+	Command line: none
+	Description:
+		Define the space before, inside and after the grace notes.
+
   header <text>
 	Default: none
 	Compilation: none

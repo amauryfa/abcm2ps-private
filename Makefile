@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.4.3
+VERSION = 5.4.4
 
 CC = gcc
 INSTALL = /usr/bin//install -c

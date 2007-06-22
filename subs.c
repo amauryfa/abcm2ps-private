@@ -989,7 +989,7 @@ static void write_headform(float lwidth)
 	INFO inf_s;
 	char inf_ft[26];
 	float inf_sz[26];
-	signed char fmt[64];
+	char fmt[64];
 
 	memset(inf_nb, 0, sizeof inf_nb);
 	memset(inf_ft, HISTORYFONT, sizeof inf_ft);
