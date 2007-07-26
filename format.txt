@@ -1107,12 +1107,14 @@ List of the pseudo-comments treated while parsed
 	(1..n - see sample4.abc for example), or on the <+int>th or
 	<-int>th staff.
 
-  staffbreak <unit>
+  staffbreak <unit> ["f"]
 	Have a break in the current staff. <unit> gives the width of the
 	break (in points, inches or cm). As a side effect, when the width
 	is bigger than 0.5 cm, the left side of the staff system is redrawn.
 	When used in a multi-voice tune, a staff break must be inserted
 	in each voice.
+	When "f" is not present, the staff break is removed if it occurs
+	at start or end of line.
 
   staves <definition>
 	See 'features.txt' for description.

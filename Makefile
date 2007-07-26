@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.4.4
+VERSION = 5.5.1
 
 CC = gcc
 INSTALL = /usr/bin//install -c
@@ -9,7 +9,7 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
 CPPFLAGS = -Wall -pipe -DHAVE_CONFIG_H -I. #-ansi 
-CFLAGS = -g -O2 
+CFLAGS = -g # -O2 
 LDFLAGS =	# 
 
 prefix = /usr/local

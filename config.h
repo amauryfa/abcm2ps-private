@@ -16,5 +16,5 @@
 /* Define to have ~ as roll instead of twiddle.  */
 /* #undef DECO_IS_ROLL */
 
-#define VERSION "5.4.4"
-#define VDATE "June 23, 2007"
+#define VERSION "5.5.1"
+#define VDATE "July 27, 2007"

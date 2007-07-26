@@ -678,7 +678,7 @@ static void draw_timesig(float x,
 	if (s->as.u.meter.nmeter == 0)
 		return;
 	staff = s->staff;
-	x = x - s->wl + 2;
+	x -= s->wl;
 	for (i = 0; i < s->as.u.meter.nmeter; i++) {
 		l = strlen(s->as.u.meter.meter[i].top);
 		if (l > sizeof s->as.u.meter.meter[i].top)
@@ -2660,7 +2660,8 @@ static void draw_note_ties(struct SYMBOL *k1,
 		}
 
 		/* tie between 2 staves */
-/*fixme: should also do that when clef change*/
+/*fixme: should also do that when clef change?*/
+/*fixme:dotted not treated*/
 		if (k1->staff != k2->staff) {
 			s = k1->staff - k2->staff;
 			y1 = 3 * (p1 - 18) + 3 * s;
@@ -2724,15 +2725,15 @@ static void draw_ties(struct SYMBOL *k1,
 	}
 
 	/* try an other voice */
-	ntie = 0;
 	k2 = k1->ts_next;
 	while (k2 != 0 && k2->time < time)
 		k2 = k2->ts_next;
 	while (k2 != 0 && k2->time == time) {
-		if (k2->type != NOTE) {
+		if (k2->type != NOTE || k2->staff != k1->staff) {
 			k2 = k2->ts_next;
 			continue;
 		}
+		ntie = 0;
 		for (i = ntie3; --i >= 0; ) {
 			pit = k1->as.u.note.pits[mhead3[i]];
 			for (m1 = k2->nhd; m1 >= 0; m1--) {
@@ -3369,12 +3370,60 @@ static void draw_symbols(struct VOICE_S *p_voice,
 {
 	struct BEAM bm;
 	struct SYMBOL *s;
-	float x, y, xstaff;
-	int staff, staff_st;
+	float x, y;
+	int staff;
+
+	/* output the PostScript code at start of line */
+	for (s = p_voice->sym; s != 0; s = s->next) {
+		switch (s->type) {
+		case CLEF:
+		case KEYSIG:
+		case TIMESIG:
+		case TEMPO:
+		case BAR:
+		case WHISTLE:
+			continue;	/* skip the symbols added by init_music_line() */
+		case FMTCHG:
+			if (s->u == PSSEQ) {
+				PUT1("%s\n", s->as.text);
+				s->u = -1;	/* done */
+				continue;
+			}
+			break;
+		}
+		break;
+	}
+
+	/* draw the staff, skipping the staff breaks */
+	if (!p_voice->second) {
+		float xstaff, x2;
+		int staff_st;
+
+		xstaff = 0;
+		staff_st = first;
+		for (s = p_voice->sym; s != 0; s = s->next) {
+			if (s->type != FMTCHG
+			    || s->u != STBRK)
+				continue;
+			x2 = s->prev->x;
+			staff = p_voice->staff;
+			if (s->prev->type != BAR)
+				x2 += s->prev->wr;
+			draw_staff(p_voice, xstaff, x2);
+			if (staff_st)
+				draw_lstaff(xstaff);
+			xstaff = s->xmx != 0 ? s->x : x2;
+			if (first)
+				staff_st = s->xmx > .5 CM;
+		}
+		if (xstaff < realwidth - 8) {
+			draw_staff(p_voice, xstaff, realwidth);
+			if (staff_st)
+				draw_lstaff(xstaff);
+		}
+	}
 
 	bm.s2 = 0;
-	staff_st = first;
-	xstaff = 0;
 	for (s = p_voice->sym; s != 0; s = s->next) {
 		x = s->x;
 		switch (s->type) {
@@ -3472,23 +3521,6 @@ static void draw_symbols(struct VOICE_S *p_voice,
 		case WHISTLE:
 			break;			/* nothing */
 		case FMTCHG:
-			if (s->u == STBRK) {
-				float x2;
-
-				x2 = s->prev->x;
-				staff = p_voice->staff;
-				if (!p_voice->second) {
-					if (s->prev->type != BAR)
-						x2 += s->prev->wr;
-					draw_staff(p_voice, xstaff, x2);
-				}
-				if (staff_st)
-					draw_lstaff(xstaff);
-				xstaff = s->xmx != 0 ? x : x2;
-				if (first)
-					staff_st = s->xmx > .5 CM;
-				break;
-			}
 			if (s->u == PSSEQ) {
 				PUT1("%s\n", s->as.text);
 				break;
@@ -3503,14 +3535,6 @@ static void draw_symbols(struct VOICE_S *p_voice,
 			bug("Symbol not drawn", 1);
 		}
 	}
-
-	/* draw the (end of the) staff */
-	if (!p_voice->second) {
-		draw_staff(p_voice, xstaff, realwidth);
-		if (staff_st)
-			draw_lstaff(xstaff);
-	}
-
 	set_scale(p_voice - voice_tb);
 	draw_all_ties(p_voice);
 }

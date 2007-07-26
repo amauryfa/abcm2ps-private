@@ -132,9 +132,9 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define FMTCHG		12
 #define TUPLET		13
 #define WHISTLE		14
-	unsigned char seq;	/* sequence # - see parse.c */
 	unsigned char voice;	/* voice (0..nvoice) */
 	unsigned char staff;	/* staff (0..nstaff) */
+	unsigned char nhd;	/* number of notes in chord - 1 */
 	int dur;		/* main note duration */
 	signed char pits[MAXHD]; /* pitches for notes */
 	struct SYMBOL *ts_next, *ts_prev; /* time linkage */
@@ -148,7 +148,6 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_TREM		0x0020		/* tremolo (when note) */
 #define S_RRBAR		0x0040		/* right repeat bar (when bar) */
 #define S_XSTEM		0x0080		/* cross-staff stem (when note) */
-#define S_NOREPBAR	0x0100		/* don't draw the repeat bar (when bar) */
 #define S_BEAM_ON	0x0200		/* continue beaming */
 #define S_SL1		0x0400		/* some chord slur start */
 #define S_SL2		0x0800		/* some chord slur end */
@@ -158,7 +157,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_RBSTOP	0x8000		/* repeat bracket stop */
 #define S_BEAM_BR2	0x00010000	/* 3rd beam must restart here */
 #define S_REPEAT	0x00020000	/* sequence / measure repeat */
-	unsigned char nhd;	/* number of notes in chord - 1 */
+#define S_NL		0x00040000	/* start of new music line */
+#define S_SEQST		0x00080000	/* start of vertical sequence */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
 	char dots;		/* number of dots */
@@ -168,7 +168,6 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define H_OVAL		2
 #define H_SQUARE	3
 	signed char multi;	/* multi voice in the staff (+1, 0, -1) */
-	signed char doty;	/* dot y pos when voices overlap */
 	signed char nohdix;	/* no head index */
 	unsigned char gcf;	/* font for guitar chords */
 	unsigned char anf;	/* font for annotations */
@@ -179,24 +178,27 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 				 *	- TUPLET: tuplet format
 				 *	- FMTCHG (format change): subtype */
 #define STBRK 0				/* staff break
-					 *	xmx: width */
+					 *	xmx: width
+					 *	doty: force if != 0 */
 #define PSSEQ 1				/* postscript sequence */
 #define REPEAT 2			/* repeat sequence or measure
 					 *	doty: # measures if > 0
 					 *	      # notes/rests if < 0
 					 *	nohdix: # repeat */
 	float x;		/* x offset */
-	short y;
-	short ymn, ymx, yav;	/* min, max, avg note head height */
+	signed char y;		/* y offset of note head */
+	signed char ymn, ymx, yav; /* min, max, avg note head y offset */
 	float xmx;		/* max h-pos of a head rel to top */
 	float xs, ys;		/* offset of stem end */
 	float wl, wr;		/* left, right min width */
 	float space;		/* natural space before symbol */
-	float xmin, xmax;	/* min and max x offsets */
+	float shrink;		/* minimum space before symbol */
+	float xmax;		/* max x offset */
 	float shhd[MAXHD];	/* horizontal shift for heads */
 	float shac[MAXHD];	/* horizontal shift for accidentals */
 	struct lyrics *ly;	/* lyrics */
 	struct SYMBOL *grace;	/* grace notes */
+	signed char doty;	/* dot y pos when voices overlap */
 };
 
 /* bar types !tied to abcparse.h! */
@@ -460,8 +462,6 @@ void output_music(void);
 void reset_gen(void);
 /* parse.c */
 extern float multicol_start;
-struct SYMBOL *add_sym(struct VOICE_S *p_voice,
-		       int type);
 void voice_dup(void);
 void do_tune(struct abctune *t,
 	     int header_only);
@@ -470,6 +470,8 @@ void identify_note(struct SYMBOL *s,
 		   int *p_head,
 		   int *p_dots,
 		   int *p_flags);
+struct SYMBOL *sym_add(struct VOICE_S *p_voice,
+		       int type);
 /* subs.c */
 void bug(char *msg, int fatal);
 void error(int sev, struct SYMBOL *s, char *fmt, ...);

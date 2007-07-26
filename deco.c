@@ -600,13 +600,9 @@ static void d_upstaff(struct deco_elt *de)
 	case 16:	/* longphrase */
 	case 17:	/* mediumphrase */
 	case 18: {	/* shortphrase */
-		int stime, seq;
-
 		yc = stafft + 1;
-		stime = s->time;
-		seq = s->seq;
 		for (s = s->ts_next; s != 0; s = s->ts_next)
-			if (s->time != stime || s->seq != seq)
+			if (s->shrink != 0)
 				break;
 		if (s != 0)
 			x += (s->x - x) * 0.4;
@@ -1421,8 +1417,7 @@ void draw_deco_staff(void)
 			char *p;
 
 			if (s->type != BAR
-			    || !s->as.u.bar.repeat_bar
-			    || (s->sflags & S_NOREPBAR))
+			    || !s->as.u.bar.repeat_bar)
 				continue;
 			s1 = s;
 			for (;;) {
@@ -1444,7 +1439,7 @@ void draw_deco_staff(void)
 			if (s1 == s2)
 				break;
 			x = s1->x;
-			if ((s1->as.u.bar.type & 0x03) == B_COL)
+			if ((s1->as.u.bar.type & 0x07) == B_COL)
 				x -= 4;
 			i = 0;				/* no bracket end */
 			if (s2->sflags & S_RBSTOP)
@@ -1458,11 +1453,11 @@ void draw_deco_staff(void)
 				if (s->staff > 0
 				    && !(staff_tb[s->staff - 1].flags[0] & STOP_BAR))
 					w = s2->wl;
+				else if ((s2->as.u.bar.type & 0x0f) == B_COL)
+					w = 12;
 				else if (!(s2->sflags & S_RRBAR)
 					 || s2->as.u.bar.type == B_CBRA)
 					w = 0;		/* explicit repeat end */
-				else if ((s2->as.u.bar.type & 0x0f) == B_COL)
-					w = 12;
 				else	w = 8;
 			} else	w = 8;
 			w = s2->x - x - w;

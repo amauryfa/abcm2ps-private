@@ -385,6 +385,8 @@ float tex_str(char *s)
 					break;
 				}
 			}
+			if (i < 0)
+				c1 = s[-1];
 			goto addchar1;
 		case '$':
 			if (isdigit((unsigned char) *s)

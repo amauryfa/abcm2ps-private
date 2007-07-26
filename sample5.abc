@@ -1,7 +1,7 @@
 % sample5.abc - this file is part of abcm2ps
 
 %%writehistory 1
-%%infoname F "This file comes from "
+%%infoname F "This file is part of the "
 F:abcm2ps sources at http://moinejf.free.fr/
 
 X:1

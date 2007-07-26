@@ -1,3 +1,25 @@
+---- Version 5.5.1 - 07/07/27 ----
+
+Change some internals for vertical alignment.
+Ignore the clef of secundary voices.
+Don't change escaped double quotes to column in strings.
+Output PostScript sequences at start of line before staff drawing.
+Draw the staves before notes.
+Smaller repeat bracket when ending on a left repeat bar.
+More changes in the horizontal spacing mechanism.
+Option 'f' added in %%staffbreak.
+
+---- Version 5.5.0 - 07/07/11 ----
+
+Better (?) detection of measure bars errors.
+Don't go to the voice of an other staff when drawing a tie between
+	different voices.
+Handle PostScript sequences per voice at start of line.
+Bad handling of voice overlay ('&') when no note or rest before.
+Lack of clef change when measure repeat.
+Big changes in the horizontal spacing mechanism.
+Bigger accidentals in strings.
+
 ---- Version 5.4.4 - 07/06/23 ----
 
 Bad space at end of line when key signature change.

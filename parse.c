@@ -55,25 +55,6 @@ float multicol_start;			/* (for multicol) */
 static float multicol_max;
 static float lmarg, rmarg;
 
-/* sequence numbers for symbol grouping - index = symbol type */
-static unsigned char seq_tb[15] = {
-	0x60,		/* 0: notype */
-	0x78,		/* 1: note */
-	0x78,		/* 2: rest */
-	0x60,		/* 3: bar */
-	0x10,		/* 4: clef */
-	0x30,		/* 5: timesig */
-	0x28,		/* 6: keysig */
-	0x38,		/* 7: tempo */
-	0x00,		/* 8: staves */
-	0x78,		/* 9: mrest */
-	0x40,		/* 10: part */
-	0x50,		/* 11: grace */
-	0x08,		/* 12: fmtchg */
-	0x70,		/* 13: tuplet */
-	0x00,		/* 14: whistle */
-};
-
 static void get_clef(struct SYMBOL *s);
 static void get_key(struct SYMBOL *s);
 static void get_meter(struct SYMBOL *s);
@@ -82,27 +63,6 @@ static void get_note(struct SYMBOL *s);
 static struct abcsym *process_pscomment(struct abcsym *as);
 static void set_tuplet(struct SYMBOL *s);
 static void sym_link(struct SYMBOL *s, int type);
-
-/* -- add a new symbol at end of list -- */
-struct SYMBOL *add_sym(struct VOICE_S *p_voice, int type)
-{
-	struct SYMBOL *s;
-	struct VOICE_S *p_voice2;
-
-	s = (struct SYMBOL *) getarena(sizeof *s);
-	memset(s, 0, sizeof *s);
-	p_voice2 = curvoice;
-	curvoice = p_voice;
-	sym_link(s, type);
-	if (s->prev != 0 && s->prev->time == s->time
-	    && s->prev->seq == s->seq) {
-		if (s->seq != 0)
-			s->seq = 0;
-		else	s->seq++;
-	}
-	curvoice = p_voice2;
-	return s;
-}
 
 /* -- duplicate the symbols of the voices appearing in many staves -- */
 void voice_dup(void)
@@ -379,7 +339,7 @@ static void get_over(struct SYMBOL *s)
 	if (over_bar) {
 		struct SYMBOL *s2;
 
-		s2 = add_sym(p_voice, BAR);
+		s2 = sym_add(p_voice, BAR);
 		s2->as.type = ABC_T_BAR;
 		s2->as.linenum = s->as.linenum;
 		s2->as.colnum = s->as.colnum;
@@ -841,7 +801,7 @@ static void get_bar(struct SYMBOL *s)
 
 	/* remove the repeat indication if not wanted */
 	if (curvoice->norepbra && s->as.u.bar.repeat_bar)
-		s->sflags |= S_NOREPBAR;
+		return;
 
 	/* remove the invisible repeat bars when no shift needed */
 	if (bar_type == B_OBRA
@@ -853,8 +813,6 @@ static void get_bar(struct SYMBOL *s)
 		    && s2->as.text == 0) {
 			s2->as.text = s->as.text;
 			s2->as.u.bar.repeat_bar = s->as.u.bar.repeat_bar;
-			if (s->sflags & S_EOLN)
-				s2->sflags |= S_EOLN;
 			return;
 		}
 	}
@@ -867,8 +825,6 @@ static void get_bar(struct SYMBOL *s)
 			if (s2->type == BAR
 			    && s2->as.u.bar.type == B_RREP) {
 				s2->as.u.bar.type = B_DREP;
-				if (s->sflags & S_EOLN)
-					s2->sflags |= S_EOLN;
 				return;
 			}
 			s2 = s2->prev;
@@ -1001,6 +957,8 @@ void do_tune(struct abctune *t,
 			get_clef(s);
 			break;
 		case ABC_T_EOLN:
+			if (cfmt.continueall || cfmt.barsperstaff)
+				continue;
 			if (curvoice->last_symbol != 0)
 				curvoice->last_symbol->sflags |= S_EOLN;
 			if (!cfmt.alignbars)
@@ -1042,7 +1000,7 @@ void do_tune(struct abctune *t,
 				curvoice->time += curvoice->wmeasure * n;
 				break;
 			}
-			s2 = add_sym(curvoice, REST);
+			s2 = sym_add(curvoice, REST);
 			s2->as.type = ABC_T_REST;
 			s2->as.linenum = as->linenum;
 			s2->as.colnum = as->colnum;
@@ -1054,13 +1012,13 @@ void do_tune(struct abctune *t,
 				break;
 			}
 			while (--n > 0) {
-				s2 = add_sym(curvoice, BAR);
+				s2 = sym_add(curvoice, BAR);
 				s2->as.linenum = as->linenum;
 				s2->as.colnum = as->colnum;
 				s2->as.u.bar.type = B_SINGLE;
 				if (n == as->u.bar.len - 1)
 					s2->as.u.bar.len = as->u.bar.len;
-				s2 = add_sym(curvoice, REST);
+				s2 = sym_add(curvoice, REST);
 				s2->as.type = ABC_T_REST;
 				s2->as.linenum = as->linenum;
 				s2->as.colnum = as->colnum;
@@ -1085,12 +1043,6 @@ void do_tune(struct abctune *t,
 			curvoice->time += s->dur;
 		else if (s->as.flags & ABC_F_GR_END)
 			grace_head = 0;
-		if (s->prev != 0 && s->prev->time == s->time
-		    && s->prev->seq == s->seq) {
-			if (s->seq != 0)
-				s->seq = 0;
-			else	s->seq++;
-		}
 	}
 
 	out_musly(0);
@@ -1408,7 +1360,7 @@ static void get_note(struct SYMBOL *s)
 		if (grace_head == 0) {
 			struct SYMBOL *s2;
 
-			s2 = add_sym(curvoice, GRACE);
+			s2 = sym_add(curvoice, GRACE);
 			s2->as.linenum = s->as.linenum;
 			s2->as.colnum = s->as.colnum;
 			grace_head = s2;
@@ -1445,12 +1397,7 @@ static void get_note(struct SYMBOL *s)
 
 	/* change the figure of whole measure rests */
 	if (s->type == REST) {
-		if (s->dur == 0) {		/* if space */
-			if (s->prev != 0
-			    && s->prev->time + s->prev->dur == s->time)
-				s->seq = 0;
-			else	s->seq = seq_tb[BAR] + 1;	/* time skip */
-		} else if (s->dur == curvoice->wmeasure) {
+		if (s->dur == curvoice->wmeasure) {
 			if (s->dur < BASE_LEN * 2)
 				s->as.u.note.lens[0] = BASE_LEN;
 			else if (s->dur < BASE_LEN * 4)
@@ -1894,9 +1841,15 @@ irepeat:
 				return as;
 			sym_link(s, FMTCHG);
 			s->u = STBRK;
-			if (*p != '\0')
+			if (isdigit(*p)) {
 				s->xmx = scan_u(p);
-			else	s->xmx = 0.5 CM;
+				if (p[strlen(p) - 1] == 'f')
+					s->doty = 1;
+			} else {
+				s->xmx = 0.5 CM;
+				if (*p == 'f')
+					s->doty = 1;
+			}
 			return as;
 		}
 		if (strcmp(w, "staves") == 0
@@ -2107,7 +2060,22 @@ static void set_tuplet(struct SYMBOL *t)
 	}
 }
 
-/* -- link a symbol in a voice -- */
+/* -- add a new symbol at end of list -- */
+struct SYMBOL *sym_add(struct VOICE_S *p_voice, int type)
+{
+	struct SYMBOL *s;
+	struct VOICE_S *p_voice2;
+
+	s = (struct SYMBOL *) getarena(sizeof *s);
+	memset(s, 0, sizeof *s);
+	p_voice2 = curvoice;
+	curvoice = p_voice;
+	sym_link(s, type);
+	curvoice = p_voice2;
+	return s;
+}
+
+/* -- link a ABC symbol into a voice -- */
 static void sym_link(struct SYMBOL *s, int type)
 {
 	struct VOICE_S *p_voice = curvoice;
@@ -2120,7 +2088,6 @@ static void sym_link(struct SYMBOL *s, int type)
 	p_voice->last_symbol = s;
 
 	s->type = type;
-	s->seq = seq_tb[type];
 	s->voice = p_voice - voice_tb;
 	s->staff = p_voice->cstaff;
 	s->time = p_voice->time;

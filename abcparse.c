@@ -2352,8 +2352,7 @@ again:					/* for history */
 		case CHAR_VOV:			/* '&' */
 			if (*p != ')'
 			    || vover == 0) {		/*??*/
-				if (t->last_sym->type != ABC_T_NOTE
-				    && t->last_sym->type != ABC_T_REST) {
+				if (curvoice->last_note == 0) {
 					syntax("Bad start of voice overlay", p);
 					break;
 				}
