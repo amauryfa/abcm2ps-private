@@ -48,6 +48,7 @@ static struct SYMBOL *grace_head, *grace_tail;
 static struct SYMBOL *voice_over;	/* voice overlay */
 static int over_bar;			/* voice overlay in a measure */
 static int staves_found;
+static int abc2win;
 
 static int bar_number;			/* (for %%setbarnb) */
 
@@ -875,7 +876,7 @@ void do_tune(struct abctune *t,
 
 	/* initialize */
 	memset(voice_tb, 0, sizeof voice_tb);
-	voice_tb[0].name = "1";	/* implicit voice */
+	voice_tb[0].name = "1";		/* implicit voice */
 	voice_over = 0;
 	nstaff = 0;
 	memset(staff_tb, 0, sizeof staff_tb);
@@ -957,7 +958,26 @@ void do_tune(struct abctune *t,
 			get_clef(s);
 			break;
 		case ABC_T_EOLN:
-			if (cfmt.continueall || cfmt.barsperstaff)
+			if (cfmt.continueall || cfmt.barsperstaff
+			    || as->u.eoln.type == 1)	/* if '\' */
+				continue;
+			if (as->u.eoln.type != 0) {	/* if '!' */
+				if (!abc2win) {		/* if 1st time */
+					struct VOICE_S *p_voice;
+
+					abc2win = 1;
+					for (p_voice = first_voice;
+					     p_voice;
+					     p_voice = p_voice->next) {
+						for (s = p_voice->sym;
+						     s != 0;
+						     s = s->next) {
+							if (s->sflags & S_EOLN)
+								s->sflags &= ~S_EOLN;
+						}
+					}
+				}
+			} else if (abc2win)
 				continue;
 			if (curvoice->last_symbol != 0)
 				curvoice->last_symbol->sflags |= S_EOLN;

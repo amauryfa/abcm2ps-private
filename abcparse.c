@@ -309,6 +309,7 @@ struct abcsym *abc_new(struct abctune *t,
 		s->prev = t->last_sym;
 		t->last_sym = s;
 	}
+	s->state = abc_state;
 	s->linenum = linenum;
 	s->colnum = colnum;
 	return s;
@@ -1617,7 +1618,6 @@ static char *parse_bar(struct abctune *t,
 		gchord = 0;
 	}
 	s->type = ABC_T_BAR;
-	s->state = ABC_S_TUNE;
 	s->u.bar.type = bar_type;
 
 	if (dc.n > 0) {
@@ -1648,7 +1648,6 @@ static char *parse_bar(struct abctune *t,
 	    || s->text != 0) {
 		s = abc_new(t, repeat_value, 0);
 		s->type = ABC_T_BAR;
-		s->state = ABC_S_TUNE;
 		s->u.bar.type = B_OBRA;
 	} else {
 		s->text = alloc_f(strlen(repeat_value) + 1);
@@ -1998,7 +1997,6 @@ again:					/* for history */
 			if (keep_comment) {
 				s = abc_new(t, 0, 0);
 				s->type = ABC_T_NULL;
-				s->state = abc_state;
 			}
 			return 0;
 		}
@@ -2015,7 +2013,6 @@ again:					/* for history */
 			comment = decomment_line(p + 2);
 			s = abc_new(t, p, comment);
 			s->type = ABC_T_PSCOM;
-			s->state = abc_state;
 			p += 2;				/* skip '%%' */
 			while (isspace((unsigned) *p))
 				p++;
@@ -2042,7 +2039,6 @@ again:					/* for history */
 					}
 					s = abc_new(t, p, 0);
 					s->type = ABC_T_PSCOM;
-					s->state = abc_state;
 					if (*p != '%' || p[1] != '%')
 						continue;
 					p += 2;
@@ -2074,7 +2070,6 @@ again:					/* for history */
 		if (keep_comment) {
 			s = abc_new(t, p, 0);
 			s->type = ABC_T_NULL;
-			s->state = abc_state;
 		}
 		return 0;		/* skip */
 	}
@@ -2099,7 +2094,6 @@ again:					/* for history */
 				if (abc_state == ABC_S_HEAD) {
 					s = abc_new(t, p, 0);
 					s->type = ABC_T_INFO2;
-					s->state = abc_state;
 				}
 			}
 		}
@@ -2121,13 +2115,12 @@ again:					/* for history */
 		if (keep_comment) {
 			s = abc_new(t, p, comment);
 			s->type = ABC_T_NULL;
-			s->state = abc_state;
 		}
 		return 0;
 	}
 
-	if (isspace((unsigned) scratch_line[0]) && curvoice->last_note != 0)
-		curvoice->last_note->flags |= ABC_F_WORD_END;
+	if (isspace((unsigned) scratch_line[0]))
+		t->last_sym->flags |= ABC_F_WORD_END;
 
 	lyric_started = 0;
 	deco_start = deco_cont = 0;
@@ -2175,7 +2168,7 @@ again:					/* for history */
 			if (p[-1] == '!' && check_nl(p)) {
 				s = abc_new(t, 0, 0);	/* abc2win EOL */
 				s->type = ABC_T_EOLN;
-				s->state = abc_state;
+				s->u.eoln.type = 2;
 				break;
 			}
 			if (p[-1] == '.') {
@@ -2218,7 +2211,6 @@ again:					/* for history */
 			syntax("Non standard measure repeat syntax", p - 1);
 			s = abc_new(t, 0, 0);
 			s->type = ABC_T_MREP;
-			s->state = ABC_S_TUNE;
 			s->u.bar.type = 0;
 			s->u.bar.len = q - p + 1;
 			s->flags |= ABC_F_ERROR;
@@ -2226,8 +2218,12 @@ again:					/* for history */
 			break;
 		case CHAR_BSLASH:		/* '\\' */
 /*fixme: KO if in grace note sequence*/
-			if (*p == '\0')
+			if (*p == '\0') {
+				s = abc_new(t, 0, 0);	/* abc2win EOL */
+				s->type = ABC_T_EOLN;
+				s->u.eoln.type = 1;
 				return 0;
+			}
 			syntax("'\\' ignored", p - 1);
 			break;
 		case CHAR_OBRA:			/* '[' */
@@ -2303,7 +2299,6 @@ again:					/* for history */
 					qplet = meter % 3 == 0 ? 3 : 2;
 				s = abc_new(t, 0, 0);
 				s->type = ABC_T_TUPLET;
-				s->state = ABC_S_TUNE;
 				s->u.tuplet.p_plet = pplet;
 				s->u.tuplet.q_plet = qplet;
 				s->u.tuplet.r_plet = rplet;
@@ -2375,8 +2370,7 @@ again:					/* for history */
 			curvoice = &voice_tb[curvoice->mvoice];
 			break;
 		case CHAR_SPAC:			/* ' ' and '\t' */
-			if (curvoice->last_note != 0)
-				curvoice->last_note->flags |= ABC_F_WORD_END;
+			t->last_sym->flags |= ABC_F_WORD_END;
 			break;
 		case CHAR_MINUS: {		/* '-' */
 			int tie_pos;
@@ -2448,7 +2442,7 @@ again:					/* for history */
 	/* add eoln */
 	s = abc_new(t, 0, 0);
 	s->type = ABC_T_EOLN;
-	s->state = abc_state;
+/*	s->as.u.eoln = 0; */
 	return 0;
 }
 
@@ -2472,7 +2466,6 @@ static char *parse_note(struct abctune *t,
 		}
 	}
 	s->type = ABC_T_NOTE;
-	s->state = ABC_S_TUNE;
 
 	if (*p != 'Z' && !lyric_started && !(s->flags & ABC_F_GRACE)) {
 		lyric_started = 1;
@@ -2675,7 +2668,6 @@ static void parse_info(struct abctune *t,
 
 	s = abc_new(t, p, comment);
 	s->type = ABC_T_INFO;
-	s->state = abc_state;
 
 	p += 2;
 	while (isspace((unsigned) *p))

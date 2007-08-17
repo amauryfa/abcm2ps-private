@@ -164,7 +164,7 @@ List of the format parameters
 	Compilation: none
 	Command line: -c
 	Description:
-		Ignore the line breaks in tune if true.
+		If true, ignore the line breaks in tune.
 
   dateformat <text>
 	Default: "\%b \%e, \%Y \%H:\%M"

@@ -1,3 +1,10 @@
+---- Version 5.5.2 - 07/08/18 ----
+
+Bad spacing at start of tune when tempo, bar and many voices per staff.
+Bad extra music line when line overflow and no bar at the end.
+Handle the line break of ABC2WIN ('!').
+Align the ABC parser with tclabc-1.0.10.
+
 ---- Version 5.5.1 - 07/07/27 ----
 
 Change some internals for vertical alignment.

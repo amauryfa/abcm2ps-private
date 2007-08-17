@@ -164,6 +164,11 @@ struct abcsym {
 			unsigned char symbol;
 			unsigned char value;
 		} user;
+		struct {
+			char type;	/* 0: end of line
+					 * 1: continuation ('\')
+					 * 2: line break ('!') */
+		} eoln;
 		struct staff_s {	/* %%staves */
 			short voice;
 			unsigned char flags[2];
