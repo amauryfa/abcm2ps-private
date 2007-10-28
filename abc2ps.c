@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Original page:
+ * Original site:
  *	http://moinejf.free.fr/
  *
  * Original abc2ps:
@@ -81,8 +81,8 @@ static int def_fmt_done = 0;	/* default format read */
 static struct SYMBOL notitle;
 
 /* memory arena (for clrarena, lvlarena & getarena) */
-#define MAXAREAL 4		/* max area levels:
-				 * 0; global, 1: tune, 2: output, 3: output line */
+#define MAXAREAL 3		/* max area levels:
+				 * 0; global, 1: file, 2: tune generation */
 static int str_level;		/* current arena level */
 static struct str_a {
 	char	str[4096];	/* memory area */
@@ -113,8 +113,7 @@ int main(int argc,
 	 char **argv)
 {
 	int j;
-	char *p, *sel;
-	char c, *aaa;
+	char *p, *sel, c, *aaa;
 
 	fprintf(stderr, "abcm2ps-" VERSION " (" VDATE ")\n");
 	if (argc <= 1)
@@ -125,7 +124,6 @@ int main(int argc,
 	clrarena(0);			/* global description */
 	clrarena(1);			/* tune description */
 	clrarena(2);			/* tune generation */
-	clrarena(3);			/* line generation */
 	clear_buffer();
 	abc_init((void *(*)(int size)) getarena, /* alloc */
 		0,				/* free */
@@ -567,7 +565,7 @@ static void do_filter(struct abctune *t, char *sel)
 			sel++;
 			end_sel = (int) ((unsigned) (~0) >> 1);
 			if (sscanf(sel, "%d%n", &end_sel, &n) != 1)
-				end_sel = 65000;
+				end_sel = (unsigned) ~0 >> 1;
 			else	sel += n;
 		} else	end_sel = cur_sel;
 		do_select(t, cur_sel, end_sel);
@@ -590,19 +588,19 @@ static void do_select(struct abctune *t,
 		for (s = t->first_sym; s != 0; s = s->next) {
 			if (s->type == ABC_T_INFO
 			    && s->text[0] == 'X') {
-				sscanf(s->text, "X:%d", &i);
+				if (sscanf(s->text, "X:%d", &i) != 1)
+					i = 0;
 				break;
 			}
 		}
 		print_tune = i >= first_tune && i <= last_tune;
 		if (print_tune
 		    || !t->client_data) {	/* (parse the global symbols) */
-			clrarena(2);
+			lvlarena(2);
 			do_tune(t, !print_tune);
+			clrarena(2);
 			t->client_data = (void *) 1;	/* treated */
 		}
-		if (i >= last_tune)
-			break;
 		t = t->next;
 	}
 }
@@ -856,9 +854,13 @@ void clrarena(int level)
 	a_p->r = sizeof a_p->str;
 }
 
-void lvlarena(int level)
+int lvlarena(int level)
 {
+	int old_level;
+
+	old_level = str_level;
 	str_level = level;
+	return old_level;
 }
 
 /* The area is 8 bytes aligned to handle correctly int and pointers access

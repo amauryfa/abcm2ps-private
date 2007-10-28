@@ -769,15 +769,15 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Stretch the last staff of the tune when more expanded
-		than the previous line.
+		Stretch the last music line of a tune when more
+		expanded than the previous line.
 
   stretchstaff <bool>
 	Default: 1
 	Compilation: none
 	Command line: none
 	Description:
-		Stretch underfull staves across page.
+		Stretch underfull music lines inside a tune.
 
   subtitlefont <font> [<encoding>] [<size>]
 	Default: Times-Roman 16

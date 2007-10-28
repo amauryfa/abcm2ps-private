@@ -740,7 +740,8 @@ void deco_add(char *text)
 
 /* -- convert the decorations -- */
 void deco_cnv(struct deco *dc,
-	      struct SYMBOL *s)
+	      struct SYMBOL *s,
+	      struct SYMBOL *prev)
 {
 	int i, j;
 	struct deco_def_s *dd;
@@ -772,7 +773,9 @@ void deco_cnv(struct deco *dc,
 			s->sflags |= S_BEAM_ON;
 			break;
 		case 34:		/* 34 = trem1..trem4 */
-			if (s->type != NOTE || s->prev->type != NOTE) {
+			if (s->type != NOTE
+			    || prev == 0
+			    || prev->type != NOTE) {
 				error(1, s,
 				      "+%s+ must be on the last of a couple of notes",
 				       dd->name);
@@ -781,13 +784,13 @@ void deco_cnv(struct deco *dc,
 			s->sflags |= S_TREM;
 			s->sflags &= ~S_WORD_ST;
 			s->as.flags |= ABC_F_WORD_END;
-			s->prev->sflags |= (S_TREM | S_WORD_ST);
-			s->prev->as.flags &= ~ABC_F_WORD_END;
-			s->nflags = s->prev->nflags = dd->name[4] - '0';
+			prev->sflags |= (S_TREM | S_WORD_ST);
+			prev->as.flags &= ~ABC_F_WORD_END;
+			s->nflags = prev->nflags = dd->name[4] - '0';
 			for (j = 0; j <= s->nhd; j++)
 				s->as.u.note.lens[j] *= 2;
-			for (j = 0; j <= s->prev->nhd; j++)
-				s->prev->as.u.note.lens[j] *= 2;
+			for (j = 0; j <= prev->nhd; j++)
+				prev->as.u.note.lens[j] *= 2;
 			break;
 		case 35:		/* 35 = xstem */
 			if (s->type != NOTE) {
@@ -1189,7 +1192,7 @@ void draw_deco_near(void)
 
 	deco_head = deco_tail = 0;
 	first = 0;
-	for (s = first_voice->sym; s != 0; s = s->ts_next) {
+	for (s = tsfirst; s != 0; s = s->ts_next) {
 		switch (s->type) {
 		case BAR:
 		case MREST:
@@ -1286,7 +1289,7 @@ void draw_deco_staff(void)
 	/* search the vertical offset for the guitar chords */
 	memset(minmax, 0, sizeof minmax);
 	some_gchord = 0;
-	for (s = first_voice->sym; s != 0; s = s->ts_next) {
+	for (s = tsfirst; s != 0; s = s->ts_next) {
 		char *p;
 
 		if (s->as.text == 0)
@@ -1317,12 +1320,12 @@ void draw_deco_staff(void)
 	if (some_gchord) {
 		int i;
 
-		for (i = nstaff; i >= 0; i--) {
+		for (i = 0; i <= nstaff; i++) {
 			minmax[i].ymax += 4;
 			if (minmax[i].ymax < 34)
 				minmax[i].ymax = 34;
 		}
-		for (s = first_voice->sym; s != 0; s = s->ts_next) {
+		for (s = tsfirst; s != 0; s = s->ts_next) {
 			if (s->as.text == 0)
 				continue;
 			switch (s->type) {
@@ -1346,7 +1349,7 @@ void draw_deco_staff(void)
 		float y2;
 		int i, repnl;
 
-		if (p_voice->second)
+		if (p_voice->second || p_voice->sym == 0)
 			continue;
 
 		/* search the max y offset */
@@ -1450,8 +1453,9 @@ void draw_deco_staff(void)
 				   && s2->as.u.bar.type != (B_OBRA << 4) + B_CBRA)
 				 || s2->as.u.bar.type == B_CBRA) {
 				i =  2;			/* bracket start and stop */
+/*fixme:%%staves: cursys moved?*/
 				if (s->staff > 0
-				    && !(staff_tb[s->staff - 1].flags[0] & STOP_BAR))
+				    && !(cursys->staff[s->staff - 1].flags & STOP_BAR))
 					w = s2->wl;
 				else if ((s2->as.u.bar.type & 0x0f) == B_COL)
 					w = 12;
@@ -1468,9 +1472,8 @@ void draw_deco_staff(void)
 			}
 			if (i == 0 && s2->next == 0	/* 2nd ending at end of line */
 			    && !(s2->sflags & S_RBSTOP)) {
-				if (p_voice->bar_start != 0)
-					i = 2;		/* bracket start and stop */
-				else	repnl = 1;	/* continue on next line */
+				if (p_voice->bar_start == 0)
+					repnl = 1;	/* continue on next line */
 			}
 			if (i >= 0) {
 				PUT3("(%s)-%.1f %d ",
@@ -1763,7 +1766,8 @@ void draw_measnb(void)
 
 	/* get the current bar number */
 /*fixme: what to do if no symbol in the 1st voice?*/
-	if ((s = first_voice->sym->next) == 0)
+	if ((s = first_voice->sym) == 0
+	    || (s = s->next) == 0)
 		return;
 	for ( ; s->next != 0; s = s->next) {
 		switch (s->type) {

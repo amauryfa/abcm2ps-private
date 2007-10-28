@@ -28,9 +28,10 @@ M:C
 L:1/4
 K:C# bass
 C,E,G,C|[K:Cb]C,E,G,C|[K:C# bass3]C,E,G,C|
-[K:Cb]C,E,G,C|[K:C# alto4]G,CEG|[K:Cb]G,CEG|[K:C# alto]G,CEG|
-[K:Cb]G,CEG|[K:C# alto2]CEGc|[K:Cb]CEGc|
-[K:C# alto1]CEGc|[K:Cb]CEGc|[K:C# treble]CEGc|[K:Cb]CEGc|
+[K:Cb]C,E,G,C|[K:C# alto4]G,CEG|[K:Cb]G,CEG|
+[K:C# alto]G,CEG|[K:Cb]G,CEG|[K:C# alto2]CEGc|
+[K:Cb]CEGc|[K:C# alto1]CEGc|[K:Cb]CEGc|
+[K:C# treble]CEGc|[K:Cb]CEGc|[K:C]CEGc|
 
 X:4
 T:Guitar chords - annotations

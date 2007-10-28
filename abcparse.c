@@ -4,8 +4,6 @@
  * Copyright (C) 1998-2007 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996, 1997  Michael Methfessel
  *
- * Original site: http://moinejf.free.fr/
- *      
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -1161,12 +1159,11 @@ static void parse_staves(char *p,
 			 int score)
 {
 	int voice, flags_st, brace, bracket, parenth;
-	char flags[2];
+	short flags;
 	struct staff_s *p_staff;
 
 	/* define the voices */
-	flags[0] = score ? STOP_BAR : 0;
-	flags[1] = 0;
+	flags = score ? STOP_BAR : 0;
 	brace = bracket = parenth = 0;
 	flags_st = 0;
 	voice = 0;
@@ -1178,7 +1175,9 @@ static void parse_staves(char *p,
 		case '[':
 			if (parenth || brace + bracket >= 2)
 				goto err;
-			flags[brace + bracket] |= OPEN_BRACKET;
+			if (brace + bracket == 0)
+				flags |= OPEN_BRACKET;
+			else	flags |= OPEN_BRACKET2;
 			bracket++;
 			flags_st <<= 8;
 			flags_st |= OPEN_BRACKET;
@@ -1186,7 +1185,9 @@ static void parse_staves(char *p,
 		case '{':
 			if (parenth || brace || bracket >= 2)
 				goto err;
-			flags[bracket] |= OPEN_BRACE;
+			if (bracket == 0)
+				flags |= OPEN_BRACE;
+			else	flags |= OPEN_BRACE2;
 			brace++;
 			flags_st <<= 8;
 			flags_st |= OPEN_BRACE;
@@ -1194,14 +1195,13 @@ static void parse_staves(char *p,
 		case '(':
 			if (parenth)
 				goto err;
-			flags[0] |= OPEN_PARENTH;
+			flags |= OPEN_PARENTH;
 			parenth++;
 			flags_st <<= 8;
 			flags_st |= OPEN_PARENTH;
 			break;
 		case '*':
-			flags[0] |= FL_VOICE;
-			p++;
+			flags |= FL_VOICE;
 			break;
 		default:
 			if (!isalnum((unsigned) *p) && *p != '_')
@@ -1227,7 +1227,9 @@ static void parse_staves(char *p,
 					if (!(flags_st & OPEN_BRACKET))
 						goto err;
 					bracket--;
-					flags[brace + bracket] |= CLOSE_BRACKET;
+					if (brace + bracket == 0)
+						flags |= CLOSE_BRACKET;
+					else	flags |= CLOSE_BRACKET2;
 					flags_st >>= 8;
 					p++;
 					continue;
@@ -1235,7 +1237,9 @@ static void parse_staves(char *p,
 					if (!(flags_st & OPEN_BRACE))
 						goto err;
 					brace--;
-					flags[bracket] |= CLOSE_BRACE;
+					if (bracket == 0)
+						flags |= CLOSE_BRACE;
+					else	flags |= CLOSE_BRACE2;
 					flags_st >>= 8;
 					p++;
 					continue;
@@ -1243,23 +1247,21 @@ static void parse_staves(char *p,
 					if (!(flags_st & OPEN_PARENTH))
 						goto err;
 					parenth--;
-					flags[0] |= CLOSE_PARENTH;
+					flags |= CLOSE_PARENTH;
 					flags_st >>= 8;
 					p++;
 					continue;
 				case '|':
 					if (!score)
-						flags[0] |= STOP_BAR;
-					else	flags[0] &= ~STOP_BAR;
+						flags |= STOP_BAR;
+					else	flags &= ~STOP_BAR;
 					p++;
 					continue;
 				}
 				break;
 			}
-			p_staff->flags[0] = flags[0];
-			p_staff->flags[1] = flags[1];
-			flags[0] = score ? STOP_BAR : 0;
-			flags[1] = 0;
+			p_staff->flags = flags;
+			flags = score ? STOP_BAR : 0;
 			if (*p == '\0')
 				break;
 			continue;
@@ -1275,13 +1277,12 @@ err:
 	{
 		int i;
 
-		for (i = 0; i < voice; i++) {
-			s->u.staves[i].flags[0] &= ~(OPEN_PARENTH | CLOSE_PARENTH
+		for (i = 0; i < voice; i++)
+			s->u.staves[i].flags &= ~(OPEN_PARENTH | CLOSE_PARENTH
 						| OPEN_BRACKET | CLOSE_BRACKET
-						| OPEN_BRACE | OPEN_BRACE);
-			s->u.staves[i].flags[1] &= ~(OPEN_BRACKET | CLOSE_BRACKET
-						| OPEN_BRACE | OPEN_BRACE);
-		}
+						| OPEN_BRACE | OPEN_BRACE
+						| OPEN_BRACKET2 | CLOSE_BRACKET2
+						| OPEN_BRACE2 | OPEN_BRACE2);
 	}
 	s->flags |= ABC_F_ERROR;
 ok:

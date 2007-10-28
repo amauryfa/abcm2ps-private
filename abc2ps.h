@@ -51,7 +51,6 @@
 #define GSTEM_XOFF	1.6	/* x offset for grace note stem */
 
 #define BETA_C		0.1	/* max expansion for flag -c */
-#define ALFA_X		1.0	/* max compression before complaining */
 #define BETA_X		1.0	/* max expansion before complaining */
 
 #define VOCPRE		0.4	/* portion of vocals word before note */
@@ -159,6 +158,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_REPEAT	0x00020000	/* sequence / measure repeat */
 #define S_NL		0x00040000	/* start of new music line */
 #define S_SEQST		0x00080000	/* start of vertical sequence */
+#define S_SECOND	0x00100000	/* symbol on a secondary voice */
+#define S_FLOATING	0x00200000	/* symbol on a floating voice */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
 	char dots;		/* number of dots */
@@ -307,14 +308,10 @@ extern char **s_argv;
 
 struct STAFF_S {
 	struct clef_s clef;	/* base clef */
-	char flags[2];		/* brace and bracket flags (from %%staves) */
 	char forced_clef;	/* explicit clef */
 	char empty;		/* no symbol on this staff */
 	short botbar, topbar;	/* bottom and top of bar */
 	float y;		/* y position */
-	float bar_height;	/* height of measure bars */
-	float sep;		/* distance to the next staff */
-	float maxsep;		/* max distance to the next staff */
 	float top[YSTEP], bot[YSTEP];	/* top/bottom y offsets */
 };
 extern struct STAFF_S staff_tb[MAXSTAFF];
@@ -323,8 +320,7 @@ extern int nstaff;		/* (0..MAXSTAFF-1) */
 struct VOICE_S {
 	struct SYMBOL *sym;	/* associated symbols */
 	struct SYMBOL *last_symbol;	/* last symbol while scanning */
-	struct SYMBOL *s_anc;	/* ancillary symbol pointer */
-	struct VOICE_S *next, *prev;	/* staff links */
+	struct VOICE_S *next;	/* link */
 	char *name;		/* voice id */
 	char *nm;		/* voice name */
 	char *snm;		/* voice subname */
@@ -337,17 +333,15 @@ struct VOICE_S {
 	float tabha;		/*		height above the staff */
 	float tabhu;		/*		height under the staff */
 	float scale;		/* scale */
-	float sep;		/* distance to the next staff */
-	float maxsep;		/* max distance to the next staff */
 	int time;		/* current time while parsing */
 	struct clef_s clef;	/* current clef */
 	struct key_s key;	/* current key signature */
 	struct meter_s meter;	/* current time signature */
 	unsigned hy_st;		/* lyrics hyphens at start of line (bit array) */
+	unsigned ignore:1;	/* ignore this voice */
 	unsigned forced_clef:1;	/* explicit clef */
 	unsigned second:1;	/* secondary voice in a brace/parenthesis */
 	unsigned floating:1;	/* floating voice in a brace */
-	unsigned selected:1;	/* selected while sorting by time (music.c) */
 	unsigned bar_repeat:1;	/* bar at start of staff is a repeat bar */
 	unsigned norepbra:1;	/* don't display the repeat brackets */
 	unsigned have_ly:1;	/* some lyrics in this voice */
@@ -368,12 +362,34 @@ struct VOICE_S {
 extern struct VOICE_S voice_tb[MAXVOICE]; /* voice table */
 extern struct VOICE_S *first_voice; /* first_voice */
 
+extern struct SYMBOL *tsfirst;	/* first symbol in the time linked list */
 extern struct SYMBOL *tsnext;	/* next line when cut */
 extern float realwidth;		/* real staff width while generating */
 
 #define NFLAGS_SZ 10		/* size of note flags tables */
 #define C_XFLAGS 5		/* index of crotchet in flags tables */
 extern float space_tb[NFLAGS_SZ]; /* note spacing */
+
+struct SYSTEM {			/* staff system */
+	struct SYSTEM *next;
+	struct {
+		short flags;	/* brace and bracket flags (from %%staves) */
+		char empty;
+		char dum;
+		struct clef_s clef;
+		float sep, maxsep;
+	} staff[MAXSTAFF];
+	int nstaff;
+	struct {
+		signed char range;
+		unsigned char staff;
+		char second;
+		char dum;
+		float sep, maxsep;
+		struct clef_s clef;
+	} voice[MAXVOICE];
+};
+struct SYSTEM *cursys;		/* current staff system */
 
 /* PUTn: add to buffer with n arguments */
 #define PUT0(f) do {sprintf(mbf,f); a2b(); } while (0)
@@ -386,7 +402,7 @@ extern float space_tb[NFLAGS_SZ]; /* note spacing */
 /* -- external routines -- */
 /* abc2ps.c */
 void clrarena(int level);
-void lvlarena(int level);
+int lvlarena(int level);
 char *getarena(int len);
 void strext(char *fid, char *ext);
 /* buffer.c */
@@ -404,7 +420,7 @@ void open_output_file(void);
 void write_eps(void);
 /* deco.c */
 void deco_add(char *text);
-void deco_cnv(struct deco *dc, struct SYMBOL *s);
+void deco_cnv(struct deco *dc, struct SYMBOL *s, struct SYMBOL *prev);
 unsigned char deco_intern(unsigned char deco);
 void deco_update(struct SYMBOL *s, float dx);
 float deco_width(struct SYMBOL *s);
@@ -437,7 +453,7 @@ void y_set(struct SYMBOL *s,
 /* draw.c */
 void draw_sym_near(void);
 void draw_all_symb(void);
-void draw_vname(float indent);
+float draw_systems(float indent);
 void draw_whistle(void);
 void set_scale(int staff);
 void putf(float f);
@@ -462,7 +478,6 @@ void output_music(void);
 void reset_gen(void);
 /* parse.c */
 extern float multicol_start;
-void voice_dup(void);
 void do_tune(struct abctune *t,
 	     int header_only);
 void identify_note(struct SYMBOL *s,

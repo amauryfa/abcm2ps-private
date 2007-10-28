@@ -320,6 +320,7 @@ void make_font_list(void)
 static void set_infoname(char *p)
 {
 	struct SYMBOL *s, *prev;
+	int old_lvl;
 
 	if (*p == 'I')
 		return;
@@ -338,6 +339,7 @@ static void set_infoname(char *p)
 		}
 		return;
 	}
+	old_lvl = lvlarena(0);
 	if (s == 0) {
 		s = (struct SYMBOL *) getarena(sizeof *s);
 		memset(s, 0, sizeof *s);
@@ -350,6 +352,7 @@ static void set_infoname(char *p)
 	}
 	s->as.text = (char *) getarena(strlen(p) + 1);
 	strcpy(s->as.text, p);
+	lvlarena(old_lvl);
 }
 
 /* -- set the default format -- */

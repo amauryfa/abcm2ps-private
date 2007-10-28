@@ -233,14 +233,14 @@
 		{dup 69 eq {pop(Mi)show}
 		  {dup 70 eq {pop(Fa)show}
 		    {dup 71 eq {pop(Sol)show}
-		      {currentfont /Encoding get exch get glyphshow
-		      } ifelse
-		    } ifelse
-		  } ifelse
-		} ifelse
-	      } ifelse
-	    } ifelse
-	  } ifelse
+		      {currentfont/Encoding get exch get glyphshow
+		      }ifelse
+		    }ifelse
+		  }ifelse
+		}ifelse
+	      }ifelse
+	    }ifelse
+	  }ifelse
 	dup dup length 1 sub 1 exch getinterval
 	show
 	pop}!

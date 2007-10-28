@@ -127,7 +127,7 @@ static char ps_head[] =
 	/* str x y bnum - tuplet number / ratio */
 	"/bnum{M/Times-Italic 12 selectfont showc}!\n"
 	/* same with clearing below the number */
-	"/bnumb{	currentgray /Times-Italic 12 selectfont\n"
+	"/bnumb{	currentgray/Times-Italic 12 selectfont\n"
 	"	3 index stringwidth pop 4 add\n"
 	"	dup .5 mul neg 4 index add 3 index 3 -1 roll 8\n"
 	"	1.0 setgray rectfill setgray M showc}!\n"
@@ -480,34 +480,33 @@ static char ps_head[] =
 	"/ft513{2 copy gsave -1 1 scale exch neg 3 add exch M ftx grestore\n"
 	"	M 1.5 0 RM ftx}!\n"
 
-#if 1
 	/* accidentals in strings */
 	"/accfont{\n"
 	"	/CharStrings CharStrings dup length 3 add dict copy def\n"
 	"	FontMatrix 0 get 1 eq{\n"
-	"	 CharStrings /sharpchar{pop\n"
+	"	 CharStrings/sharpchar{pop\n"
 	"		.65 0 0 -.05 .65 .75 setcachedevice\n"
 	"		.056 dup scale 5.8 7 sh0}bind put\n"
-	"	 CharStrings /flatchar{pop\n"
+	"	 CharStrings/flatchar{pop\n"
 	"		.60 0 0 0 .60 .75 setcachedevice\n"
 	"		.056 dup scale 5.8 5 ft0}bind put\n"
-	"	 CharStrings /natchar{pop\n"
+	"	 CharStrings/natchar{pop\n"
 	"		.60 0 0 0 .60 .75 setcachedevice\n"
 	"		.056 dup scale 5.8 7 nt0}bind put\n"
 	"	}{\n"
-	"	 CharStrings /sharpchar{pop\n"
+	"	 CharStrings/sharpchar{pop\n"
 	"		650 0 0 -50 650 750 setcachedevice\n"
 	"		56 dup scale 5.8 7 sh0}bind put\n"
-	"	 CharStrings /flatchar{pop\n"
+	"	 CharStrings/flatchar{pop\n"
 	"		600 0 0 0 600 750 setcachedevice\n"
 	"		56 dup scale 5.8 5 ft0}bind put\n"
-	"	 CharStrings /natchar{pop\n"
+	"	 CharStrings/natchar{pop\n"
 	"		600 0 0 0 600 750 setcachedevice\n"
 	"		56 dup scale 5.8 7 nt0}bind put\n"
 	"	 }ifelse\n"
 	/*if RoPS and Font Type 3, change BuildChar*/
 	"	product(RoPS)eq FontType 3 eq and{\n"
-	"		/TTBuildChar /BuildChar load def\n"
+	"		/TTBuildChar/BuildChar load def\n"
 	"		/BuildChar{1 index begin\n"
 	"			dup Encoding exch get\n"
 	"			CharStrings exch get\n"
@@ -520,21 +519,7 @@ static char ps_head[] =
 	"		}bind def\n"
 	"	}if\n"
 	"	}!\n"
-#else
-	/* accidentals in guitar chord */
-	"/sharp_glyph{\n"
-	"	fh .4 mul 0 RM currentpoint\n"
-	"	gsave T fh .08 mul dup scale 0 7 sh0 grestore\n"
-	"	fh .4 mul 0 RM}!\n"
-	"/flat_glyph{\n"
-	"	fh .4 mul 0 RM currentpoint\n"
-	"	gsave T fh .08 mul dup scale 0 5 ft0 grestore\n"
-	"	fh .4 mul 0 RM}!\n"
-	"/nat_glyph{\n"
-	"	fh .4 mul 0 RM currentpoint\n"
-	"	gsave T fh .08 mul dup scale 0 7 nt0 grestore\n"
-	"	fh .4 mul 0 RM}!\n"
-#endif
+
 	/* str gcshow - guitar chord */
 	"/gcshow{show}!\n"
 	/* x y w h box - draw a box */
@@ -880,15 +865,15 @@ void define_encoding(int enc,		/* index */
 			"/%s ISOLatin1Encoding dup length array copy def\n",
 			ename);
 		fprintf(fout,
-			"%s dup 8#201 /sharpchar put\n"
-			"dup 8#202 /flatchar put\n"
-			"8#203 /natchar put\n",
+			"%s dup 8#201/sharpchar put\n"
+			"dup 8#202/flatchar put\n"
+			"8#203/natchar put\n",
 			ename);
 	}
 	fprintf(fout, "/mkfontext%d{\n"
 		"	findfont dup length\n"
-		"	 product(RoPS)eq{1 add}if\n"
-		"	 dict begin\n"
+		"	product(RoPS)eq{1 add}if\n"
+		"	dict begin\n"
 		"		{1 index/FID ne{def}{pop pop}ifelse}forall\n",
 		enc);
 	fprintf(fout,

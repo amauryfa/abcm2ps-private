@@ -25,3 +25,20 @@ Q:"Tempo in the tune body"
 	[I:repeat 4 3]C//E//G//E// "^sequence repeat"C//E//G//E// C//E//G//E//|
 "^measure repeat"GABc|[I:repeat 1 2]GABc|GABc|\
 	G2d2|B2d2|[I:repeat 2]G2d2|B2d2|c4||
+
+%%writehistory 0
+X:2
+T:Romance sans paroles
+C:F.B. Mendelssohn
+M:12/8
+L:1/8
+K:Eb
+%%staves {M A1 A2}
+V:M	% Melody
+x6z2z(B3|\
+V:A1 scale=0.8
+z(G,[B,E]) z(G,[B,E]) z(G,[B,E]) z(G,[B,E])|\
+V:A2 staffscale=0.8
+E,,3G,,3B,,3G,,3|\
+%%staves M
+A2GF2EE3)E3|(E3c6)(B2A|G3F3B3F3)|

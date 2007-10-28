@@ -1,3 +1,17 @@
+---- Version 5.6.0 - 07/10/29 ----
+
+Don't stop a repeat bracket at end of line.
+Better grace notes with chords and head shifts.
+Don't stop music generation when %%staves encountered (!compatibitily!).
+Crash when %%combinevoices and short rests at end of tune.
+Don't stop the generation when tune filtering (-e) and a tune index
+	with a value greater than the filter stop value.
+No more check of misplaced measure bars.
+Big internal changes.
+Fix the handling of %%stretchstaff and %%stretchlast.
+Stopping beams when spaces at start of continuation line was lost.
+Bad scan of '*' in %%score.
+
 ---- Version 5.5.2 - 07/08/18 ----
 
 Bad spacing at start of tune when tempo, bar and many voices per staff.
@@ -186,7 +200,7 @@ Handle the lack of <last_index> in tune filtering.
 Don't break the tie/slur stuff when '%%repbra 0'.
 Big rewrite of voice overlap.
 Bad placement of P: when voice overlay at end of previous line.
-Add '+' in %%titleformat (compatibility!).
+Add '+' in %%titleformat (!compatibility!).
 Bad title when ', A' in %%titleformat.
 
 ---- Version 5.1.1 - 06/10/02 ----
