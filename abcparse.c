@@ -1161,8 +1161,10 @@ static void parse_staves(char *p,
 	int voice, flags_st, brace, bracket, parenth;
 	short flags;
 	struct staff_s *p_staff;
+	char *err;
 
 	/* define the voices */
+	err = 0;
 	flags = score ? STOP_BAR : 0;
 	brace = bracket = parenth = 0;
 	flags_st = 0;
@@ -1173,8 +1175,11 @@ static void parse_staves(char *p,
 		case '\t':
 			break;
 		case '[':
-			if (parenth || brace + bracket >= 2)
-				goto err;
+			if (parenth || brace + bracket >= 2) {
+				if (!err)
+					err = p;
+				break;
+			}
 			if (brace + bracket == 0)
 				flags |= OPEN_BRACKET;
 			else	flags |= OPEN_BRACKET2;
@@ -1183,8 +1188,11 @@ static void parse_staves(char *p,
 			flags_st |= OPEN_BRACKET;
 			break;
 		case '{':
-			if (parenth || brace || bracket >= 2)
-				goto err;
+			if (parenth || brace || bracket >= 2) {
+				if (!err)
+					err = p;
+				break;
+			}
 			if (bracket == 0)
 				flags |= OPEN_BRACE;
 			else	flags |= OPEN_BRACE2;
@@ -1193,8 +1201,11 @@ static void parse_staves(char *p,
 			flags_st |= OPEN_BRACE;
 			break;
 		case '(':
-			if (parenth)
-				goto err;
+			if (parenth) {
+				if (!err)
+					err = p;
+				break;
+			}
 			flags |= OPEN_PARENTH;
 			parenth++;
 			flags_st <<= 8;
@@ -1204,11 +1215,15 @@ static void parse_staves(char *p,
 			flags |= FL_VOICE;
 			break;
 		default:
-			if (!isalnum((unsigned) *p) && *p != '_')
-				goto err;
+			if (!isalnum((unsigned) *p) && *p != '_') {
+				if (!err)
+					err = p;
+				break;
+			}
 			if (voice >= MAXVOICE) {
-				syntax("Too many voices in %%staves", p);
-				return;
+				if (!err)
+					err = p;
+				break;
 			}
 			{
 				int v;
@@ -1224,8 +1239,11 @@ static void parse_staves(char *p,
 					p++;
 					continue;
 				case ']':
-					if (!(flags_st & OPEN_BRACKET))
-						goto err;
+					if (!(flags_st & OPEN_BRACKET)) {
+						if (!err)
+							err = p;
+						break;
+					}
 					bracket--;
 					if (brace + bracket == 0)
 						flags |= CLOSE_BRACKET;
@@ -1234,8 +1252,11 @@ static void parse_staves(char *p,
 					p++;
 					continue;
 				case '}':
-					if (!(flags_st & OPEN_BRACE))
-						goto err;
+					if (!(flags_st & OPEN_BRACE)) {
+						if (!err)
+							err = p;
+						break;
+					}
 					brace--;
 					if (bracket == 0)
 						flags |= CLOSE_BRACE;
@@ -1244,8 +1265,11 @@ static void parse_staves(char *p,
 					p++;
 					continue;
 				case ')':
-					if (!(flags_st & OPEN_PARENTH))
-						goto err;
+					if (!(flags_st & OPEN_PARENTH)) {
+						if (!err)
+							err = p;
+						break;
+					}
 					parenth--;
 					flags |= CLOSE_PARENTH;
 					flags_st >>= 8;
@@ -1270,22 +1294,18 @@ static void parse_staves(char *p,
 			break;
 		p++;
 	}
-	if (flags_st == 0)
-		goto ok;
-err:
-	syntax("%%staves error", p);
-	{
+	if (flags_st != 0 || err) {
 		int i;
 
+		syntax("%%staves error", err);
 		for (i = 0; i < voice; i++)
 			s->u.staves[i].flags &= ~(OPEN_PARENTH | CLOSE_PARENTH
 						| OPEN_BRACKET | CLOSE_BRACKET
 						| OPEN_BRACE | OPEN_BRACE
 						| OPEN_BRACKET2 | CLOSE_BRACKET2
 						| OPEN_BRACE2 | OPEN_BRACE2);
+		s->flags |= ABC_F_ERROR;
 	}
-	s->flags |= ABC_F_ERROR;
-ok:
 	if (voice < MAXVOICE)
 		s->u.staves[voice].voice = -1;
 }

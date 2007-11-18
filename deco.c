@@ -507,7 +507,7 @@ static void d_trill(struct deco_elt *de)
 	if (de->start != 0) {		/* deco start */
 		s = de->start->s;
 		x = s->x;
-		if (s->type == NOTE
+		if (s->as.type == ABC_T_NOTE
 		    && s->as.u.note.dc.n > 1)
 			x += 10;
 	} else {			/* end without start */
@@ -525,7 +525,7 @@ static void d_trill(struct deco_elt *de)
 		}
 	} else {
 		w = s2->x - x - 6;
-		if (s2->type == NOTE)
+		if (s2->as.type == ABC_T_NOTE)
 			w -= 6;
 		if (w < 20) {
 			x -= (20 - w) * 0.5;
@@ -773,9 +773,9 @@ void deco_cnv(struct deco *dc,
 			s->sflags |= S_BEAM_ON;
 			break;
 		case 34:		/* 34 = trem1..trem4 */
-			if (s->type != NOTE
+			if (s->as.type != ABC_T_NOTE
 			    || prev == 0
-			    || prev->type != NOTE) {
+			    || prev->as.type != ABC_T_NOTE) {
 				error(1, s,
 				      "+%s+ must be on the last of a couple of notes",
 				       dd->name);
@@ -793,7 +793,7 @@ void deco_cnv(struct deco *dc,
 				prev->as.u.note.lens[j] *= 2;
 			break;
 		case 35:		/* 35 = xstem */
-			if (s->type != NOTE) {
+			if (s->as.type != ABC_T_NOTE) {
 				error(1, s,
 				      "Cannot have +%s+ on a rest or a bar",
 				       dd->name);
@@ -802,7 +802,7 @@ void deco_cnv(struct deco *dc,
 			s->sflags |= S_XSTEM;
 			break;
 		case 36:		/* 36 = beambr1 / beambr2 */
-			if (s->type != NOTE) {
+			if (s->as.type != ABC_T_NOTE) {
 				error(1, s,
 				      "Cannot have +%s+ on a rest or a bar",
 				       dd->name);
@@ -1130,8 +1130,7 @@ static void deco_create(struct SYMBOL *s,
 		/* memorize the decorations, but not the head ones */
 		if (strncmp(dd->name, "head-", 5) == 0) {
 			switch (s->type) {
-			case NOTE:
-			case REST:
+			case NOTEREST:
 				s->sflags |= S_OTHER_HEAD;
 				break;
 			default:
@@ -1150,7 +1149,8 @@ static void deco_create(struct SYMBOL *s,
 		de->s = s;
 		de->t = dd - deco_def_tb;
 		de->staff = s->staff;
-		if (s->type == NOTE && (s->as.flags & ABC_F_GRACE))
+		if (s->as.type == ABC_T_NOTE
+		    && (s->as.flags & ABC_F_GRACE))
 			de->flags = DE_GRACE;
 		l = strlen(dd->name) - 1;
 		if (l > 0) {
@@ -1171,7 +1171,7 @@ static void deco_create(struct SYMBOL *s,
 
 		if (dd->func >= 3)	/* if not near the note */
 			continue;
-		if (s->type != NOTE) {
+		if (s->as.type != ABC_T_NOTE) {
 			error(1, s,
 			      "Cannot have +%s+ on a rest or a bar",
 			       dd->name);
@@ -1200,8 +1200,7 @@ void draw_deco_near(void)
 				continue;
 			dc = &s->as.u.bar.dc;
 			break;
-		case NOTE:
-		case REST:
+		case NOTEREST:
 			if (first == 0)
 				first = s;
 			if (s->as.u.note.dc.n == 0)
@@ -1210,7 +1209,7 @@ void draw_deco_near(void)
 			break;
 		case GRACE:
 			for (g = s->grace; g != 0; g = g->next) {
-				if (g->type != NOTE
+				if (g->as.type != ABC_T_NOTE
 				    || g->as.u.note.dc.n == 0)
 					continue;
 				dc = &g->as.u.note.dc;
@@ -1295,8 +1294,8 @@ void draw_deco_staff(void)
 		if (s->as.text == 0)
 			continue;
 		switch (s->type) {
-		case NOTE:
-		case REST:
+		case NOTEREST:
+		case SPACE:
 		case MREST:
 			break;
 		case BAR:
@@ -1329,8 +1328,8 @@ void draw_deco_staff(void)
 			if (s->as.text == 0)
 				continue;
 			switch (s->type) {
-			case NOTE:
-			case REST:
+			case NOTEREST:
+			case SPACE:
 			case MREST:
 				break;
 			case BAR:
@@ -1653,8 +1652,7 @@ static void draw_gchord(struct SYMBOL *s,
 					switch (next->type) {
 					default:
 						continue;
-					case NOTE:
-					case REST:
+					case NOTEREST:
 					case BAR:
 						x = next->x;
 						break;
@@ -1777,7 +1775,7 @@ void draw_measnb(void)
 		case PART:
 		case TEMPO:
 		case FMTCHG:
-		case WHISTLE:
+		case STBRK:
 			continue;
 		case BAR:
 			if (s->u != 0)
@@ -1889,7 +1887,7 @@ void draw_measnb(void)
 		y = y_get(s, 1, x, w, 0);
 		if (y < staff_tb[0].topbar + 6)
 			y = staff_tb[0].topbar + 6;
-		if (s->next->type == NOTE) {
+		if (s->next->as.type == ABC_T_NOTE) {
 			if (s->next->stem > 0) {
 				if (y < s->next->ys - cfmt.font_tb[MEASUREFONT].size)
 					y = s->next->ys - cfmt.font_tb[MEASUREFONT].size;

@@ -117,8 +117,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	struct SYMBOL *next, *prev;	/* voice linkage */
 	unsigned char type;	/* symbol type */
 #define NO_TYPE		0	/* invalid type */
-#define NOTE		1	/* valid symbol types */
-#define REST		2
+#define NOTEREST	1	/* valid symbol types */
+#define SPACE		2
 #define BAR		3
 #define CLEF		4
 #define TIMESIG 	5
@@ -130,7 +130,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define GRACE		11
 #define FMTCHG		12
 #define TUPLET		13
-#define WHISTLE		14
+#define STBRK		14
 	unsigned char voice;	/* voice (0..nvoice) */
 	unsigned char staff;	/* staff (0..nstaff) */
 	unsigned char nhd;	/* number of notes in chord - 1 */
@@ -178,9 +178,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 				 *	- BAR: new bar number
 				 *	- TUPLET: tuplet format
 				 *	- FMTCHG (format change): subtype */
-#define STBRK 0				/* staff break
-					 *	xmx: width
-					 *	doty: force if != 0 */
+#define WHISTLE 0			/* whistle marker */
 #define PSSEQ 1				/* postscript sequence */
 #define REPEAT 2			/* repeat sequence or measure
 					 *	doty: # measures if > 0
@@ -189,7 +187,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	float x;		/* x offset */
 	signed char y;		/* y offset of note head */
 	signed char ymn, ymx, yav; /* min, max, avg note head y offset */
-	float xmx;		/* max h-pos of a head rel to top */
+	float xmx;		/* max h-pos of a head rel to top
+				 * width when STBRK */
 	float xs, ys;		/* offset of stem end */
 	float wl, wr;		/* left, right min width */
 	float space;		/* natural space before symbol */
@@ -199,7 +198,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	float shac[MAXHD];	/* horizontal shift for accidentals */
 	struct lyrics *ly;	/* lyrics */
 	struct SYMBOL *grace;	/* grace notes */
-	signed char doty;	/* dot y pos when voices overlap */
+	signed char doty;	/* dot y pos when voices overlap
+				 * forced when STBRK */
 };
 
 /* bar types !tied to abcparse.h! */
@@ -319,7 +319,7 @@ extern int nstaff;		/* (0..MAXSTAFF-1) */
 
 struct VOICE_S {
 	struct SYMBOL *sym;	/* associated symbols */
-	struct SYMBOL *last_symbol;	/* last symbol while scanning */
+	struct SYMBOL *last_sym;	/* last symbol while scanning */
 	struct VOICE_S *next;	/* link */
 	char *name;		/* voice id */
 	char *nm;		/* voice name */

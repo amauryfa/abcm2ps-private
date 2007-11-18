@@ -930,7 +930,19 @@ int read_fmt_file(char *fn)
 				if (!fgets(p, sizeof line, fp))
 					break;
 #if 1
-				p[strlen(p) - 1] = '\0';
+				{
+					int i;
+					char c;
+
+					i = strlen(p);
+					while (--i > 0) {
+						c = p[i];
+						if (!isspace((unsigned char) c)) {
+							p[i + 1] = '\0';
+							break;
+						}
+					}
+				}
 #else
 				p = clean_line(p);
 #endif
