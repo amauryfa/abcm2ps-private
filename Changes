@@ -1,3 +1,12 @@
+---- Version 5.6.2 - 07/12/01 ----
+
+Bad start of music line when 2nd voice starts with grace notes.
+Better spacing of the last music line.
+Better beams when voices with same stem direction in a staff.
+Bad unisson when quaver and minim and one dot.
+Problems with ties and repeat sequences.
+Fix more bugs of the previous version(s).
+
 ---- Version 5.6.1 - 07/11/19 ----
 
 Bad scan of 'endps' at end of format file when no EOL.

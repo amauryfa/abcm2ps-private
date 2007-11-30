@@ -220,20 +220,21 @@ static int calculate_beam(struct BEAM *bm,
 		else	ys *= s1->stem;
 		b += ys;
 	} else if (!(s1->as.flags & ABC_F_GRACE)) {	/* normal notes */
+		float stem_err, beam_h;
+
+		beam_h = BEAM_DEPTH + BEAM_SHIFT * (nflags - 1);
 		while (s->ts_prev->as.type == ABC_T_NOTE
 		       && s->ts_prev->time == s->time)
 			s = s->ts_prev;
 		for (; s != 0 && s->time <= s2->time; s = s->ts_next) {
-			float stem_err;
-
 			if (s->as.type != ABC_T_NOTE
 			    || (s->as.flags & ABC_F_INVIS)
 			    || (s->staff != staff
 				&& s->voice != voice)) {
 				continue;
 			}
+			ys = a * s->x + b - staff_tb[s->staff].y;
 			if (s->voice == voice) {
-				ys = a * s->x + b - staff_tb[s->staff].y;
 				if (s->nhd == 0)
 					stem_err = min_tb[0][(unsigned) s->nflags];
 				else	stem_err = min_tb[1][(unsigned) s->nflags];
@@ -258,27 +259,28 @@ static int calculate_beam(struct BEAM *bm,
 				}
 				stem_err += BEAM_DEPTH + BEAM_SHIFT * (s->nflags - 1);
 			} else {
-/*fixme: KO when two_staves */
-				ys = a * s->x + b - staff_tb[s->staff].y;
+/*fixme: KO when two_staves*/
 				if (s1->stem > 0) {
 					if (s->stem > 0) {
-/*fixme: KO when the voice numbers are inverted */
-						if (s->voice < voice)
+/*fixme: KO when the voice numbers are inverted*/
+						if (s->ymn > ys + 4
+						    || s->ymx < ys - beam_h - 2)
 							continue;
-						if (s->y > ys + 4)
-							continue;
-					}
-					stem_err = s->ymx - ys;
+						if (s->voice > voice)
+							stem_err = s->ymx - ys;
+						else	stem_err = s->ymn + 8 - ys;
+					} else	stem_err = s->ymx - ys;
 				} else {
 					if (s->stem < 0) {
-						if (s->voice > voice)
+						if (s->ymx < ys - 4
+						    || s->ymn > ys - beam_h - 2)
 							continue;
-						if (s->y < ys - 4)
-							continue;
-					}
-					stem_err = ys - s->ymn;
+						if (s->voice < voice)
+							stem_err = ys - s->ymn;
+						else	stem_err = ys - s->ymx + 8;
+					} else	stem_err = ys - s->ymn;
 				}
-				stem_err += 2 + BEAM_DEPTH + BEAM_SHIFT * (s1->nflags - 1);
+				stem_err += 2 + beam_h;
 			}
 			if (stem_err > max_stem_err)
 				max_stem_err = stem_err;
@@ -304,7 +306,7 @@ static int calculate_beam(struct BEAM *bm,
 		b += s1->stem * max_stem_err;
 
 	/* have room for the gracenotes, bars and clefs */
-/*fxime: test*/
+/*fixme: test*/
     if (!two_staves && !two_dir)
 	for (s = s1->next; ; s = s->next) {
 		struct SYMBOL *g;
@@ -1724,7 +1726,7 @@ static int draw_slur(struct SYMBOL *k1,
 	two_staves = 0;
 	if (k1 != k2)
 	    for (k = k1->next; k != 0; k = k->next) {
-		if (k->dur > 0) {	/* note or rest */
+		if (k->type == NOTEREST) {
 			nn++;
 			if (k->staff != upstaff) {
 				two_staves = 1;
@@ -1751,8 +1753,9 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 			if (k1->stem > 0) {
 				x1 += 5;
 				if ((k1->as.flags & ABC_F_WORD_END)
-				    && k1->nflags >= -1
-				    && k1->ys > y1 - 3) {	/* (pb tuplets) */
+				    && k1->nflags >= -1	/* if with a stem */
+				    && (!(k1->sflags & S_IN_TUPLET)
+					|| k1->ys > y1 - 3)) {
 					if (k1->nflags > 0) {
 						x1 += 2;
 						y1 = k1->ys - 3;
@@ -1764,7 +1767,8 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 				x1 -= 1;
 				if ((k1->as.flags & ABC_F_WORD_END)
 				    && k1->nflags >= -1
-				    && k1->ys < y1 + 3) {
+				    && (!(k1->sflags & S_IN_TUPLET)
+					|| k1->ys < y1 + 3)) {
 					if (k1->nflags > 0) {
 						x1 += 2;
 						y1 = k1->ys + 3;
@@ -1780,7 +1784,8 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 				x2 += 1;
 				if ((k2->sflags & S_WORD_ST)
 				    && k2->nflags >= -1
-				    && k2->ys > y2 - 3)
+				    && (!(k2->sflags & S_IN_TUPLET)
+					|| k2->ys > y2 - 3))
 					y2 = k2->ys - 6;
 			}
 		} else {
@@ -1788,7 +1793,8 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 				x2 -= 5;
 				if ((k2->sflags & S_WORD_ST)
 				    && k2->nflags >= -1
-				    && k2->ys < y2 + 3)
+				    && (!(k2->sflags & S_IN_TUPLET)
+					|| k2->ys < y2 + 3))
 					y2 = k2->ys + 6;
 			}
 		}
@@ -2021,7 +2027,7 @@ static void draw_slurs(struct SYMBOL *first,
 				s = s->grace;
 				continue;
 			}
-			if (s->type != NOTEREST
+			if ((s->type != NOTEREST && s->type != SPACE)
 			    || (s->as.u.note.slur_st == 0
 				&& !(s->sflags & S_SL1))) {
 				s = s->next;
@@ -2058,7 +2064,7 @@ static void draw_slurs(struct SYMBOL *first,
 					k = s1;
 					break;
 				}
-				if (s1->type != NOTEREST) {
+				if (s1->type != NOTEREST && s1->type != SPACE) {
 					s1 = s1->next;
 					continue;
 				}
@@ -2118,7 +2124,7 @@ static void draw_slurs(struct SYMBOL *first,
 			}
 			m2 = -1;
 			cont = 0;
-			if (k->type == NOTEREST
+			if ((k->type == NOTEREST || k->type == SPACE)
 			    && (k->as.u.note.slur_end
 				    || (k->sflags & S_SL2))) {
 				if (k->as.u.note.slur_end)
@@ -2242,7 +2248,8 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 			nb_only = 1;
 			for (sy = s1; ; sy = sy->next) {
 				if (sy->type != NOTEREST) {
-					if (sy->type == GRACE)
+					if (sy->type == GRACE
+					    || sy->type == SPACE)
 						continue;
 					nb_only = 0;
 					break;
@@ -2713,10 +2720,18 @@ static void draw_ties(struct SYMBOL *k1,
 				k1->as.flags & ABC_F_DOTTED_TIE, job);
 		if (ntie3 == 0)
 			return;			/* no bad tie */
-	} else {			/* half ties from last note in line */
+	} else {
+
+		/* half ties from last note in line */
 		for (i = 0; i <= nh1; i++) {
 			if (k1->as.u.note.ti1[i])
 				mhead3[ntie3++] = i;
+		}
+		if (job == 2) {
+			draw_note_ties(k1, k2 ? k2 : k1,
+					ntie3, mhead3, mhead3,
+					k1->as.flags & ABC_F_DOTTED_TIE, job);
+			return;
 		}
 	}
 
@@ -2725,7 +2740,8 @@ static void draw_ties(struct SYMBOL *k1,
 	while (k2 != 0 && k2->time < time)
 		k2 = k2->ts_next;
 	while (k2 != 0 && k2->time == time) {
-		if (k2->as.type != ABC_T_NOTE || k2->staff != k1->staff) {
+		if (k2->as.type != ABC_T_NOTE
+		    || k2->staff != k1->staff) {
 			k2 = k2->ts_next;
 			continue;
 		}
@@ -2752,13 +2768,8 @@ static void draw_ties(struct SYMBOL *k1,
 		}
 		k2 = k2->ts_next;
 	}
-	if (ntie3 != 0) {
-		if (job != 2)
-			error(1, k1, "Bad tie");
-		else	draw_note_ties(k1, k2 ? k2 : k1,
-					ntie3, mhead3, mhead3,
-					k1->as.flags & ABC_F_DOTTED_TIE, job);
-	}
+	if (ntie3 != 0)
+		error(1, k1, "Bad tie");
 }
 
 /* -- draw all ties between neighboring notes -- */
@@ -2790,6 +2801,7 @@ static void draw_all_ties(struct VOICE_S *p_voice)
 		p_voice->tie = 0;
 		s1->staff = s2->staff;
 		s1->ts_next = tsfirst->next;	/* (for tie to other voice) */
+		s1->time = s2->time - s1->dur;	/* (if after repeat sequence) */
 		draw_ties(s1, s2, 1);		/* tie to 1st note */
 	}
 
@@ -3505,7 +3517,7 @@ static float set_staff(void)
 				if (s->as.type == ABC_T_REST)
 					break;
 				if (!(s->as.flags & ABC_F_INVIS))
-					delta_tb[s->staff].not_empty = 1;
+					sy->staff[s->staff].empty = 0;
 				break;
 			}
 		}
@@ -3842,8 +3854,6 @@ static void draw_symbols(struct VOICE_S *p_voice)
 			if (s->sflags & S_SECOND)
 /*			    || p_voice->staff != staff)	*/
 				break;		/* only one clef per staff */
-			if (s->as.u.clef.type < 0)
-				break;
 			cursys->staff[staff].clef.type = s->as.u.clef.type;
 			cursys->staff[staff].clef.line = s->as.u.clef.line;
 			cursys->staff[staff].clef.octave = s->as.u.clef.octave;

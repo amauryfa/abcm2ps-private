@@ -160,6 +160,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_SEQST		0x00080000	/* start of vertical sequence */
 #define S_SECOND	0x00100000	/* symbol on a secondary voice */
 #define S_FLOATING	0x00200000	/* symbol on a floating voice */
+#define S_NOREPBRA	0x00400000	/* don't print the repeat bracket */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
 	char dots;		/* number of dots */
@@ -348,7 +349,7 @@ struct VOICE_S {
 	unsigned whistle:1;	/* tin whistle for this voice */
 	unsigned new_name:1;	/* redisplay the voice name */
 	short wmeasure;		/* measure duration while parsing */
-	signed char bar_start;	/* bar type at start of staff / 0 */
+	short bar_start;	/* bar type at start of staff / 0 */
 	signed char clone;	/* duplicate from this voice number */
 	unsigned char staff;	/* staff (0..n-1) */
 	unsigned char cstaff;	/* staff while parsing */

@@ -1356,7 +1356,8 @@ void draw_deco_staff(void)
 		first_repeat = 0;
 		for (s = p_voice->sym->next; s != 0; s = s->next) {
 			if (s->type != BAR
-			    || !s->as.u.bar.repeat_bar)
+			    || !s->as.u.bar.repeat_bar
+			    || (s->sflags & S_NOREPBRA))
 				continue;
 /*fixme: line cut on repeat!*/
 			if (s->next == 0)
@@ -1419,7 +1420,8 @@ void draw_deco_staff(void)
 			char *p;
 
 			if (s->type != BAR
-			    || !s->as.u.bar.repeat_bar)
+			    || !s->as.u.bar.repeat_bar
+			    || (s->sflags & S_NOREPBRA))
 				continue;
 			s1 = s;
 			for (;;) {
@@ -1466,7 +1468,7 @@ void draw_deco_staff(void)
 			w = s2->x - x - w;
 			p = s1->as.text;
 			if (p == 0) {
-				i--;		/* no bracket start (1) or not draw */
+				i--;		/* no bracket start (1) or not drawn */
 				p = "";
 			}
 			if (i == 0 && s2->next == 0	/* 2nd ending at end of line */

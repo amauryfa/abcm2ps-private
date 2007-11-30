@@ -528,8 +528,8 @@ fi
 
 
 
-VERSION=5.6.1
-VDATE='November 19, 2007'
+VERSION=5.6.2
+VDATE='December 1, 2007'
 
 ac_aux_dir=
 for ac_dir in $srcdir $srcdir/.. $srcdir/../..; do
