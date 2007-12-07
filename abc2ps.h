@@ -179,9 +179,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 				 *	- BAR: new bar number
 				 *	- TUPLET: tuplet format
 				 *	- FMTCHG (format change): subtype */
-#define WHISTLE 0			/* whistle marker */
-#define PSSEQ 1				/* postscript sequence */
-#define REPEAT 2			/* repeat sequence or measure
+#define PSSEQ 0				/* postscript sequence */
+#define REPEAT 1			/* repeat sequence or measure
 					 *	doty: # measures if > 0
 					 *	      # notes/rests if < 0
 					 *	nohdix: # repeat */
@@ -198,7 +197,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	float shhd[MAXHD];	/* horizontal shift for heads */
 	float shac[MAXHD];	/* horizontal shift for accidentals */
 	struct lyrics *ly;	/* lyrics */
-	struct SYMBOL *grace;	/* grace notes */
+	struct SYMBOL *extra;	/* extra symbols (grace notes, tempo... */
 	signed char doty;	/* dot y pos when voices overlap
 				 * forced when STBRK */
 };
@@ -346,7 +345,6 @@ struct VOICE_S {
 	unsigned bar_repeat:1;	/* bar at start of staff is a repeat bar */
 	unsigned norepbra:1;	/* don't display the repeat brackets */
 	unsigned have_ly:1;	/* some lyrics in this voice */
-	unsigned whistle:1;	/* tin whistle for this voice */
 	unsigned new_name:1;	/* redisplay the voice name */
 	short wmeasure;		/* measure duration while parsing */
 	short bar_start;	/* bar type at start of staff / 0 */
@@ -457,6 +455,7 @@ void draw_all_symb(void);
 float draw_systems(float indent);
 void draw_whistle(void);
 void set_scale(int staff);
+void output_ps(struct SYMBOL *s, int state);
 void putf(float f);
 void putx(float x);
 void puty(float y);

@@ -205,8 +205,7 @@ static char *trim_title(char *p, int first);
 /* -- print message for internal error and maybe stop -- */
 void bug(char *msg, int fatal)
 {
-	error(1, 0, "This cannot happen!\n"
-	       "Internal error: %s.\n", msg);
+	error(1, 0, "Internal error: %s.", msg);
 	if (fatal) {
 		fprintf(stderr, "Emergency stop.\n\n");
 		exit(3);

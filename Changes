@@ -1,3 +1,9 @@
+---- Version 5.7.0 - 07/12/08 ----
+
+Better handling of %%staves inside music lines.
+Change some internals.
+Fix more bugs of the previous version(s).
+
 ---- Version 5.6.2 - 07/12/01 ----
 
 Bad start of music line when 2nd voice starts with grace notes.

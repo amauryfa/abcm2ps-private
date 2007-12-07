@@ -42,3 +42,44 @@ V:A2 staffscale=0.8
 E,,3G,,3B,,3G,,3|\
 %%staves M
 A2GF2EE3)E3|(E3c6)(B2A|G3F3B3F3)|
+
+X:3
+T:Fugue II
+T:(extract from the well-tempered clavichord II)
+C:J.S. Bach
+M:none
+L:1/8
+K:Cm
+%%rightmargin 0.5cm
+%%leftmargin 0cm
+%%staves 1s 3s | {(1 2) 3}
+V:1s name="Ossia" staffscale=0.8
+V:3s staffscale=0.8
+V:1
+gc fe/d/ e>e d=e\
+V:2
+B_A/G/ c/[I:staff 4]C/[I:staff 3]G- G/G/=A B/cD/\
+V:3
+B,/G,/ C=A,=B, CF, _B,_A,/G,/\
+%%staves (1s 2s) 3s | {(1 2) 3}
+V:1s
+|fB _e_d/c/ dG\
+V:2s
+|z/c/B/_A/ G=A BG\
+V:3s bass
+|=A,=D- D/C/F/E/ D/C/_D-\
+V:1
+|fB _ed/c/ dG\
+V:2
+|z/c/B/_A/ G=A BG\
+V:3
+|_A,_D- D/C/F/E/ D/C/D-\
+%%staves 1s 3s | {(1 2) (3 4)}
+V:1
+ e2-|e/e/d- d/c/=B cg de/f/|
+V:2
+ _AG/F/|G>F ED CeA2|
+V:3
+ D/C/B,/A,/|B,=B,CD G,/C/B,/C/- C/B,/C-|
+V:4
+ x2|z2G,2E,2F,2|

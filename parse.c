@@ -47,7 +47,6 @@ static int lyric_nb;			/* current number of lyric lines */
 static struct SYMBOL *lyric_start;	/* 1st note of the line for w: */
 static struct SYMBOL *lyric_cont;	/* current symbol when w: continuation */
 
-static struct SYMBOL *grace_head, *grace_tail;
 static int over_time;			/* voice overlay start time */
 static int over_mxtime;			/* voice overlay max time */
 static short over_bar;			/* voice overlay in a measure */
@@ -223,13 +222,79 @@ static void link_all(void)
 			if (multi && s->next != 0 && s->next->type == MREST)
 				mrest_time = s->next->time;
 		}
-		if (prev->type != TUPLET)
-			fl = wmin;	/* start a new sequence if some space */
-		else	fl = 0;
+		fl = wmin;	/* start a new sequence if some space */
 	}
 }
 
-/* -- duplicate the voices if any -- */
+/* -- move the symbols with no space to the next sysmbol -- */
+static void voice_compress(void)
+{
+	struct VOICE_S *p_voice;
+	struct SYMBOL *s, *s2, *ns;
+	int sflags;
+
+	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+		for (s = p_voice->sym; s != 0; s = s->next) {
+			if (s->time >= staves_found)
+				break;
+		}
+		ns = 0;
+		sflags = 0;
+		for ( ; s != 0; s = s->next) {
+			switch (s->type) {
+			case TEMPO:
+			case PART:
+			case TUPLET:
+			case FMTCHG:
+/*fixme:and STAVES?*/
+				if (ns == 0)
+					ns = s;
+				sflags |= s->sflags;
+				continue;
+			}
+			if (s->as.flags & ABC_F_GRACE) {
+				if (ns == 0)
+					ns = s;
+				while (!(s->as.flags & ABC_F_GR_END))
+					s = s->next;
+				s2 = (struct SYMBOL *) getarena(sizeof *s);
+				memcpy(s2, s, sizeof *s2);
+				s2->as.type = 0;
+				s2->type = GRACE;
+				s2->dur = 0;
+				if ((s2->next = s->next) != 0)
+					s2->next->prev = s2;
+				else	p_voice->last_sym = s2;
+				s2->prev = s;
+				s->next = s2;
+				s = s2;
+			}
+			if (ns == 0)
+				continue;
+			s->extra = ns;
+			s->sflags |= (sflags & S_EOLN);
+			s->prev->next = 0;
+			if ((s->prev = ns->prev) != 0)
+				s->prev->next = s;
+			else	p_voice->sym = s;
+			ns->prev = 0;
+			ns = 0;
+			sflags = 0;
+		}
+		if (ns != 0) {
+			s = sym_add(p_voice, FMTCHG);
+			s->u = -1;		/* nothing */
+			s->extra = ns;
+			s->prev->next = 0;
+			if ((s->prev = ns->prev) != 0)
+				s->prev->next = s;
+			else	p_voice->sym = s;
+			ns->prev = 0;
+		}
+	}
+}
+
+/* -- duplicate the voices as required -- */
 static void voice_dup(void)
 {
 	struct VOICE_S *p_voice, *p_voice2;
@@ -262,22 +327,23 @@ static void voice_dup(void)
 				s2->sflags |= S_FLOATING;
 			else	s2->sflags &= ~S_FLOATING;
 			s2->ly = 0;
-			if ((g = s2->grace) != 0) {
+			if (s2->type != GRACE)
+				continue;
+			g = s2->extra;
+			g2 = (struct SYMBOL *) getarena(sizeof *g2);
+			memcpy(g2, g, sizeof *g2);
+			s2->extra = g2;
+			s2 = g2;
+			s2->voice = voice;
+			s2->staff = p_voice2->staff;
+			for (g = g->next; g != 0; g = g->next) {
 				g2 = (struct SYMBOL *) getarena(sizeof *g2);
 				memcpy(g2, g, sizeof *g2);
-				s2->grace = g2;
+				s2->next = g2;
+				g2->prev = s2;
 				s2 = g2;
 				s2->voice = voice;
 				s2->staff = p_voice2->staff;
-				for (g = g->next; g != 0; g = g->next) {
-					g2 = (struct SYMBOL *) getarena(sizeof *g2);
-					memcpy(g2, g, sizeof *g2);
-					s2->next = g2;
-					g2->prev = s2;
-					s2 = g2;
-					s2->voice = voice;
-					s2->staff = p_voice2->staff;
-				}
 			}
 		}
 	}
@@ -415,7 +481,8 @@ static void staves_init(void)
 /* this routine is called starting the generation */
 static void system_init(void)
 {
-	voice_dup();		/* duplicate the voices if any */
+	voice_compress();
+	voice_dup();
 	link_all();		/* define the time / vertical sequences */
 	parsys->nstaff = nstaff;	/* save the number of staves */
 	staves_init();
@@ -795,17 +862,26 @@ static void get_staves(struct SYMBOL *s)
 	struct staff_s *p_staff;
 	int i, flags, voice, staff, range, dup_voice, maxtime;
 
-	voice_dup();		/* duplicate the voices if any */
+	voice_compress();
+	voice_dup();
 
 	/* create a new staff system */
 	curvoice = p_voice = first_voice;
 	maxtime = p_voice->time;
-	flags = p_voice != 0;
+	flags = p_voice->sym != 0;
 	for (p_voice = p_voice->next; p_voice; p_voice = p_voice->next) {
 		if (p_voice->time > maxtime)
 			maxtime = p_voice->time;
 		if (p_voice->sym != 0)
 			flags = 1;
+	}
+	for (voice = 0, p_voice = voice_tb;
+	     voice < MAXVOICE;
+	     voice++, p_voice++) {
+		p_voice->second = 0;
+		p_voice->floating = 0;
+		p_voice->ignore = 0;
+		p_voice->time = maxtime;
 	}
 	if (flags == 0				/* if first %%staves */
 	    || (maxtime == 0 && staves_found < 0)) {
@@ -820,14 +896,6 @@ static void get_staves(struct SYMBOL *s)
 	staves_found = maxtime;
 
 	/* initialize the voices */
-	for (voice = 0, p_voice = voice_tb;
-	     voice < MAXVOICE;
-	     voice++, p_voice++) {
-		p_voice->second = 0;
-		p_voice->floating = 0;
-		p_voice->ignore = 0;
-		p_voice->time = maxtime;
-	}
 	dup_voice = MAXVOICE;
 	range = 0;
 	for (i = 0, p_staff = s->as.u.staves;
@@ -1291,8 +1359,6 @@ void do_tune(struct abctune *t,
 		voice_tb[i].scale = 1;
 		voice_tb[i].clone = -1;
 	}
-	for (i = 0; i < nwhistle; i++)
-		voice_tb[whistle_tb[i].voice].whistle = 1;
 	curvoice = first_voice = voice_tb;
 	micro_tb = t->micro_tb;		/* microtone values */
 
@@ -1323,7 +1389,6 @@ void do_tune(struct abctune *t,
 	}
 
 	/* scan the tune */
-	grace_head = 0;
 	for (as = t->first_sym; as != 0; as = as->next) {
 		if (header_only && as->state != ABC_S_GLOBAL)
 			break;
@@ -1459,8 +1524,6 @@ void do_tune(struct abctune *t,
 		}
 		if (s->type == 0)
 			continue;
-		if (s->as.flags & ABC_F_GR_END)
-			grace_head = 0;
 		if (curvoice->second)
 			s->sflags |= S_SECOND;
 		if (curvoice->floating)
@@ -1770,39 +1833,17 @@ static void get_voice(struct SYMBOL *s)
 static void get_note(struct SYMBOL *s)
 {
 	struct SYMBOL *prev;
-	int i, m, type;
+	int i, m;
 
 	prev = curvoice->last_sym;
 	s->nhd = m = s->as.u.note.nhd;
-	if (s->as.type == ABC_T_NOTE || s->as.u.note.lens[0] != 0)
-		type = NOTEREST;
-	else	type = SPACE;
-	if (!(s->as.flags & ABC_F_GRACE)) {	/* normal note/rest */
-		if (grace_head != 0)
-			grace_head = 0;
-		sym_link(s, type);
+	if (!(s->as.flags & ABC_F_GRACE))
 		s->stem = curvoice->stem;
-	} else {			/* in a grace note sequence */
+	else {			/* grace note - adjust its duration */
 		int div;
 
-		if (grace_head == 0) {
-			struct SYMBOL *s2;
-
-			s2 = sym_add(curvoice, GRACE);
-			s2->as.linenum = s->as.linenum;
-			s2->as.colnum = s->as.colnum;
-			grace_head = s2;
-			grace_head->grace = grace_tail = s;
-			s2->stem = curvoice->gstem;
-		} else {
-			grace_tail->next = s;
-			s->prev = grace_tail;
-			grace_tail = s;
-		}
-		s->voice = curvoice - voice_tb;
-		s->staff = curvoice->cstaff;
-
-		/* adjust the grace note duration */
+		s->dur = 0;
+		s->stem = curvoice->gstem;
 		if (!curvoice->key.bagpipe) {
 			div = 4;
 			if (s->prev == 0) {
@@ -1814,14 +1855,9 @@ static void get_note(struct SYMBOL *s)
 		} else	div = 8;
 		for (i = 0; i <= m; i++)
 			s->as.u.note.lens[i] /= div;
-#if 1
-/*fixme:%%staves:is this used?*/
-		s->dur = 0;
-#else
-		s->dur = s->as.u.note.lens[0];
-#endif
-		s->type = type;
 	}
+	sym_link(s,
+		 s->as.u.note.lens[0] != 0 ? NOTEREST : SPACE);
 	s->nohdix = -1;
 
 	/* convert the decorations */
@@ -2435,13 +2471,8 @@ static void set_tuplet(struct SYMBOL *t)
 			continue;
 		if (as->u.note.lens[0] == 0)	/* space ('y') */
 			continue;
-		if (grace) {
-			if (!(as->flags & ABC_F_GRACE))
-				continue;
-		} else {
-			if (as->flags & ABC_F_GRACE)
-				continue;
-		}
+		if (grace ^ (as->flags & ABC_F_GRACE))
+			continue;
 		if (first == 0)
 			first = as;
 		s = (struct SYMBOL *) as;
@@ -2464,13 +2495,8 @@ static void set_tuplet(struct SYMBOL *t)
 			continue;
 		if (as->u.note.lens[0] == 0)
 			continue;
-		if (grace) {
-			if (!(as->flags & ABC_F_GRACE))
-				continue;
-		} else {
-			if (as->flags & ABC_F_GRACE)
-				continue;
-		}
+		if (grace ^ (as->flags & ABC_F_GRACE))
+			continue;
 		s = (struct SYMBOL *) as;
 		s->sflags |= S_IN_TUPLET;
 		olddur = s->dur;

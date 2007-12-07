@@ -311,44 +311,46 @@ static int calculate_beam(struct BEAM *bm,
 	for (s = s1->next; ; s = s->next) {
 		struct SYMBOL *g;
 
-		if ((g = s->grace) == 0) {
-			if (s->type == CLEF
-			    || (s->type == BAR
-				 && !(s->as.flags & ABC_F_INVIS))) {
-				y = a * s->x + b;
+		switch (s->type) {
+		case BAR:
+			if (!(s->as.flags & ABC_F_INVIS))
+				break;
+			/*fall thru*/
+		case CLEF:
+			y = a * s->x + b;
+			if (s1->stem > 0) {
+				y = s->ymx - y
+					+ BEAM_DEPTH + BEAM_SHIFT * (nflags - 1)
+					+ 2;
+				if (y > 0)
+					b += y;
+			} else {
+				y = s->ymn - y
+					- BEAM_DEPTH - BEAM_SHIFT * (nflags - 1)
+					- 7;
+				if (y < 0)
+					b += y;
+			}
+			break;
+		case GRACE:
+			g = s->extra;
+			for ( ; g != 0; g = g->next) {
+				y = a * g->x + b;
 				if (s1->stem > 0) {
-					y = s->ymx - y
+					y = g->ys - y
 						+ BEAM_DEPTH + BEAM_SHIFT * (nflags - 1)
 						+ 2;
 					if (y > 0)
 						b += y;
 				} else {
-					y = s->ymn - y
+					y = g->y - y
 						- BEAM_DEPTH - BEAM_SHIFT * (nflags - 1)
 						- 7;
 					if (y < 0)
 						b += y;
 				}
 			}
-			if (s == s2)
-				break;
-			continue;
-		}
-		for ( ; g != 0; g = g->next) {
-			y = a * g->x + b;
-			if (s1->stem > 0) {
-				y = g->ys - y
-					+ BEAM_DEPTH + BEAM_SHIFT * (nflags - 1)
-					+ 2;
-				if (y > 0)
-					b += y;
-			} else {
-				y = g->y - y
-					- BEAM_DEPTH - BEAM_SHIFT * (nflags - 1)
-					- 7;
-				if (y < 0)
-					b += y;
-			}
+			break;
 		}
 		if (s == s2)
 			break;
@@ -570,7 +572,7 @@ static void draw_sysbra(float x, int staff, int flag)
 	int i, end;
 	float yt, yb;
 
-	while (staff_tb[staff].empty
+	while (cursys->staff[staff].empty
 	       || staff_tb[staff].clef.stafflines == 0) {
 		if (cursys->staff[staff].flags & flag)
 			return;
@@ -578,7 +580,7 @@ static void draw_sysbra(float x, int staff, int flag)
 	}
 	i = end = staff;
 	for (;;) {
-		if (!staff_tb[i].empty
+		if (!cursys->staff[i].empty
 		    && staff_tb[i].clef.stafflines != 0)
 			end = i;
 		if (cursys->staff[i].flags & flag)
@@ -917,14 +919,15 @@ static int bar_cnv(int bar_type)
 }
 
 /* -- draw a measure bar -- */
-static void draw_bar(struct SYMBOL *s, float h)
+static void draw_bar(struct SYMBOL *s)
 {
 	int staff, bar_type, dotted;
-	float x, yb;
+	float x, yb, h;
 	char *psf;
 
 	staff = s->staff;
 	yb = staff_tb[staff].y;
+	h = s->ys;
 	x = s->x;
 
 	/* if measure repeat, draw the '%' like glyphs */
@@ -943,7 +946,7 @@ static void draw_bar(struct SYMBOL *s, float h)
 			if (s->voice == first_voice - voice_tb) {
 /*fixme				set_font(s->gcf); */
 				set_font(cfmt.anf);
-				putxy(x, yb + 24 + 4);
+				putxy(x, yb + staff_tb[staff].topbar + 4);
 				PUT1("M(%d)showc\n", s->as.u.bar.len);
 			}
 		}
@@ -1010,8 +1013,6 @@ static char *rest_tb[NFLAGS_SZ] = {
 			x = s->next->x;
 		else	x = realwidth;
 		prev = s->prev;
-		while (prev->type == TEMPO || prev->type == PART)
-			prev = prev->prev;
 		if (prev->type != BAR && !(s->sflags & S_SECOND)) {
 			for (prev = prev->ts_next; ; prev = prev->ts_next) {
 				switch (prev->type) {
@@ -1046,7 +1047,7 @@ static char *rest_tb[NFLAGS_SZ] = {
 			PUT0("srep\n");
 		else {
 			PUT0("mrep\n");
-			if (s->doty > 1
+			if (s->doty > 2
 			    && s->voice == first_voice - voice_tb) {
 /*fixme				set_font(s->gcf); */
 				set_font(cfmt.anf);
@@ -1145,8 +1146,10 @@ static void draw_gracenotes(struct SYMBOL *s)
 
 	/* draw the notes */
 	bm.s2 = 0;				/* (draw flags) */
-	for (g = s->grace; ; g = g->next) {
-		if (s->grace->next != 0) {	/* many notes */
+	for (g = s->extra; ; g = g->next) {
+		if (g->type != NOTEREST)
+			continue;
+		if (s->extra->next != 0) {	/* if many notes */
 			if ((g->sflags & S_WORD_ST)
 			    && !(g->as.flags & ABC_F_WORD_END)) {
 				if (calculate_beam(&bm, g))
@@ -1184,7 +1187,7 @@ static void draw_gracenotes(struct SYMBOL *s)
 		return;
 	last = g;
 	yy = g->y;
-	for (g = s->grace; g != 0; g = g->next) {
+	for (g = s->extra; g != 0; g = g->next) {
 		if (g->y < yy) {
 			yy = g->y;
 			last = g;
@@ -1192,7 +1195,7 @@ static void draw_gracenotes(struct SYMBOL *s)
 	}
 	x0 = last->x;
 	y0 = (last->stem >= 0 ? (float) last->y : last->ys) - 5;
-	if (s->grace != last) {
+	if (s->extra != last) {
 		x0 -= 4;
 		y0 += 1;
 	}
@@ -1744,7 +1747,14 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 	x1 = k1->x + k1->xmx;		/* take the max right side */
 	if (k1 != k2)
 		x2 = k2->x;
-	else	x2 = realwidth;		/* (the slur starts on last note of the line) */
+	else {			/* (the slur starts on last note of the line) */
+		for (k = k2->ts_next; k != 0; k = k->ts_next)
+			if (k->type == STAVES)
+				break;
+		if (k == 0)
+			x2 = realwidth;
+		else	x2 = k->x;
+	}
 	y1 = (float) (s > 0 ? k1->ymx + 2 : k1->ymn - 2);
 	y2 = (float) (s > 0 ? k2->ymx + 2 : k2->ymn - 2);
 
@@ -1921,7 +1931,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 		case GRACE: {
 			struct SYMBOL *g;
 
-			for (g = k->grace; g != 0; g = g->next) {
+			for (g = k->extra; g != 0; g = g->next) {
 				y = g->y - a * k->x - addy;
 				if (s > 0) {
 					y += GSTEM + 2;
@@ -2024,7 +2034,7 @@ static void draw_slurs(struct SYMBOL *first,
 			}
 			if (s->type == GRACE) {
 				gr1 = s;
-				s = s->grace;
+				s = s->extra;
 				continue;
 			}
 			if ((s->type != NOTEREST && s->type != SPACE)
@@ -2051,7 +2061,7 @@ static void draw_slurs(struct SYMBOL *first,
 				}
 				if (s1->type == GRACE) {
 					gr2 = s1;
-					s1 = s1->grace;
+					s1 = s1->extra;
 					continue;
 				}
 				if (s1->type == BAR
@@ -2100,8 +2110,8 @@ static void draw_slurs(struct SYMBOL *first,
 				gr1->as.u.note.slur_st = SL_AUTO;
 			}
 			if (gr2 != 0) {
-				gr2->prev->next = gr2->grace;
-				gr2->grace->prev = gr2->prev;
+				gr2->prev->next = gr2->extra;
+				gr2->extra->prev = gr2->prev;
 				gr2->as.u.note.slur_st = SL_AUTO;
 			}
 			if (s->as.u.note.slur_st) {
@@ -2167,7 +2177,7 @@ static void draw_slurs(struct SYMBOL *first,
 			}
 			if (gr2 != 0) {
 				gr2->prev->next = gr2;
-				gr2->grace->prev = 0;
+				gr2->extra->prev = 0;
 			}
 
 			if (s->as.u.note.slur_st
@@ -2185,32 +2195,48 @@ static void draw_slurs(struct SYMBOL *first,
 /* -- draw a tuplet -- */
 /* (the staves are not yet defined) */
 /* See 'tuplets' in format.txt about the value of 'u' */
-static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
+static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
+				  struct SYMBOL *s)	/* main note */
 {
-	struct SYMBOL *s1, *s2, *sy, *next;
+	struct SYMBOL *s1, *s2, *sy, *next, *g;
 	int r, upstaff, nb_only, some_slur;
-	float x1, x2, y1, y2, xm, ym, s, s0, yy, yx, dy;
+	float x1, x2, y1, y2, xm, ym, a, s0, yy, yx, dy;
 
-	next = t;
+	next = s;
 	if ((t->u & 0x0f00) == 0x100)		/* if 'when' == never */
 		return next;
+
+	/* treat the nested tuplets starting on this symbol */
+	for (g = t->next; g != 0; g = g->next) {
+		if (g->type == TUPLET) {
+			sy = draw_tuplet(g, s);
+			if (sy->time > next->time)
+				next = sy;
+		}
+	}
 
 	/* search the first and last notes/rests of the tuplet */
 	r = t->as.u.tuplet.r_plet;
 	s1 = 0;
 	some_slur = 0;
-	upstaff = t->staff;
-	for (s2 = t->next; s2 != 0; s2 = s2->next) {
-		if (s2->dur == 0
-		    || s2->type != NOTEREST) {
-			if (s2->type == TUPLET) {
-				sy = draw_tuplet(s2);	/* nested tuplet */
-				if (sy->time > next->time)
-					next = sy;
-			} else if (s2->type == GRACE) {
-				for (sy = s2->grace; sy != 0; sy = sy->next) {
-					if (sy->as.u.note.slur_st
-					    || (sy->sflags & S_SL1))
+	upstaff = s->staff;
+	for (s2 = s; s2 != 0; s2 = s2->next) {
+		if (s2 != s) {
+			for (g = s2->extra; g != 0; g = g->next) {
+				if (g->type == TUPLET) {
+					sy = draw_tuplet(g, s2);
+					if (sy->time > next->time)
+						next = sy;
+				}
+			}
+		}
+		if (s2->type != NOTEREST) {
+			if (s2->type == GRACE) {
+				for (g = s2->extra; g != 0; g = g->next) {
+					if (g->type != NOTEREST)
+						continue;
+					if (g->as.u.note.slur_st
+					    || (g->sflags & S_SL1))
 						some_slur = 1;
 				}
 			}
@@ -2414,21 +2440,21 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	xm = .5 * (x1 + x2);
 	ym = .5 * (y1 + y2);
 
-	s = (y2 - y1) / (x2 - x1);
+	a = (y2 - y1) / (x2 - x1);
 	s0 = 3 * (s2->pits[s2->nhd] - s1->pits[s1->nhd]) / (x2 - x1);
 	if (s0 > 0) {
-		if (s < 0)
-			s = 0;
-		else if (s > s0)
-			s = s0;
+		if (a < 0)
+			a = 0;
+		else if (a > s0)
+			a = s0;
 	} else {
-		if (s > 0)
-			s = 0;
-		else if (s < s0)
-			s = s0;
+		if (a > 0)
+			a = 0;
+		else if (a < s0)
+			a = s0;
 	}
-	if (s * s < .1 * .1)
-		s = 0;
+	if (a * a < .1 * .1)
+		a = 0;
 
 	/* shift up bracket if needed */
 	dy = 0;
@@ -2439,7 +2465,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				break;
 			continue;
 		}
-		yy = ym + (sy->x - xm) * s;
+		yy = ym + (sy->x - xm) * a;
 		yx = y_get(sy, 1, sy->x, 0, 0);
 		if (yx - yy > dy)
 			dy = yx - yy;
@@ -2448,8 +2474,8 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	}
 
 	ym += dy + 4;
-	y1 = ym + s * (x1 - xm);
-	y2 = ym + s * (x2 - xm);
+	y1 = ym + a * (x1 - xm);
+	y2 = ym + a * (x2 - xm);
 	putxy(x2 - x1, y2 - y1);
 	putxy(x1, y1 + 4);
 	PUT1("y%d tubr", upstaff);
@@ -2458,7 +2484,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	ym += 8;
 	for (sy = s1; ; sy = sy->next) {
 		if (sy->staff == upstaff) {
-			yy = ym + (sy->x - xm) * s;
+			yy = ym + (sy->x - xm) * a;
 			if (sy->ymx < yy)
 				sy->ymx = yy;
 			if (sy == s2)
@@ -2499,21 +2525,21 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	xm = .5 * (x1 + x2);
 	ym = .5 * (y1 + y2);
 
-	s = (y2 - y1) / (x2 - x1);
+	a = (y2 - y1) / (x2 - x1);
 	s0 = 3 * (s2->pits[0] - s1->pits[0]) / (x2 - x1);
 	if (s0 > 0) {
-		if (s < 0)
-			s = 0;
-		else if (s > s0)
-			s = s0;
+		if (a < 0)
+			a = 0;
+		else if (a > s0)
+			a = s0;
 	} else {
-		if (s > 0)
-			s = 0;
-		else if (s < s0)
-			s = s0;
+		if (a > 0)
+			a = 0;
+		else if (a < s0)
+			a = s0;
 	}
-	if (s * s < .1 * .1)
-		s = 0;
+	if (a * a < .1 * .1)
+		a = 0;
 
 	/* shift down bracket if needed */
 	dy = 0;
@@ -2524,7 +2550,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 				break;
 			continue;
 		}
-		yy = ym + (sy->x - xm) * s;
+		yy = ym + (sy->x - xm) * a;
 		yx = y_get(sy, 0, sy->x, 0, 0);
 		if (yx - yy < dy)
 			dy = yx - yy;
@@ -2533,8 +2559,8 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 	}
 
 	ym += dy - 12;
-	y1 = ym + s * (x1 - xm);
-	y2 = ym + s * (x2 - xm);
+	y1 = ym + a * (x1 - xm);
+	y2 = ym + a * (x2 - xm);
 	putxy(x2 - x1, y2 - y1);
 	putxy(x1, y1 + 4);
 	PUT1("y%d tubrl",upstaff);
@@ -2545,7 +2571,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t)
 		if (sy->staff == upstaff) {
 			if (sy == s2)
 				break;
-			yy = ym + (sy->x - xm) * s;
+			yy = ym + (sy->x - xm) * a;
 			if (sy->ymn > yy)
 				sy->ymn = (short) yy;
 			y_set(sy, 0, sy->x, sy->next->x - sy->x, yy);
@@ -2616,9 +2642,18 @@ static void draw_note_ties(struct SYMBOL *k1,
 		if (h < 0)
 			x2 += h;
 		if (job == 2) {		/* half tie from last note in line */
-			x2 -= k2->wl;
-			if (k1 == k2)
-				x2 = realwidth;
+			if (k1 != k2)
+				x2 -= k2->wl;
+			else {
+				struct SYMBOL *k;
+
+				for (k = k2->ts_next; k != 0; k = k->ts_next)
+					if (k->type == STAVES)
+						break;
+				if (k == 0)
+					x2 = realwidth;
+				else	x2 = k->x;
+			}
 			if (x2 < x1 + 16)
 				x2 = x1 + 16;
 		} else if (job == 1) {	/* half tie to first note in line */
@@ -3308,7 +3343,8 @@ void draw_sym_near(void)
 			continue;		/* skip the clefs */
 		if (s->as.flags & ABC_F_INVIS)
 			continue;
-		if ((g = s->grace) != 0) {
+		if (s->type == GRACE) {
+			g = s->extra;
 			for ( ; g != 0; g = g->next) {
 				y_set(s, 1, g->x - g->wl, g->wl + g->wr, g->ymx);
 				y_set(s, 0, g->x - g->wl, g->wl + g->wr, g->ymn);
@@ -3352,8 +3388,17 @@ void draw_sym_near(void)
 		if ((s = p_voice->sym) == 0)
 			continue;
 		for (s = s->next; s != 0; s = s->next) {
-			if (s->type == TUPLET)
-				s = draw_tuplet(s);
+			struct SYMBOL *g;
+
+			if ((s->sflags & S_IN_TUPLET)
+			    && (g = s->extra) != 0) {
+				for ( ; g != 0; g = g->next) {
+					if (g->type == TUPLET) {
+						s = draw_tuplet(g, s);
+						break;
+					}
+				}
+			}
 		}
 		draw_all_slurs(p_voice);
 	}
@@ -3466,8 +3511,8 @@ static void draw_vname(float indent)
 /* -- set the y offset of the staves and return the whole height -- */
 static float set_staff(void)
 {
-	struct SYMBOL *s;
 	struct SYSTEM *sy;
+	struct SYMBOL *s, *g;
 	int staff, any_part, any_tempo;
 	float y, staffsep, dy, maxsep, mbot, scale;
 	struct {
@@ -3487,8 +3532,8 @@ static float set_staff(void)
 			switch (s->type) {
 			case STAVES:
 				for (staff = 0; staff <= nstaff; staff++)
-					delta_tb[staff].not_empty
-						= !sy->staff[staff].empty;
+					if (!sy->staff[staff].empty)
+						delta_tb[staff].not_empty = 1;
 				sy = sy->next;
 				for (staff = 0; staff <= nstaff; staff++)
 					sy->staff[staff].empty = 1;
@@ -3507,8 +3552,8 @@ static float set_staff(void)
 			switch (s->type) {
 			case STAVES:
 				for (staff = 0; staff <= nstaff; staff++)
-					delta_tb[staff].not_empty
-						= !sy->staff[staff].empty;
+					if (!sy->staff[staff].empty)
+						delta_tb[staff].not_empty = 1;
 				sy = sy->next;
 				for (staff = 0; staff <= nstaff; staff++)
 					sy->staff[staff].empty = 1;
@@ -3524,7 +3569,8 @@ static float set_staff(void)
 	}
 	/* 'sy' is the last staff system - here are the staff distances */
 	for (staff = 0; staff <= nstaff; staff++)
-		delta_tb[staff].not_empty = !sy->staff[staff].empty;
+		if (!sy->staff[staff].empty)
+			delta_tb[staff].not_empty = 1;
 
 	/* if a system brace has empty and non empty staves, keep all staves */
 	for (staff = 0; staff <= nstaff; staff++) {
@@ -3614,15 +3660,17 @@ static float set_staff(void)
 	/* scan the first voice to see if any part or tempo */
 	any_part = any_tempo = 0;
 	for (s = first_voice->sym; s != 0; s = s->next) {
-		switch (s->type) {
-		case PART:
-			any_part = 1;
-			break;
-		case TEMPO:
-			any_tempo = 1;
-			break;
-		default:
+		if ((g = s->extra) == 0)
 			continue;
+		for ( ; g != 0; g = g->next) {
+			switch (g->type) {
+			case PART:
+				any_part = 1;
+				break;
+			case TEMPO:
+				any_tempo = 1;
+				break;
+			}
 		}
 		if (any_part && any_tempo)
 			break;
@@ -3739,38 +3787,57 @@ float draw_systems(float indent)
 		switch (s->type) {
 		case STAVES:
 			if (staff_st) {
-				if ((x = xstaff[staff]) >= 0
-				    && cursys->nstaff > 0)
-					draw_lstaff(x);
-				staff_st = 0;
+				if (cursys->nstaff > 0) {
+				    for (staff = 0; staff <= nstaff; staff++) {
+					if ((x = xstaff[staff]) >= 0) {
+						draw_lstaff(x);
+						break;
+					}
+				    }
+				    staff_st = 0;
+				}
 			}
 			cursys = cursys->next;
 			for (staff = 0; staff <= nstaff; staff++) {
 				if (cursys->staff[staff].empty) {
 					if ((x = xstaff[staff]) >= 0) {
+#if 1
+						if (s->ts_prev->type == BAR)
+							x2 = s->ts_prev->x;
+						else	x2 = s->x;
+#else
 						x2 = s->ts_prev->x;
 						if (s->ts_prev->type != BAR)
 							x2 += s->ts_prev->wr;
+#endif
 						draw_staff(staff, x, x2);
 						xstaff[staff] = -1;
 					}
-				} else if (xstaff[staff] < 0)
+				} else if (xstaff[staff] < 0) {
+#if 1
+					if (s->ts_next->type != BAR)
+						xstaff[staff] = s->x;
+					else	xstaff[staff] = s->ts_next->x;
+#else
 					xstaff[staff] = s->ts_next->x
 						- s->ts_next->wl; /* (clef) */
+#endif
+				}
 			}
 			bar_set(bar_height);
 			break;
 		case BAR:
-			if ((s->sflags & S_SECOND)
-			    || (s->as.flags & ABC_F_INVIS)
-			    || cursys->staff[staff].empty)
+			if (s->as.flags & ABC_F_INVIS)
 				break;
-			draw_bar(s, bar_height[staff]);
+			if ((s->sflags & S_SECOND)
+			    || cursys->staff[staff].empty)
+				s->as.flags |= ABC_F_INVIS;
+			else	s->ys = bar_height[staff];
 			break;
 		case STBRK:
-			x2 = s->prev->x;
-			if ((x = xstaff[staff]) < 0)
+			if (s->prev == 0 || (x = xstaff[staff]) < 0)
 				continue;
+			x2 = s->prev->x;
 			if (x2 <= x)
 				continue;
 			if (s->prev->type != BAR)
@@ -3781,7 +3848,16 @@ float draw_systems(float indent)
 					draw_lstaff(x);
 				staff_st = s->xmx > .5 CM;
 			}
-			xstaff[staff] = s->xmx != 0 ? s->x : x2;
+			if (s->xmx != 0) {
+				xstaff[staff] = s->x;
+				if (s->ts_next != 0 && s->ts_next->type == STAVES)
+						s->ts_next->x = s->x;
+			} else	xstaff[staff] = x2;
+			break;
+		default:
+			if (cursys->staff[staff].empty)
+				s->as.flags |= ABC_F_INVIS;
+			break;
 		}
 	}
 	for (staff = 0; staff <= nstaff; staff++) {
@@ -3798,6 +3874,29 @@ float draw_systems(float indent)
 	return line_height;
 }
 
+/* -- output PostScript sequences -- */
+void output_ps(struct SYMBOL *s, int state)
+{
+	struct SYMBOL *g, *g2;
+
+	if ((g = s->extra) != 0) {
+		g2 = 0;
+		for (;;) {
+			if (g->type == FMTCHG
+			    && g->u == PSSEQ
+			    && g->as.state <= state) {
+				PUT1("%s\n", g->as.text);
+				if (g2 == 0)
+					s->extra = g->next;
+				else	g2->next = g->next;
+			}
+			g2 = g;
+			if ((g = g->next) == 0)
+				break;
+		}
+	}
+}
+
 /* -- draw remaining symbols when the staves are defined -- */
 static void draw_symbols(struct VOICE_S *p_voice)
 {
@@ -3808,28 +3907,24 @@ static void draw_symbols(struct VOICE_S *p_voice)
 
 	/* output the PostScript code at start of line */
 	for (s = p_voice->sym; s != 0; s = s->next) {
+		if (s->extra != 0)
+			output_ps(s, 127);
 		switch (s->type) {
 		case CLEF:
 		case KEYSIG:
 		case TIMESIG:
-		case TEMPO:
 		case BAR:
 			continue;	/* skip the symbols added by init_music_line() */
-		case FMTCHG:
-			if (s->u == WHISTLE)
-				continue;
-			if (s->u == PSSEQ) {
-				PUT1("%s\n", s->as.text);
-				s->u = -1;	/* done */
-				continue;
-			}
-			break;
 		}
 		break;
 	}
 
 	bm.s2 = 0;
 	for (s = p_voice->sym; s != 0; s = s->next) {
+		if (s->extra != 0)
+			output_ps(s, 127);
+		if (s->as.flags & ABC_F_INVIS)
+			continue;
 		x = s->x;
 		switch (s->type) {
 		case NOTEREST:
@@ -3848,7 +3943,8 @@ static void draw_symbols(struct VOICE_S *p_voice)
 			draw_rest(s);
 			break;
 		case BAR:
-			break;			/* already done */
+			draw_bar(s);
+			break;
 		case CLEF:
 			staff = s->staff;
 			if (s->sflags & S_SECOND)
@@ -3908,23 +4004,10 @@ static void draw_symbols(struct VOICE_S *p_voice)
 			draw_gracenotes(s);
 			break;
 		case SPACE:
-		case TEMPO:
 		case STAVES:
-		case PART:
-		case TUPLET:
 		case STBRK:
-			break;			/* nothing */
 		case FMTCHG:
-			if (s->u == PSSEQ) {
-				PUT1("%s\n", s->as.text);
-				break;
-			}
-#if 1
-/*fixme: should remove the other format changes */
-			break;
-#else
-			/* fall thru */
-#endif
+			break;			/* nothing */
 		default:
 			bug("Symbol not drawn", 1);
 		}
@@ -3939,7 +4022,12 @@ void draw_all_symb(void)
 	struct VOICE_S *p_voice;
 
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+//fixme:test
+#if 1
+		if (p_voice->sym == 0)
+#else
 		if (staff_tb[p_voice->staff].empty || p_voice->sym == 0)
+#endif
 			continue;
 		draw_symbols(p_voice);
 	}

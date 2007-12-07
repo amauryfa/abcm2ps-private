@@ -1201,6 +1201,7 @@ void draw_deco_near(void)
 			dc = &s->as.u.bar.dc;
 			break;
 		case NOTEREST:
+		case SPACE:
 			if (first == 0)
 				first = s;
 			if (s->as.u.note.dc.n == 0)
@@ -1208,7 +1209,7 @@ void draw_deco_near(void)
 			dc = &s->as.u.note.dc;
 			break;
 		case GRACE:
-			for (g = s->grace; g != 0; g = g->next) {
+			for (g = s->extra; g != 0; g = g->next) {
 				if (g->as.type != ABC_T_NOTE
 				    || g->as.u.note.dc.n == 0)
 					continue;
@@ -1774,8 +1775,6 @@ void draw_measnb(void)
 		case TIMESIG:
 		case CLEF:
 		case KEYSIG:
-		case PART:
-		case TEMPO:
 		case FMTCHG:
 		case STBRK:
 			continue;
@@ -2046,7 +2045,7 @@ float draw_partempo(float top,
 		    int any_part,
 		    int any_tempo)
 {
-	struct SYMBOL *s;
+	struct SYMBOL *s, *g;
 	float h, ht, w, y, ymin, dy;
 
 	/* put the tempo indication at top */
@@ -2065,9 +2064,14 @@ float draw_partempo(float top,
 		x = 0;
 /*fixme:have tempo on other voices but the 1st?*/
 		for (s = first_voice->sym->next; s != 0; s = s->next) {
-			if (s->type != TEMPO)
+			if ((g = s->extra) == 0)
 				continue;
-			w = tempo_width(s);
+			for (; g != 0; g = g->next)
+				if (g->type == TEMPO)
+					break;
+			if (g == 0)
+				continue;
+			w = tempo_width(g);
 			y = y_get(s, 1, s->x - 5, w, 0) + 2;
 			if (y > ymin)
 				ymin = y;
@@ -2087,17 +2091,21 @@ float draw_partempo(float top,
 		set_font(TEMPOFONT);
 		beat = 0;
 		for (s = first_voice->sym; s != 0; s = s->next) {
-			if (s->type != TEMPO) {
-				if (s->type == TIMESIG)
-					beat = get_beat(&s->as.u.meter);
+			if (s->type == TIMESIG)
+				beat = get_beat(&s->as.u.meter);
+			if ((g = s->extra) == 0)
 				continue;
-			}
+			for (; g != 0; g = g->next)
+				if (g->type == TEMPO)
+					break;
+			if (g == 0)
+				continue;
 
 			/*fixme: cf left shift (-5)*/
 			PUT2("%.1f %.1f M ", s->x - 5,
 				(dosh & 1) ? h : y);
 			dosh >>= 1;
-			write_tempo(s, beat, 1);
+			write_tempo(g, beat, 1);
 		}
 	} else	ht = 0;
 
@@ -2110,9 +2118,14 @@ float draw_partempo(float top,
 	str_font(PARTSFONT);
 	ymin = staff_tb[0].topbar + 14;
 	for (s = first_voice->sym->next; s != 0; s = s->next) {
-		if (s->type != PART)
+		if ((g = s->extra) == 0)
 			continue;
-		w = tex_str(&s->as.text[2]);
+		for (; g != 0; g = g->next)
+			if (g->type == PART)
+				break;
+		if (g == 0)
+			continue;
+		w = tex_str(&g->as.text[2]);
 		y = y_get(s, 1, s->x - 10, w + 15, 0) + 5;
 		if (ymin < y)
 			ymin = y;
@@ -2122,9 +2135,14 @@ float draw_partempo(float top,
 
 	set_font(PARTSFONT);
 	for (s = first_voice->sym->next; s != 0; s = s->next) {
-		if (s->type != PART)
+		if ((g = s->extra) == 0)
 			continue;
-		tex_str(&s->as.text[2]);
+		for (; g != 0; g = g->next)
+			if (g->type == PART)
+				break;
+		if (g == 0)
+			continue;
+		tex_str(&g->as.text[2]);
 		PUT4("%.1f %.1f M(%s)show%s\n",
 		     s->x - 10, 2 - ht - h,
 		     tex_buf, cfmt.partsbox ? "b" : "");
