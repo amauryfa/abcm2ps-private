@@ -1,3 +1,18 @@
+---- Version 5.7.2 - 08/01/08 ----
+
+Bad PostScript output when %%postscript or %%beginps inside a tune
+	since version 5.7.0.
+Don't start a new page anywhere in normal '%%begin/end text', but
+	only on empty lines.
+Crash after the error 'max number of buffer lines exceeded'
+	in multicolumn sequences since version 4.x.x.
+
+---- Version 5.7.1 - 07/12/17 ----
+
+Fix more bugs of the previous version(s) (bad starting clefs).
+Word start/stop change in the ABC parser interface.
+Raise an error when measure bars inside grace note sequences.
+
 ---- Version 5.7.0 - 07/12/08 ----
 
 Better handling of %%staves inside music lines.

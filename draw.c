@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -123,7 +123,7 @@ static int calculate_beam(struct BEAM *bm,
 			two_staves = 1;
 		if (s2->stem != s1->stem)
 			two_dir = 1;
-		if (s2->as.flags & ABC_F_WORD_END)
+		if (s2->sflags & S_BEAM_END)
 			break;
 	}
 	bm->s2 = s2;			/* (don't display the flags) */
@@ -1150,8 +1150,8 @@ static void draw_gracenotes(struct SYMBOL *s)
 		if (g->type != NOTEREST)
 			continue;
 		if (s->extra->next != 0) {	/* if many notes */
-			if ((g->sflags & S_WORD_ST)
-			    && !(g->as.flags & ABC_F_WORD_END)) {
+			if ((g->sflags & S_BEAM_ST)
+			    && !(g->sflags & S_BEAM_END)) {
 				if (calculate_beam(&bm, g))
 					draw_beams(&bm);
 			}
@@ -1762,7 +1762,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 		if (s > 0) {
 			if (k1->stem > 0) {
 				x1 += 5;
-				if ((k1->as.flags & ABC_F_WORD_END)
+				if ((k1->sflags & S_BEAM_END)
 				    && k1->nflags >= -1	/* if with a stem */
 				    && (!(k1->sflags & S_IN_TUPLET)
 					|| k1->ys > y1 - 3)) {
@@ -1775,7 +1775,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 		} else {
 			if (k1->stem < 0) {
 				x1 -= 1;
-				if ((k1->as.flags & ABC_F_WORD_END)
+				if ((k1->sflags & S_BEAM_END)
 				    && k1->nflags >= -1
 				    && (!(k1->sflags & S_IN_TUPLET)
 					|| k1->ys < y1 + 3)) {
@@ -1792,7 +1792,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 		if (s > 0) {
 			if (k2->stem > 0) {
 				x2 += 1;
-				if ((k2->sflags & S_WORD_ST)
+				if ((k2->sflags & S_BEAM_ST)
 				    && k2->nflags >= -1
 				    && (!(k2->sflags & S_IN_TUPLET)
 					|| k2->ys > y2 - 3))
@@ -1801,7 +1801,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 		} else {
 			if (k2->stem < 0) {
 				x2 -= 5;
-				if ((k2->sflags & S_WORD_ST)
+				if ((k2->sflags & S_BEAM_ST)
 				    && k2->nflags >= -1
 				    && (!(k2->sflags & S_IN_TUPLET)
 					|| k2->ys < y2 + 3))
@@ -2282,13 +2282,13 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
 				}
 				if (sy == s2)
 					break;
-				if (sy->as.flags & ABC_F_WORD_END) {
+				if (sy->sflags & S_BEAM_END) {
 					nb_only = 0;
 					break;
 				}
 			}
 			if (nb_only
-			    && !(s1->sflags & (S_WORD_ST | S_BEAM_BR1 | S_BEAM_BR2))) {
+			    && !(s1->sflags & (S_BEAM_ST | S_BEAM_BR1 | S_BEAM_BR2))) {
 				for (sy = s1->prev; sy != 0; sy = sy->prev) {
 					if (sy->dur != 0
 					    && sy->type == NOTEREST) {
@@ -2298,7 +2298,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
 					}
 				}
 			}
-			if (nb_only && !(s2->as.flags & ABC_F_WORD_END)) {
+			if (nb_only && !(s2->sflags & S_BEAM_END)) {
 				for (sy = s2->next; sy != 0; sy = sy->next) {
 					if (sy->dur != 0) {
 						if (!(sy->sflags & (S_BEAM_BR1 | S_BEAM_BR2))
@@ -3313,8 +3313,8 @@ void draw_sym_near(void)
 
 		for (s = p_voice->sym; s != 0; s = s->next) {
 			if (s->as.type == ABC_T_NOTE
-			    && (s->sflags & S_WORD_ST)
-			    && !(s->as.flags & ABC_F_WORD_END))
+			    && (s->sflags & S_BEAM_ST)
+			    && !(s->sflags & S_BEAM_END))
 				calculate_beam(&bm, s);
 		}
 	}
@@ -3879,21 +3879,19 @@ void output_ps(struct SYMBOL *s, int state)
 {
 	struct SYMBOL *g, *g2;
 
-	if ((g = s->extra) != 0) {
-		g2 = 0;
-		for (;;) {
-			if (g->type == FMTCHG
-			    && g->u == PSSEQ
-			    && g->as.state <= state) {
-				PUT1("%s\n", g->as.text);
-				if (g2 == 0)
-					s->extra = g->next;
-				else	g2->next = g->next;
-			}
-			g2 = g;
-			if ((g = g->next) == 0)
-				break;
-		}
+	g = s->extra;
+	g2 = 0;
+	for (;;) {
+		if (g->type == FMTCHG
+		    && g->u == PSSEQ
+		    && g->as.state <= state) {
+			PUT1("%s\n", g->as.text);
+			if (g2 == 0)
+				s->extra = g->next;
+			else	g2->next = g->next;
+		} else	g2 = g;
+		if ((g = g->next) == 0)
+			break;
 	}
 }
 
@@ -3930,8 +3928,8 @@ static void draw_symbols(struct VOICE_S *p_voice)
 		case NOTEREST:
 			set_scale(s->voice);
 			if (s->as.type == ABC_T_NOTE) {
-				if ((s->sflags & S_WORD_ST)
-				    && !(s->as.flags & ABC_F_WORD_END)) {
+				if ((s->sflags & S_BEAM_ST)
+				    && !(s->sflags & S_BEAM_END)) {
 					if (calculate_beam(&bm, s))
 						draw_beams(&bm);
 				}

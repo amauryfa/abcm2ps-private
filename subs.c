@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -640,8 +640,10 @@ void add_to_text_block(char *s, int job)
 				PUT1("%.1f 0 M ", strlw);
 				put_str(s, A_RIGHT);
 			}
-		} else	bskip(baseskip * 0.5);
-		buffer_eob();
+		} else {
+			bskip(baseskip * 0.5);
+			buffer_eob();
+		}
 		strtw = 0;
 		return;
 	}

@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -425,10 +425,9 @@ static void staves_init(void)
 			staves = s;
 			continue;
 		case CLEF:
-			if (s->as.u.clef.stafflines >= 0
-			    || s->as.u.clef.staffscale != 0)
+			if (s->as.u.clef.type < 0)
 				break;
-			continue;
+			continue;	/* normal clef change */
 		case KEYSIG:
 		case TIMESIG:
 		case TEMPO:
@@ -449,8 +448,8 @@ static void staves_init(void)
 			new_sy->next = sy->next;
 			sy->next = new_sy;
 			sy = new_sy;
-			s->type = STAVES;
-		} else {
+			s->type = STAVES;	/* and set the marker */
+		} else {		/* remove the CLEF */
 			if (s->prev != 0)
 				s->prev->next = s->next;
 			else	voice_tb[voice].sym = s->next;
@@ -1431,9 +1430,9 @@ void do_tune(struct abctune *t,
 			get_clef(s);
 			break;
 		case ABC_T_EOLN:
-			if ((as->flags & ABC_F_WORD_END)
+			if ((as->flags & ABC_F_SPACE)
 			    && curvoice->last_sym != 0)
-				curvoice->last_sym->as.flags |= ABC_F_WORD_END;
+				curvoice->last_sym->as.flags |= ABC_F_SPACE;
 			if (curvoice->second)
 				continue;
 			if (cfmt.continueall || cfmt.barsperstaff
@@ -1990,6 +1989,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	float h1;
 	struct SYMBOL *s = (struct SYMBOL *) as;
 
+	as->state = as->prev->state;
 	p = as->text + 2;		/* skip '%%' */
 	while (isspace((unsigned char) *p))
 		p++;

@@ -84,7 +84,7 @@ struct abcsym {
 	unsigned short flags;
 #define ABC_F_ERROR	0x0001		/* error around this symbol */
 #define ABC_F_INVIS	0x0002		/* invisible symbol */
-#define ABC_F_WORD_END	0x0004		/* 1 if word ends here */
+#define ABC_F_SPACE	0x0004		/* space before a note */
 #define ABC_F_STEMLESS	0x0008		/* note with no stem */
 #define ABC_F_LYRIC_START 0x0010	/* may start a lyric here */
 #define ABC_F_GRACE	0x0020		/* grace note */

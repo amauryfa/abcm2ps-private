@@ -782,10 +782,10 @@ void deco_cnv(struct deco *dc,
 				break;
 			}
 			s->sflags |= S_TREM;
-			s->sflags &= ~S_WORD_ST;
-			s->as.flags |= ABC_F_WORD_END;
-			prev->sflags |= (S_TREM | S_WORD_ST);
-			prev->as.flags &= ~ABC_F_WORD_END;
+			s->sflags &= ~S_BEAM_ST;
+			s->sflags |= S_BEAM_END;
+			prev->sflags |= (S_TREM | S_BEAM_ST);
+			prev->sflags &= ~S_BEAM_END;
 			s->nflags = prev->nflags = dd->name[4] - '0';
 			for (j = 0; j <= s->nhd; j++)
 				s->as.u.note.lens[j] *= 2;

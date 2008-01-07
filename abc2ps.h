@@ -140,7 +140,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 	int time;		/* starting time */
 	unsigned int sflags;	/* symbol flags */
 #define S_EOLN		0x0001		/* end of line */
-#define S_WORD_ST	0x0002		/* word starts here */
+#define S_BEAM_ST	0x0002		/* beam starts here */
 #define S_BEAM_BR1	0x0004		/* 2nd beam must restart here */
 #define S_OTHER_HEAD	0x0008		/* don't draw any note head */
 #define S_IN_TUPLET	0x0010		/* in a tuplet */
@@ -161,6 +161,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_SECOND	0x00100000	/* symbol on a secondary voice */
 #define S_FLOATING	0x00200000	/* symbol on a floating voice */
 #define S_NOREPBRA	0x00400000	/* don't print the repeat bracket */
+#define S_BEAM_END	0x00800000	/* beam starts here */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
 	char dots;		/* number of dots */

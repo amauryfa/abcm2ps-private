@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -670,9 +670,14 @@ void buffer_eob(void)
 	if (ln_num > 0 && ln_buf[ln_num - 1] == nbuf)
 		return;
 	if (ln_num >= BUFFLN) {
+		int mc_sav;
+
 		error(1, 0, "max number of buffer lines exceeded"
 			" -- check BUFFLN");
+		mc_sav = multicol_start;
+		multicol_start = 0;
 		write_buffer();
+		multicol_start = mc_sav;
 		use_buffer = 0;
 	}
 	ln_buf[ln_num] = nbuf;

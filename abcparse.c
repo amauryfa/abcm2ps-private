@@ -64,8 +64,6 @@ static struct {			/* voice table and current pointer */
 	char name[32];			/* voice name */
 	struct abcsym *last_note;	/* last note or rest */
 	short ulen;			/* unit note length */
-	unsigned char slur;		/* slurs starting on the note */
-	char dotted_slur, dotted_tie;	/* dotted slurs / ties */
 	signed char add_pitch;		/* key transpose */
 	unsigned char mvoice;		/* main voice when voice overlay */
 } voice_tb[MAXVOICE], *curvoice;
@@ -76,7 +74,7 @@ static struct {			/* voice table and current pointer */
 #define CHAR_NOTE 2
 #define CHAR_REST 3
 #define CHAR_ACC 4
-#define CHAR_GRACE 5
+#define CHAR_GR_ST 5
 #define CHAR_DECO 6
 #define CHAR_GCHORD 7
 #define CHAR_BSLASH 8
@@ -90,6 +88,7 @@ static struct {			/* voice table and current pointer */
 #define CHAR_BRHY 16
 #define CHAR_DECOS 17
 #define CHAR_SLASH 18
+#define CHAR_GR_EN 19
 static char char_tb[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, CHAR_SPAC, 0, 0, 0, 0, 0, 0,	/* 00 - 0f */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		/* 10 - 1f */
@@ -115,8 +114,8 @@ static char char_tb[256] = {
 	CHAR_DECO, CHAR_DECO, CHAR_DECO, CHAR_DECO, 	/* l m n o */
 	CHAR_DECO, CHAR_DECO, CHAR_DECO, CHAR_DECO, 	/* p q r s */
 	CHAR_DECO, CHAR_DECO, CHAR_DECO, CHAR_DECO, 	/* t u v w */
-	CHAR_REST, CHAR_REST, CHAR_REST, CHAR_GRACE, 	/* x y z { */
-	CHAR_BAR, CHAR_BAD, CHAR_DECO, CHAR_BAD, 	/* | } ~ (del) */
+	CHAR_REST, CHAR_REST, CHAR_REST, CHAR_GR_ST, 	/* x y z { */
+	CHAR_BAR, CHAR_GR_EN, CHAR_DECO, CHAR_BAD, 	/* | } ~ (del) */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		/* 80 - 8f */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		/* 90 - 9f */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,		/* a0 - af */
@@ -145,7 +144,8 @@ static char *parse_gchord(char *p,
 static int parse_line(struct abctune *t,
 		      char *p);
 static char *parse_note(struct abctune *t,
-			char *p);
+			char *p,
+			int flags);
 static void syntax(char *msg, char *q);
 static void vover_new(void);
 
@@ -2004,8 +2004,7 @@ static int parse_line(struct abctune *t,
 	char *comment, *q, c;
 	struct abcsym *last_note_sav = 0;
 	struct deco dc_sav;
-	int i;
-	char sappo = 0;
+	int i, flags, flags_sav = 0, slur;
 	static char qtb[10] = {0, 1, 3, 2, 3, 0, 2, 0, 3, 0};
 
 	colnum = 0;
@@ -2140,17 +2139,21 @@ again:					/* for history */
 		return 0;
 	}
 
-	if (isspace((unsigned) scratch_line[0]))
-		t->last_sym->flags |= ABC_F_WORD_END;
+	flags = (isspace((unsigned) scratch_line[0]))
+		? ABC_F_SPACE
+		: 0;
 
 	lyric_started = 0;
 	deco_start = deco_cont = 0;
+	slur = 0;
 	while (*p != '\0') {
 		colnum = p - scratch_line;
 		switch (char_tb[(unsigned) *p++]) {
 		case CHAR_GCHORD: {			/* " */
 			int more_gch;
 
+			if (flags & ABC_F_GRACE)
+				goto bad_char;
 			for (;;) {
 				p = parse_gchord(p, &more_gch);
 				if (!more_gch)
@@ -2163,26 +2166,27 @@ again:					/* for history */
 			}
 			break;
 		    }
-		case CHAR_GRACE:		/* '{' or '}' */
-			if (p[-1] == '{') {
-				if (*p == '/') {
-					sappo = 1;
-					p++;
-				}
-				char_tb['{'] = CHAR_BAD;
-				char_tb['}'] = CHAR_GRACE;
-				last_note_sav = curvoice->last_note;
-				curvoice->last_note = 0;
-				memcpy(&dc_sav, &dc, sizeof dc);
-				dc.n = dc.h = dc.s = 0;
-			} else {
-				char_tb['{'] = CHAR_GRACE;
-				char_tb['}'] = CHAR_BAD;
-/*fixme:bad*/
-				t->last_sym->flags |= (ABC_F_WORD_END | ABC_F_GR_END);
-				curvoice->last_note = last_note_sav;
-				memcpy(&dc, &dc_sav, sizeof dc);
+		case CHAR_GR_ST:		/* '{' */
+			if (flags & ABC_F_GRACE)
+				goto bad_char;
+			if (*p == '/') {
+				flags |= ABC_F_SAPPO;
+				p++;
 			}
+			last_note_sav = curvoice->last_note;
+			curvoice->last_note = 0;
+			memcpy(&dc_sav, &dc, sizeof dc);
+			dc.n = dc.h = dc.s = 0;
+			flags_sav = flags;
+			flags = ABC_F_GRACE;
+			break;
+		case CHAR_GR_EN:		/* '}' */
+			if (!(flags & ABC_F_GRACE))
+				goto bad_char;
+			t->last_sym->flags |= ABC_F_GR_END;
+			curvoice->last_note = last_note_sav;
+			memcpy(&dc, &dc_sav, sizeof dc);
+			flags = flags_sav;
 			break;
 		case CHAR_DECO:
 		case CHAR_DECOS:
@@ -2194,11 +2198,11 @@ again:					/* for history */
 			}
 			if (p[-1] == '.') {
 				if (*p == '(') {
-					curvoice->dotted_slur = 1;
+					flags |= ABC_F_DOTTED_SLUR;
 					break;
 				}
 				if (*p == '-') {
-					curvoice->dotted_tie = 1;
+					flags |= ABC_F_DOTTED_TIE;
 					break;
 				}
 				if (*p == '|') {
@@ -2215,15 +2219,16 @@ again:					/* for history */
 		case CHAR_ACC:
 		case CHAR_NOTE:
 		case CHAR_REST:
-			p = parse_note(t, p - 1);
-			if (sappo) {
-				t->last_sym->flags |= ABC_F_SAPPO;
-				sappo = 0;
-			}
+			p = parse_note(t, p - 1, flags);
+			flags &= ABC_F_GRACE;
+			t->last_sym->u.note.slur_st = slur;
+			slur = 0;
 			if (t->last_sym->u.note.lens[0] > 0)	/* if not space */
 				curvoice->last_note = t->last_sym;
 			break;
 		case CHAR_SLASH:		/* '/' */
+			if (flags & ABC_F_GRACE)
+				goto bad_char;
 			q = p;
 			while (*q == '/')
 				q++;
@@ -2238,32 +2243,30 @@ again:					/* for history */
 			p = q;
 			break;
 		case CHAR_BSLASH:		/* '\\' */
-/*fixme: KO if in grace note sequence*/
-			if (*p == '\0') {
-				s = abc_new(t, 0, 0);	/* abc2win EOL */
-				s->type = ABC_T_EOLN;
-				s->u.eoln.type = 1;
-				return 0;
-			}
+			if (*p == '\0')
+				break;
 			syntax("'\\' ignored", p - 1);
 			break;
 		case CHAR_OBRA:			/* '[' */
 			if (*p == '|' || *p == ']'
 			    || isdigit((unsigned) *p) || *p == '"') {
+				if (flags & ABC_F_GRACE)
+					goto bad_char;
 				p = parse_bar(t, p);
 				break;
 			}
 			if (p[1] != ':') {
-				p = parse_note(t, p - 1);	/* chord */
-				if (sappo) {
-					t->last_sym->flags |= ABC_F_SAPPO;
-					sappo = 0;
-				}
+				p = parse_note(t, p - 1, flags); /* chord */
+				flags &= ABC_F_GRACE;
+				t->last_sym->u.note.slur_st = slur;
+				slur = 0;
 				curvoice->last_note = t->last_sym;
 				break;
 			}
 
 			/* embedded header */
+			if (flags & ABC_F_GRACE)
+				goto bad_char;
 			c = ']';
 			q = p;
 			while (*p != '\0' && *p != c)
@@ -2280,6 +2283,8 @@ again:					/* for history */
 				p++;
 			break;
 		case CHAR_BAR:			/* '|', ':' or ']' */
+			if (flags & ABC_F_GRACE)
+				goto bad_char;
 			p = parse_bar(t, p);
 			break;
 		case CHAR_OPAR:			/* '(' */
@@ -2323,11 +2328,12 @@ again:					/* for history */
 				s->u.tuplet.p_plet = pplet;
 				s->u.tuplet.q_plet = qplet;
 				s->u.tuplet.r_plet = rplet;
-				if (char_tb['{'] == CHAR_BAD)
-					s->flags |= ABC_F_GRACE;
+				s->flags |= flags;
 				break;
 			}
 			if (*p == '&') {
+				if (flags & ABC_F_GRACE)
+					goto bad_char;
 				p++;
 				if (vover != 0) {
 					syntax("Nested voice overlay", p - 1);
@@ -2340,18 +2346,18 @@ again:					/* for history */
 				vover = -1;		/* multi-bars */
 				break;
 			}
-			curvoice->slur <<= 2;
+			slur <<= 2;
 			switch (*p) {
 			case '\'':
-				curvoice->slur += SL_ABOVE;
+				slur += SL_ABOVE;
 				p++;
 				break;
 			case ',':
-				curvoice->slur += SL_BELOW;
+				slur += SL_BELOW;
 				p++;
 				break;
 			default:
-				curvoice->slur += SL_AUTO;
+				slur += SL_AUTO;
 				break;
 			}
 			break;
@@ -2366,6 +2372,8 @@ again:					/* for history */
 			t->last_sym->u.note.slur_end++;
 			break;
 		case CHAR_VOV:			/* '&' */
+			if (flags & ABC_F_GRACE)
+				goto bad_char;
 			if (*p != ')'
 			    || vover == 0) {		/*??*/
 				if (curvoice->last_note == 0) {
@@ -2391,7 +2399,7 @@ again:					/* for history */
 			curvoice = &voice_tb[curvoice->mvoice];
 			break;
 		case CHAR_SPAC:			/* ' ' and '\t' */
-			t->last_sym->flags |= ABC_F_WORD_END;
+			flags |= ABC_F_SPACE;
 			break;
 		case CHAR_MINUS: {		/* '-' */
 			int tie_pos;
@@ -2416,9 +2424,9 @@ again:					/* for history */
 				if (curvoice->last_note->u.note.ti1[i] == 0)
 					curvoice->last_note->u.note.ti1[i] = tie_pos;
 			}
-			if (curvoice->dotted_tie) {
+			if (flags & ABC_F_DOTTED_TIE) {
 				curvoice->last_note->flags |= ABC_F_DOTTED_TIE;
-				curvoice->dotted_tie = 0;
+				flags &= ~ABC_F_DOTTED_TIE;
 			}
 			break;
 		    }
@@ -2443,19 +2451,20 @@ again:					/* for history */
 			break;
 		default:
 		bad_char:
-			syntax("Bad character", p - 1);
+			syntax((flags & ABC_F_GRACE)
+					? "Bad character in grace note sequence"
+					: "Bad character",
+				p - 1);
 			break;
 		}
 	}
 
 /*fixme: may we have grace notes across lines?*/
-	if (char_tb['{'] == CHAR_BAD) {
-		syntax("No end of grace note sequence", 0);
-		char_tb['{'] = CHAR_GRACE;
-		char_tb['}'] = CHAR_BAD;
+	if (flags & ABC_F_GRACE) {
+		syntax("EOLN in grace note sequence", p - 1);
 		if (curvoice->last_note != 0)
-			curvoice->last_note->flags |=
-				(ABC_F_WORD_END | ABC_F_GR_END | ABC_F_ERROR);
+			curvoice->last_note->flags
+				|= (ABC_F_GR_END | ABC_F_ERROR);
 		curvoice->last_note = last_note_sav;
 		memcpy(&dc, &dc_sav, sizeof dc);
 	}
@@ -2463,22 +2472,26 @@ again:					/* for history */
 	/* add eoln */
 	s = abc_new(t, 0, 0);
 	s->type = ABC_T_EOLN;
-/*	s->as.u.eoln = 0; */
+	if (flags & ABC_F_SPACE)
+		s->flags |= ABC_F_SPACE;
+	if (p[-1] == '\\')
+		s->u.eoln.type = 1;
+/*	else	s->u.eoln.type = 0; */
 	return 0;
 }
 
 /* -- parse a note or a rest -- */
 static char *parse_note(struct abctune *t,
-			char *p)
+			char *p,
+			int flags)
 {
 	struct abcsym *s;
 	char *q;
 	int pit, len, acc, nostem, chord, j, m;
 
-	if (char_tb['{'] == CHAR_BAD) {	/* in a grace note sequence */
+	if (flags & ABC_F_GRACE)	/* in a grace note sequence */
 		s = abc_new(t, 0, 0);
-		s->flags |= ABC_F_GRACE;
-	} else {
+	else {
 		s = abc_new(t, gchord, 0);
 		if (gchord) {
 			if (free_f)
@@ -2487,8 +2500,9 @@ static char *parse_note(struct abctune *t,
 		}
 	}
 	s->type = ABC_T_NOTE;
+	s->flags |= flags;
 
-	if (*p != 'Z' && !lyric_started && !(s->flags & ABC_F_GRACE)) {
+	if (*p != 'Z' && !lyric_started && !(flags & ABC_F_GRACE)) {
 		lyric_started = 1;
 		s->flags |= ABC_F_LYRIC_START;
 		deco_start = s;
@@ -2515,7 +2529,7 @@ static char *parse_note(struct abctune *t,
 			s->u.note.lens[1] = strtol(p, &q, 10);
 			p = q;
 		} else	s->u.note.lens[1] = -1;
-		goto add_slurs;
+		goto add_deco;
 	case 'x':			/* invisible rest */
 		s->flags |= ABC_F_INVIS;
 		/* fall thru */
@@ -2580,7 +2594,7 @@ static char *parse_note(struct abctune *t,
 				p++;
 		} else {
 			p = parse_basic_note(p, &pit, &len, &acc, &tmp);
-			if (s->flags & ABC_F_GRACE) {
+			if (flags & ABC_F_GRACE) {
 				len = len * BASE_LEN / 4 / ulen;
 				tmp = 0;
 			}
@@ -2661,13 +2675,6 @@ do_brhythm:
 	    && curvoice->last_note->u.note.brhythm != 0)
 		broken_rhythm(&s->u.note,
 			      -curvoice->last_note->u.note.brhythm);
-add_slurs:
-	s->u.note.slur_st = curvoice->slur;
-	curvoice->slur = 0;
-	if (curvoice->dotted_slur) {
-		s->flags |= ABC_F_DOTTED_SLUR;
-		curvoice->dotted_slur = 0;
-	}
 add_deco:
 	if (dc.n > 0) {
 		memcpy(s->type != ABC_T_MREST ? &s->u.note.dc
