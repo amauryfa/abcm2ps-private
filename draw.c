@@ -1186,8 +1186,10 @@ static void draw_gracenotes(struct SYMBOL *s)
 	    || s->next->as.type != ABC_T_NOTE)
 		return;
 	last = g;
-	yy = g->y;
+	yy = 127;
 	for (g = s->extra; g != 0; g = g->next) {
+		if (g->type != NOTEREST)
+			continue;
 		if (g->y < yy) {
 			yy = g->y;
 			last = g;

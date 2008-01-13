@@ -224,6 +224,23 @@ static void link_all(void)
 		}
 		fl = wmin;	/* start a new sequence if some space */
 	}
+
+	/* if no bar or format_change at end of tune, add a dummy symbol */
+	if (prev != 0 && prev->type != BAR && prev->type != FMTCHG) {
+		s = info['T' - 'A'];
+		prev->ts_next = s;
+		s->ts_prev = prev;
+		s->type = FMTCHG;
+		s->u = -1;
+		s->sflags = S_SEQST;
+		s->time = prev->time + prev->dur;
+		for (;;) {
+			prev->sflags &= ~S_EOLN;
+			if (prev->sflags & S_SEQST)
+				break;
+			prev = prev->ts_prev;
+		}
+	}
 }
 
 /* -- move the symbols with no space to the next sysmbol -- */
@@ -1419,6 +1436,10 @@ void do_tune(struct abctune *t,
 			break;
 		case ABC_T_NOTE:
 		case ABC_T_REST:
+			if (curvoice->space) {
+				curvoice->space = 0;
+				s->as.flags |= ABC_F_SPACE;
+			}
 			get_note(s);
 			break;
 		case ABC_T_BAR:
@@ -1430,9 +1451,8 @@ void do_tune(struct abctune *t,
 			get_clef(s);
 			break;
 		case ABC_T_EOLN:
-			if ((as->flags & ABC_F_SPACE)
-			    && curvoice->last_sym != 0)
-				curvoice->last_sym->as.flags |= ABC_F_SPACE;
+			if (cfmt.breakoneoln)
+				curvoice->space = 1;
 			if (curvoice->second)
 				continue;
 			if (cfmt.continueall || cfmt.barsperstaff
@@ -1972,7 +1992,8 @@ static void ps_def(struct SYMBOL *s,
 			s->sflags |= S_EOLN;
 			s->prev->sflags &= ~S_EOLN;
 		}
-		s->as.state = s->as.prev->state;
+		if (s->as.prev != 0)
+			s->as.state = s->as.prev->state;
 		return;
 	}
 	if (file_initialized) {
@@ -1989,7 +2010,8 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	float h1;
 	struct SYMBOL *s = (struct SYMBOL *) as;
 
-	as->state = as->prev->state;
+	if (as->prev != 0)
+		as->state = as->prev->state;
 	p = as->text + 2;		/* skip '%%' */
 	while (isspace((unsigned char) *p))
 		p++;

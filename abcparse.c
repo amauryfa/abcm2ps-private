@@ -1,7 +1,7 @@
 /*++
  * Generic ABC parser.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996, 1997  Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -2169,16 +2169,16 @@ again:					/* for history */
 		case CHAR_GR_ST:		/* '{' */
 			if (flags & ABC_F_GRACE)
 				goto bad_char;
-			if (*p == '/') {
-				flags |= ABC_F_SAPPO;
-				p++;
-			}
 			last_note_sav = curvoice->last_note;
 			curvoice->last_note = 0;
 			memcpy(&dc_sav, &dc, sizeof dc);
 			dc.n = dc.h = dc.s = 0;
 			flags_sav = flags;
 			flags = ABC_F_GRACE;
+			if (*p == '/') {
+				flags |= ABC_F_SAPPO;
+				p++;
+			}
 			break;
 		case CHAR_GR_EN:		/* '}' */
 			if (!(flags & ABC_F_GRACE))

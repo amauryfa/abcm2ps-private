@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -2122,6 +2122,8 @@ static void set_pitch(void)
 			break;
 		case GRACE:
 			for (g = s->extra; g != 0; g = g->next) {
+				if (g->type != NOTEREST)
+					continue;
 				delta = staff_clef[g->staff];
 				if (delta != 0) {
 					for (m = g->nhd; m >= 0; m--)
@@ -2793,6 +2795,8 @@ static signed char delpit[4] = {0, -7, -14, 0};
 						if (delta == 0)
 							break;
 						for (g = s->extra; g != 0; g = g->next) {
+							if (g->type != NOTEREST)
+								continue;
 							for (i = g->nhd; i >= 0; i--)
 								g->pits[i] += delta;
 						}
@@ -3411,6 +3415,8 @@ static void set_stems(void)
 				continue;
 			ymin = ymax = 12;
 			for (g = s->extra; g != 0; g = g->next) {
+				if (g->type != NOTEREST)
+					continue;
 				slen = GSTEM;
 				if (g->nflags > 1)
 					slen += 1.2 * (g->nflags - 1);
@@ -3694,6 +3700,7 @@ static void set_piece(void)
 	/* if last music line, nothing more to do */
 	if ((tsnext = s) == 0)
 		return;
+
 	s->sflags &= ~S_NL;
 	s = s->ts_prev;
 	s->ts_next = 0;
@@ -3761,10 +3768,13 @@ static void set_sym_glue(float width)
 			break;
 		s = s->ts_next;
 	}
-	if (s->type == FMTCHG) {	/* if PS sequence at end of line */
+#if 0
+	if (s->type == FMTCHG
+	    && s->u == PSSEQ) {		/* if PS sequence at end of line */
 		s->sflags &= ~S_SEQST;
 		s->shrink = 0;
 	}
+#endif
 
 	/* set max shrink and stretch */
 	if (!cfmt.continueall)
@@ -3793,7 +3803,7 @@ static void set_sym_glue(float width)
 			}
 		}
 	} else {			/* if last music line */
-		if (x - width < 0) {
+		if (x < width) {
 			beta = (width - x) / (xmax - x);	/* stretch */
 			if (!cfmt.stretchlast
 			    && beta >= beta_last) {
@@ -3845,10 +3855,12 @@ static void set_sym_glue(float width)
 		if (tsnext != 0 && tsnext->space * 0.8 > s->wr + 4) {
 			x += tsnext->space * 0.8 * spafac;
 			xmax += tsnext->space * 0.8 * spafac * 1.8;
+#if 0
 		} else {
 /*fixme:should calculate the space according to the last symbol duration */
 			x += (min + 4) * spafac;
 			xmax += (min + 4) * spafac * 1.8;
+#endif
 		}
 	}
 
@@ -3912,7 +3924,8 @@ static void set_sym_glue(float width)
 				continue;
 			x = s->x - s->wl + (cfmt.gracespace >> 16) * 0.1;
 			for (g = s->extra; g != 0; g = g->next)
-				g->x += x;
+				if (g->type == NOTEREST)
+					g->x += x;
 		}
 	}
 }

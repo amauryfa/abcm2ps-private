@@ -224,7 +224,7 @@ struct FORMAT { 		/* struct for page layout */
 	float indent, infospace, slurheight, notespacingfactor;
 	float maxstaffsep, maxsysstaffsep, stemheight;
 	int abc2pscompat, alignbars, aligncomposer, autoclef;
-	int barsperstaff, breathlow, bstemdown, comball;
+	int barsperstaff, breakoneoln, bstemdown, comball;
 	int combinevoices, contbarnb, continueall, dynalign;
 	int encoding, exprabove, exprbelow, flatbeams, freegchord;
 	int infoline, gchordbox, graceslurs, gracespace, hyphencont;
@@ -342,11 +342,12 @@ struct VOICE_S {
 	unsigned ignore:1;	/* ignore this voice */
 	unsigned forced_clef:1;	/* explicit clef */
 	unsigned second:1;	/* secondary voice in a brace/parenthesis */
-	unsigned floating:1;	/* floating voice in a brace */
+	unsigned floating:1;	/* floating voice in a brace system */
 	unsigned bar_repeat:1;	/* bar at start of staff is a repeat bar */
 	unsigned norepbra:1;	/* don't display the repeat brackets */
 	unsigned have_ly:1;	/* some lyrics in this voice */
 	unsigned new_name:1;	/* redisplay the voice name */
+	unsigned space:1;	/* have a space before the next note (parsing) */
 	short wmeasure;		/* measure duration while parsing */
 	short bar_start;	/* bar type at start of staff / 0 */
 	signed char clone;	/* duplicate from this voice number */

@@ -60,6 +60,7 @@ static struct format {
 	{"annotationfont", &cfmt.font_tb[ANNOTATIONFONT], FORMAT_F, 0},
 	{"barsperstaff", &cfmt.barsperstaff, FORMAT_I, 0},
 	{"botmargin", &cfmt.botmargin, FORMAT_U, 0},
+	{"breakoneoln", &cfmt.breakoneoln, FORMAT_B, 0},
 	{"bstemdown", &cfmt.bstemdown, FORMAT_B, 0},
 	{"combinevoices", &cfmt.combinevoices, FORMAT_B, 0},
 	{"comball", &cfmt.comball, FORMAT_B, 0},
@@ -390,6 +391,7 @@ void set_format(void)
 	f->measurenb = -1;
 	f->measurefirst = 1;
 	f->autoclef = 1;
+	f->breakoneoln = 1;
 	f->dynalign = 1;
 	f->printparts = 1;
 	f->printtempo = 1;

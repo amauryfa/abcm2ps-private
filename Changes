@@ -1,3 +1,12 @@
+---- Version 5.7.3 - 08/01/14 ----
+
+Break the beams on end of line per default.
+%%breakoneoln added.
+Loss of acciaccatura since 5.7.1.
+Bad slur on grace note at start of line and tempo since 5.7.0.
+More space at end of line when no measure bar.
+Crash when pseudo-comment at start of file since 5.7.2.
+
 ---- Version 5.7.2 - 08/01/08 ----
 
 Bad PostScript output when %%postscript or %%beginps inside a tune

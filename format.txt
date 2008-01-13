@@ -91,6 +91,16 @@ List of the format parameters
 	Description:
 		Try to typeset with <int> bars on each line.
 
+ breakoneoln <bool>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		When set, on finding an end of line (eoln), do as if
+		a space was set before the next note or rest.
+		This prevents a beam to be continued between two
+		music lines.
+
   beginps
 	Default: none
 	Compilation: none
