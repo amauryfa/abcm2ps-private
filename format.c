@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -617,6 +617,145 @@ static void g_fspc(char *p,
 		outft = -1;
 }
 
+/* -- parse a 'tablature' definition -- */
+/* %%tablature
+ *	[#<nunmber (1..MAXTBLT)>]
+ *	[pitch=<instrument pitch (<note> # | b)>]
+ *	[[<head width>]
+ *	 <height above>]
+ *	<height under>
+ *	<head function>
+ *	<note function>
+ *	[<bar function>]
+ */
+struct tblt_s *tblt_parse(char *p)
+{
+	struct tblt_s *tblt;
+	int n;
+	char *q;
+	static char notes_tb[14] = "CDEFGABcdefgab";
+	static char pitch_tb[14] = {60, 62, 64, 65, 67, 69, 71,
+				    72, 74, 76, 77, 79, 81, 83};
+
+	/* number */
+	if (*p == '#') {
+		p++;
+		n = *p++ - '0' - 1;
+		if ((unsigned) n >= MAXTBLT
+		    || (*p != '\0' && *p != ' ')) {
+			error(1, 0, "Invalid number in %%%%tablature");
+			return 0;
+		}
+		if (*p == '\0')
+			return tblts[n];
+		while (isspace((unsigned char) *p))
+			p++;
+	} else	n = -1;
+
+	/* pitch */
+	tblt = malloc(sizeof *tblt);
+	memset(tblt, 0, sizeof *tblt);
+	if (strncmp(p, "pitch=", 6) == 0) {
+		p += 6;
+		if (*p == '^' || *p == '_') {
+			if (*p == '^') {
+				tblt->pitch++;
+				tblt->instr[1] = '#';
+			} else {
+				tblt->pitch--;
+				tblt->instr[1] = 'b';
+			}
+			p++;
+		}
+		if (*p == '\0' || (q = strchr(notes_tb, *p)) == 0) {
+			error(1, 0, "Invalid pitch in %%%%tablature");
+			return 0;
+		}
+		tblt->pitch += pitch_tb[q - notes_tb];
+		tblt->instr[0] = toupper(*p++);
+		while (*p == '\'' || *p == ',') {
+			if (*p++ == '\'')
+				tblt->pitch += 12;
+			else	tblt->pitch -= 12;
+		}
+		if (*p == '#' || *p == 'b') {
+			if (*p == '#')
+				tblt->pitch++;
+			else	tblt->pitch--;
+			tblt->instr[1] = *p++;
+		}
+		while (*p == '\'' || *p == ',') {
+			if (*p++ == '\'')
+				tblt->pitch += 12;
+			else	tblt->pitch -= 12;
+		}
+		while (isspace((unsigned char) *p))
+			p++;
+	}
+
+	/* width and heights */
+	if (!isdigit(*p)) {
+		error(1, 0, "Invalid width/height in %%%%tablature");
+		return 0;
+	}
+	tblt->hu = scan_u(p);
+	while (*p != '\0' && !isspace((unsigned char) *p))
+		p++;
+	while (isspace((unsigned char) *p))
+		p++;
+	if (isdigit(*p)) {
+		tblt->ha = tblt->hu;
+		tblt->hu = scan_u(p);
+		while (*p != '\0' && !isspace((unsigned char) *p))
+			p++;
+		while (isspace((unsigned char) *p))
+			p++;
+		if (isdigit(*p)) {
+			tblt->wh = tblt->ha;
+			tblt->ha = tblt->hu;
+			tblt->hu = scan_u(p);
+			while (*p != '\0' && !isspace((unsigned char) *p))
+				p++;
+			while (isspace((unsigned char) *p))
+				p++;
+		}
+	}
+	if (*p == '\0')
+		goto err;
+
+	/* PS functions */
+	p = strdup(p);
+	tblt->head = p;
+	while (*p != '\0' && !isspace((unsigned char) *p))
+		p++;
+	if (*p == '\0')
+		goto err;
+	*p++ = '\0';
+	while (isspace((unsigned char) *p))
+		p++;
+	tblt->note = p;
+	while (*p != '\0' && !isspace((unsigned char) *p))
+		p++;
+	if (*p != '\0') {
+		*p++ = '\0';
+		while (isspace((unsigned char) *p))
+			p++;
+		tblt->bar = p;
+		while (*p != '\0' && !isspace((unsigned char) *p))
+			p++;
+		if (*p != '\0')
+			goto err;
+	}
+
+	/* memorize the definition */
+	if (n >= 0)
+		tblts[n] = tblt;
+	return tblt;
+err:
+	error(1, 0, "Wrong values in %%%%tablature");
+	return 0;
+}
+
 /* -- parse a format line -- */
 void interpret_fmt_line(char *w,		/* keyword */
 			char *p,		/* argument */
@@ -672,6 +811,13 @@ void interpret_fmt_line(char *w,		/* keyword */
 				user_ps_add(p);
 			return;
 		}
+		break;
+	case 't':
+		if (strcmp(w, "tablature") == 0) {
+			tblt_parse(p);
+			return;
+		}
+		break;
 	}
 	for (fd = format_tb; fd->name; fd++)
 		if (strcmp(w, fd->name) == 0)

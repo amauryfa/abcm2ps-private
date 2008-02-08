@@ -1069,10 +1069,8 @@ static char *rest_tb[NFLAGS_SZ] = {
 	if (i == 7 && y == 12
 	    && staff_tb[s->staff].clef.stafflines <= 2)
 		y -= 6;				/* semibreve a bit lower */
-	putxy(x, y + staffb);
-	PUT1("%s ", rest_tb[i]);
 
-	/* add helper line(s) when greater than minim */
+	/* output ledger line(s) when greater than minim */
 	if (i >= 6) {
 		int yb, yt;
 
@@ -1101,30 +1099,33 @@ static char *rest_tb[NFLAGS_SZ] = {
 		switch (i) {
 		case 6:					/* minim */
 			if (y <= yb || y >= yt) {
-				puty(y + staffb);
+				putxy(x, y + staffb);
 				PUT0("hl ");
 			}
 			break;
 		case 7:					/* semibreve */
 			if (y < yb || y >= yt - 6) {
-				puty(y + 6 + staffb);
+				putxy(x, y + 6 + staffb);
 				PUT0("hl ");
 			}
 			break;
 		default:
 			if (y < yb || y >= yt - 6) {
-				puty(y + 6 + staffb);
+				putxy(x,y + 6 + staffb);
 				PUT0("hl ");
 			}
 			if (i == 9)			/* longa */
 				y -= 6;
 			if (y <= yb || y >= yt) {
-				puty(y + staffb);
+				putxy(x, y + staffb);
 				PUT0("hl ");
 			}
 			break;
 		}
 	}
+
+	putxy(x, y + staffb);				/* rest */
+	PUT1("%s ", rest_tb[i]);
 
 	dotx = 8;
 	for (i = 0; i < s->dots; i++) {
@@ -1325,6 +1326,26 @@ static void draw_basic_note(float x,
 	identify_note(s, s->as.u.note.lens[m],
 		      &head, &dots, &nflags);
 
+	/* output a ledger line if horizontal shift */
+	if (s->shhd[m]) {
+		int yy;
+
+		yy = 0;
+		if (y >= 30) {
+			yy = y;
+			if (yy % 6)
+				yy -= 3;
+		} else if (y <= -6) {
+			yy = y;
+			if (yy % 6)
+				yy += 3;
+		}
+		if (yy) {
+			putxy(x + shhd, yy + staffb);
+			PUT0("hl ");
+		}
+	}
+
 	/* draw the head */
 	putxy(x + shhd, y + staffb);
 	if (no_head)
@@ -1360,27 +1381,6 @@ static void draw_basic_note(float x,
 		}
 	}
 	PUT0(p);
-
-	/* add a helper line if horizontal shift */
-	if (s->shhd[m]) {
-		int yy;
-
-		yy = 0;
-		if (y >= 30) {
-			yy = y;
-			if (yy % 6)
-				yy -= 3;
-		} else if (y <= -6) {
-			yy = y;
-			if (yy % 6)
-				yy += 3;
-		}
-		if (yy) {
-			PUT0(" ");
-			puty(yy + staffb);
-			PUT0("hl");
-		}
-	}
 
 	/* draw the dots */
 /*fixme: to see for grace notes*/
@@ -1421,16 +1421,60 @@ static void draw_note(float x,
 
 	if (s->dots)
 		setdoty(s, y_tb);
+	if (s->head >= H_OVAL)
+		x += 1;
+	staffb = staff_tb[s->staff].y;
+
+	/* output the ledger lines */
+	if (!(s->as.flags & ABC_F_INVIS)) {
+		if (s->as.flags & ABC_F_GRACE)
+			hltype = "ghl";
+		else {
+			switch (s->head) {
+			default:
+				hltype = "hl";
+				break;
+			case H_OVAL:
+				hltype = "hl1";
+				break;
+			case H_SQUARE:
+				hltype = "hl2";
+				break;
+			}
+		}
+		y = 3 * (s->pits[0] - 18);	/* lower ledger lines */
+		i = -6;
+		switch (staff_tb[s->staff].clef.stafflines) {
+		case 0:
+		case 1: i = 6; break;
+		case 2:
+		case 3: i = 0; break;
+		}
+		for ( ; i >= y; i -= 6) {
+			putxy(x, i + staffb);
+			PUT1("%s ", hltype);
+		}
+		y = 3 * (s->pits[s->nhd] - 18);	/* upper ledger lines */
+		switch (staff_tb[s->staff].clef.stafflines) {
+		case 0:
+		case 1:
+		case 2: i = 18; break;
+		case 3: i = 24; break;
+		default: i = staff_tb[s->staff].clef.stafflines * 6; break;
+		}
+		for ( ; i <= y; i += 6) {
+			putxy(x, i + staffb);
+			PUT1("%s ", hltype);
+		}
+	}
 
 	/* draw the master note, first or last one */
 	if (cfmt.setdefl)
 		set_defl(s->stem >= 0 ? DEF_STEMUP : 0);
 	ma = s->stem >= 0 ? 0 : s->nhd;
-	if (s->head >= H_OVAL)
-		x += 1;
+
 	draw_basic_note(x, s, ma, y_tb);
 
-	staffb = staff_tb[s->staff].y;
 	if (!(s->as.flags & (ABC_F_INVIS | ABC_F_STEMLESS))) {	/* add stem and flags */
 		char c, c2;
 
@@ -1460,50 +1504,6 @@ static void draw_note(float x,
 		slen = s2->y + staff_tb[s2->staff].y - s->y - staffb;
 		slen /= voice_tb[s->voice].scale;
 		PUT1(" %.1f su", slen);
-	}
-
-	if (!(s->as.flags & ABC_F_INVIS)) {
-		if (s->as.flags & ABC_F_GRACE)
-			hltype = "ghl";
-		else {
-			switch (s->head) {
-			default:
-				hltype = "hl";
-				break;
-			case H_OVAL:
-				hltype = "hl1";
-				break;
-			case H_SQUARE:
-				hltype = "hl2";
-				break;
-			}
-		}
-		y = 3 * (s->pits[0] - 18);	/* lower helper lines */
-		i = -6;
-		switch (staff_tb[s->staff].clef.stafflines) {
-		case 0:
-		case 1: i = 6; break;
-		case 2:
-		case 3: i = 0; break;
-		}
-		for ( ; i >= y; i -= 6) {
-			PUT0(" ");
-			puty(i + staffb);
-			PUT1("%s", hltype);
-		}
-		y = 3 * (s->pits[s->nhd] - 18);	/* upper helper lines */
-		switch (staff_tb[s->staff].clef.stafflines) {
-		case 0:
-		case 1:
-		case 2: i = 18; break;
-		case 3: i = 24; break;
-		default: i = staff_tb[s->staff].clef.stafflines * 6; break;
-		}
-		for ( ; i <= y; i += 6) {
-			PUT0(" ");
-			puty(i + staffb);
-			PUT1("%s", hltype);
-		}
 	}
 
 	/* draw the other notes */
@@ -2969,12 +2969,153 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 	}
 }
 
+/* -- work out accidentals to be applied to each note -- */
+static void setmap(int sf,	/* number of sharps/flats in key sig (-7 to +7) */
+		   unsigned char *map)	/* for 7 notes only */
+{
+	int j;
+
+	for (j = 7; --j >= 0; )
+		map[j] = A_NULL;
+	switch (sf) {
+	case 7: map[6] = A_SH;
+	case 6: map[2] = A_SH;
+	case 5: map[5] = A_SH;
+	case 4: map[1] = A_SH;
+	case 3: map[4] = A_SH;
+	case 2: map[0] = A_SH;
+	case 1: map[3] = A_SH;
+		break;
+	case -7: map[3] = A_FT;
+	case -6: map[0] = A_FT;
+	case -5: map[4] = A_FT;
+	case -4: map[1] = A_FT;
+	case -3: map[5] = A_FT;
+	case -2: map[2] = A_FT;
+	case -1: map[6] = A_FT;
+		break;
+	}
+}
+
+/* -- draw the tablature with w: -- */
+static void draw_tblt_w(struct VOICE_S *p_voice,
+			int nly,
+			float y,
+			struct tblt_s *tblt)
+{
+	struct SYMBOL *s;
+	struct lyrics *ly;
+	struct lyl *lyl;
+	char *p;
+	int j, l;
+
+	PUT2("/y{%.1f y%d}def ", y, p_voice->staff);
+	set_font(VOCALFONT);
+	PUT3("%.1f 0 y %d %s\n", realwidth, nly, tblt->head);
+	for (j = 0; j < nly ; j++) {
+		for (s = p_voice->sym->next; s != 0; s = s->next) {
+			if ((ly = s->ly) == 0
+			    || (lyl = ly->lyl[j]) == 0) {
+				if (s->type == BAR) {
+					if (tblt->bar == 0)
+						continue;
+					p = &tex_buf[16];
+					*p-- = '\0';
+					l = bar_cnv(s->as.u.bar.type);
+					while (l != 0) {
+						*p-- = "?|[]:???"[l & 0x07];
+						l >>= 4;
+					}
+					p++;
+					PUT4("(%s)%.1f y %d %s ",
+						p, s->x, j,
+						tblt->bar);
+				}
+				continue;
+			}
+			PUT4("(%s)%.1f y %d %s ",
+				lyl->t, s->x, j, tblt->note);
+		}
+		PUT0("\n");
+	}
+}
+
+/* -- draw the tablature with automatic pitch -- */
+static void draw_tblt_p(struct VOICE_S *p_voice,
+			float y,
+			struct tblt_s *tblt)
+{
+	struct SYMBOL *s;
+	int j, pitch, octave, sf, tied;
+	unsigned char workmap[70];	/* sharps/flats - base: lowest 'C' */
+	unsigned char basemap[7];
+	static int scale[7] = {0, 2, 4, 5, 7, 9, 11};	/* index = natural note */
+	static int acc_pitch[6] = {0, 1, 0, -1, 2, -2};	/* index = enum accidentals */
+
+	sf = p_voice->key.sf;
+	setmap(sf, basemap);
+	for (j = 0; j < 10; j++)
+		memcpy(&workmap[7 * j], basemap, 7);
+	PUT4("gsave 0 %.1f y%d T(%.2s)%s\n",
+		y, p_voice->staff,
+		tblt->instr, tblt->head);
+	tied = 0;
+	for (s = p_voice->sym; s != 0; s = s->next) {
+		switch (s->type) {
+		case NOTEREST:
+			if (s->as.type == ABC_T_REST)
+				continue;
+			if (tied) {
+				tied = s->as.u.note.ti1[0];
+				continue;
+			}
+			break;
+		case KEYSIG:
+			sf = s->as.u.key.sf;
+			setmap(sf, basemap);
+			for (j = 0; j < 10; j++)
+				memcpy(&workmap[7 * j], basemap, 7);
+			continue;
+		case BAR:
+			if (s->as.flags & ABC_F_INVIS)
+				continue;
+			for (j = 0; j < 10; j++)
+				memcpy(&workmap[7 * j], basemap, 7);
+			continue;
+		default:
+			continue;
+		}
+		pitch = s->as.u.note.pits[0] + 19;
+		if (s->as.u.note.accs[0] != 0) {
+			workmap[pitch] = s->as.u.note.accs[0] == A_NT
+				? A_NULL
+				: (s->as.u.note.accs[0] % 0x07);
+		}
+		pitch = scale[pitch % 7]
+			+ acc_pitch[workmap[pitch]]
+			+ 12 * (pitch / 7)
+			- tblt->pitch;
+		octave = 0;
+		while (pitch < 0) {
+			pitch += 12;
+			octave--;
+		}
+		while (pitch >= 36) {
+			pitch -= 12;
+			octave++;
+		}
+		PUT4("%d %d %.2f %s\n", octave, pitch, s->x, tblt->note);
+		tied = s->as.u.note.ti1[0];
+	}
+	PUT0("grestore\n");
+}
+
 /* -- draw the lyrics under (or above) notes -- */
 /* !! this routine is tied to set_width() !! */
 static float draw_lyrics(struct VOICE_S *p_voice,
 			 int nly,
 			 float y,
-			 int incr)
+			 int incr)	/* 1: below, -1: above */
 {
 	int hyflag, l, j, lflag;
 	char *p;
@@ -2984,46 +3125,19 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 	struct lyrics *ly;
 	struct lyl *lyl;
 
-	/* treat the tablature */
-	outft = -1;				/* force font output */
-	if (p_voice->tabhead != 0) {
-		if (incr > 0)
-			y -= p_voice->tabhu;
-		PUT2("/y{%.1f y%d}def ", y, p_voice->staff);
-		set_font(VOCALFONT);
-		PUT3("%.1f 0 y %d %s\n",
-			realwidth, nly, p_voice->tabhead);
-		for (j = 0; j < nly ; j++) {
-			for (s = p_voice->sym->next; s != 0; s = s->next) {
-				if ((ly = s->ly) == 0
-				    || (lyl = ly->lyl[j]) == 0) {
-					if (s->type == BAR) {
-						p = &tex_buf[16];
-						*p-- = '\0';
-						l = bar_cnv(s->as.u.bar.type);
-						while (l != 0) {
-							*p-- = "?|[]:???"[l & 0x07];
-							l >>= 4;
-						}
-						p++;
-						PUT4("(%s)%.1f y %d %s ",
-							p, s->x, j, p_voice->tabbar);
-					}
-					continue;
-				}
-				PUT4("(%s)%.1f y %d %s ",
-					lyl->t, s->x, j, p_voice->tabnote);
-			}
-			PUT0("\n");
-		}
-		if (incr > 0)
-			return y;
-		return y + p_voice->tabhu;
+	/* check if the lyrics contain tablatures */
+	if (p_voice->tblts[0] != 0) {
+		if (p_voice->tblts[0]->pitch == 0)
+			return y;		/* yes */
+		if (p_voice->tblts[1] != 0
+		    && p_voice->tblts[1]->pitch == 0)
+			return y;		/* yes */
 	}
 
-	lskip = 0;			/* (compiler warning) */
-	f = 0;				/* (force new font) */
-	if (incr > 0) {			/* under the staff */
+	outft = -1;				/* force font output */
+	lskip = 0;				/* (compiler warning) */
+	f = 0;					/* (force new font) */
+	if (incr > 0) {				/* under the staff */
 		j = 0;
 /*fixme: may not be the current font*/
 		y -= cfmt.font_tb[VOCALFONT].size;
@@ -3155,7 +3269,7 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 	return y;
 }
 
-/* -- draw all the lyrics -- */
+/* -- draw all the lyrics and the tablatures -- */
 /* (the staves are not yet defined) */
 static void draw_all_lyrics(void)
 {
@@ -3169,11 +3283,12 @@ static void draw_all_lyrics(void)
 	char nly_tb[MAXVOICE];
 	char above_tb[MAXVOICE];
 	char rv_tb[MAXVOICE];
-	float top, bot;
+	float top, bot, y;
 
 	/* check if any lyric */
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
-		if (p_voice->have_ly)
+		if (p_voice->have_ly
+		    || p_voice->tblts[0] != 0)
 			break;
 	}
 	if (p_voice == 0)
@@ -3194,30 +3309,39 @@ static void draw_all_lyrics(void)
 			staff = p_voice->staff;
 		}
 		nly = 0;
-		for (s = p_voice->sym; s != 0; s = s->next) {
-			struct lyrics *ly;
-			float x, y, w;
+		if (p_voice->have_ly) {
+			for (s = p_voice->sym; s != 0; s = s->next) {
+				struct lyrics *ly;
+				float x, w;
 
-			if ((ly = s->ly) == 0)
-				continue;
+				if ((ly = s->ly) == 0)
+					continue;
 /*fixme:should get the real width*/
-			x = s->x;
-			if (ly->lyl[0] != 0) {
-				x -= ly->lyl[0]->s;
-				w = ly->lyl[0]->w;
-			} else	w = 10;
-			y = y_get(s, 1, x, w, 0);
+				x = s->x;
+				if (ly->lyl[0] != 0) {
+					x -= ly->lyl[0]->s;
+					w = ly->lyl[0]->w;
+				} else	w = 10;
+				y = y_get(s, 1, x, w, 0);
+				if (top < y)
+					top = y;
+				y = y_get(s, 0, x, w, 0);
+				if (bot > y)
+					bot = y;
+				for (i = MAXLY; --i >= 0; )
+					if (ly->lyl[i] != 0)
+						break;
+				i++;
+				if (i > nly)
+					nly = i;
+			}
+		} else {
+			y = y_get(p_voice->sym, 1, 0, realwidth, 0);
 			if (top < y)
 				top = y;
-			y = y_get(s, 0, x, w, 0);
+			y = y_get(p_voice->sym, 0, 0, realwidth, 0);
 			if (bot > y)
 				bot = y;
-			for (i = MAXLY; --i >= 0; )
-				if (ly->lyl[i] != 0)
-					break;
-			i++;
-			if (i > nly)
-				nly = i;
 		}
 		lyst_tb[staff].top = top;
 		lyst_tb[staff].bot = bot;
@@ -3240,7 +3364,12 @@ static void draw_all_lyrics(void)
 	/* draw the lyrics under the staves */
 	i = 0;
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
-		if (!p_voice->have_ly || p_voice->sym == 0)
+		struct tblt_s *tblt;
+
+		if (p_voice->sym == 0)
+			continue;
+		if (!p_voice->have_ly
+		    && p_voice->tblts[0] == 0)
 			continue;
 		voice = p_voice - voice_tb;
 		if (above_tb[voice]) {
@@ -3248,11 +3377,25 @@ static void draw_all_lyrics(void)
 			continue;
 		}
 		staff = p_voice->staff;
-		lyst_tb[staff].bot = draw_lyrics(p_voice, nly_tb[voice],
-						 lyst_tb[staff].bot, 1);
-		if (p_voice->tabhead != 0 && p_voice->tabha != 0) {
-			lyst_tb[staff].top += p_voice->tabha;
-			lyst_tb[staff].a = 1;
+		if (nly_tb[voice] > 0)
+			lyst_tb[staff].bot = draw_lyrics(p_voice, nly_tb[voice],
+							 lyst_tb[staff].bot, 1);
+		for (nly = 0; nly < 2; nly++) {
+			if ((tblt = p_voice->tblts[nly]) == 0)
+				continue;
+			if (tblt->hu > 0) {
+				lyst_tb[staff].bot -= tblt->hu;
+				lyst_tb[staff].b = 1;
+			}
+			if (tblt->pitch == 0)
+				draw_tblt_w(p_voice, nly_tb[voice],
+					lyst_tb[staff].bot, tblt);
+			else	draw_tblt_p(p_voice, lyst_tb[staff].bot,
+					tblt);
+			if (tblt->ha != 0) {
+				lyst_tb[staff].top += tblt->ha;
+				lyst_tb[staff].a = 1;
+			}
 		}
 	}
 
@@ -3276,17 +3419,21 @@ static void draw_all_lyrics(void)
 /*fixme: may have lyrics crossing a next symbol*/
 				if (s->ly != 0) {
 /*fixme:should set the real width*/
-					y_set(s, 1, s->x, 10, top);
+					y_set(s, 1, s->x - 2, 10, top);
 				}
 			}
 		}
 		if (lyst_tb[staff].b) {
 			bot = lyst_tb[staff].bot - 2;
-			for (s = p_voice->sym->next; s != 0; s = s->next) {
-				if (s->ly != 0) {
+			if (nly_tb[p_voice - voice_tb] > 0) {
+				for (s = p_voice->sym->next; s != 0; s = s->next) {
+					if (s->ly != 0) {
 /*fixme:should set the real width*/
-					y_set(s, 0, s->x, 10, bot);
+						y_set(s, 0, s->x - 2, 10, bot);
+					}
 				}
+			} else {
+				y_set(p_voice->sym, 0, 0, realwidth, bot);
 			}
 		}
 	}
@@ -3639,6 +3786,8 @@ static float set_staff(void)
 	 * and output the scale of the voices */
 	{
 		struct VOICE_S *p_voice;
+		int i;
+		float ha, hu;
 
 		for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 			if (p_voice->scale != 1)
@@ -3647,14 +3796,22 @@ static float set_staff(void)
 			staff = p_voice->staff;
 			if (!staff_tb[staff].empty)
 				continue;
-			if (p_voice->tabhead == 0) {
+			ha = hu = 0;
+			for (i = 0; i < 2; i++) {
+				if (p_voice->tblts[i] != 0
+				    && p_voice->tblts[i]->pitch == 0) {
+					ha += p_voice->tblts[i]->ha;
+					hu += p_voice->tblts[i]->hu;
+				}
+			}
+			if (ha == 0 && hu == 0) {
 				staff_tb[staff].topbar = 0;
 				continue;
 			}
-			delta_tb[staff].mtop += p_voice->tabha;
+			delta_tb[staff].mtop += ha;
 			if (staff < nstaff)
-				delta_tb[staff + 1].mtop += p_voice->tabhu;
-			else	mbot -= p_voice->tabhu;
+				delta_tb[staff + 1].mtop += hu;
+			else	mbot -= hu;
 			delta_tb[staff].not_empty = 1;
 		}
 	}
@@ -4033,34 +4190,6 @@ void draw_all_symb(void)
 	}
 }
 
-/* -- work out accidentals to be applied to each note -- */
-static void setmap(int sf,	/* number of sharps/flats in key sig (-7 to +7) */
-		   unsigned char *map)	/* for 7 notes only */
-{
-	int j;
-
-	for (j = 7; --j >= 0; )
-		map[j] = A_NULL;
-	switch (sf) {
-	case 7: map[6] = A_SH;
-	case 6: map[2] = A_SH;
-	case 5: map[5] = A_SH;
-	case 4: map[1] = A_SH;
-	case 3: map[4] = A_SH;
-	case 2: map[0] = A_SH;
-	case 1: map[3] = A_SH;
-		break;
-	case -7: map[3] = A_FT;
-	case -6: map[0] = A_FT;
-	case -5: map[4] = A_FT;
-	case -4: map[1] = A_FT;
-	case -3: map[5] = A_FT;
-	case -2: map[2] = A_FT;
-	case -1: map[6] = A_FT;
-		break;
-	}
-}
-
 /* -- output a floating value, and x and y according to the current scale -- */
 void putf(float v)
 {
@@ -4310,103 +4439,5 @@ static void set_tie_room(void)
 				y_set(s, 0, s->x + 5, dx, y);
 			}
 		}
-	}
-}
-
-/* -- draw the tin whistle tablature -- */
-void draw_whistle(void)
-{
-	struct VOICE_S *p_voice;
-	struct SYMBOL *s;
-	int i, j, pitch, w_pitch, w_octave, sf, tied;
-	unsigned char workmap[70];	/* sharps/flats - base: lowest 'C' */
-	unsigned char basemap[7];
-	static char pitnam[12 * 2] = "C\0C#D\0EbE\0F\0F#G\0AbA\0BbB\0";
-	static int w_tb[12] = {
-		0x222222, 0x122222, 0x022222, 0x012222, 0x002222, 0x000222,
-		0x000122, 0x000022, 0x000012, 0x000002, 0x000220, 0x000000
-	};
-	static int scale[7] = {0, 2, 4, 5, 7, 9, 11};	/* index = natural note */
-	static int acc_pitch[6] = {0, 1, 0, -1, 2, -2};	/* index = enum accidentals */
-
-	sf = 0;
-	for (i = 0; i < nwhistle; i++) {
-		p_voice = &voice_tb[whistle_tb[i].voice];
-#if 0
-/*fixme:%%staves:find an other way*/
-		if (p_voice != first_voice && p_voice->prev == 0)
-			continue;		/* voice not displayed */
-#endif
-		w_pitch = whistle_tb[i].pitch;
-		PUT1("(%.2s)tw_head\n", &pitnam[(w_pitch % 12) * 2]);
-		tied = 0;
-		for (s = p_voice->sym; s != 0; s = s->next) {
-			switch (s->type) {
-			case NOTEREST:
-				if (s->as.type == ABC_T_REST)
-					continue;
-				if (tied) {
-					tied = s->as.u.note.ti1[0];
-					continue;
-				}
-				break;
-			case KEYSIG:
-				sf = s->as.u.key.sf;
-				setmap(sf, basemap);
-				for (j = 0; j < 10; j++)
-					memcpy(&workmap[7 * j],
-					       basemap, 7);
-				continue;
-			case BAR:
-				if (s->as.flags & ABC_F_INVIS)
-					continue;
-				for (j = 0; j < 10; j++)
-					memcpy(&workmap[7 * j],
-					       basemap, 7);
-				continue;
-			default:
-				continue;
-			}
-			pitch = s->as.u.note.pits[0] + 19;
-			if (s->as.u.note.accs[0] != 0) {
-				workmap[pitch] = s->as.u.note.accs[0] == A_NT
-					? A_NULL
-					: (s->as.u.note.accs[0] % 0x07);
-			}
-			pitch = scale[pitch % 7]
-				+ acc_pitch[workmap[pitch]]
-				+ 12 * (pitch / 7);
-			w_octave = 0;
-			pitch -= w_pitch;
-			while (pitch < 0) {
-				pitch += 12;
-				w_octave--;
-			}
-			while (pitch >= 36) {
-				pitch -= 12;
-				w_octave++;
-			}
-			PUT1("%.2f 0 ", s->x);
-			if (w_octave > 0)
-				PUT0("tw_over ");
-			else if (w_octave < 0)
-				PUT0("tw_under ");
-			w_octave = pitch / 12;
-			if (pitch == 12)
-				pitch = 0x222220;	/* only special case (?) */
-			else	pitch = w_tb[pitch % 12];
-			for (j = 1; j < 7; j++) {
-				PUT1("tw_%d ", pitch & 0x0f);
-				pitch >>= 4;
-			}
-			if (w_octave == 0)
-				PUT0("pop pop");
-			else if (w_octave == 1)
-				PUT0("tw_p");
-			else	PUT0("tw_pp");
-			PUT0("\n");
-			tied = s->as.u.note.ti1[0];
-		}
-		bskip(63.);
 	}
 }

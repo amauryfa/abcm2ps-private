@@ -935,13 +935,128 @@ static float gchord_width(struct SYMBOL *s,
 	return wlw;
 }
 
+/* -- set the width needed by the lyrics -- */
+static float ly_width(struct SYMBOL *s, float wlw)
+{
+	struct SYMBOL *k;
+	struct lyrics *ly = s->ly;
+	struct lyl *lyl;
+	struct tblt_s *tblt;
+	float align, xx, w;
+	int i;
+
+	/* check if the lyrics contain tablature definition */
+	for (i = 0; i < 2; i++) {
+		if ((tblt = voice_tb[s->voice].tblts[i]) == 0)
+			continue;
+		if (tblt->pitch == 0) {		/* yes, no width */
+			for (i = 0; i < MAXLY; i++) {
+				if ((lyl = ly->lyl[i]) == 0)
+					continue;
+				lyl->s = 0;
+			}
+			return wlw;
+		}
+	}
+
+	align = 0;
+	for (i = 0; i < MAXLY; i++) {
+		float swfac, shift;
+		char *p;
+
+		if ((lyl = ly->lyl[i]) == 0)
+			continue;
+		p = lyl->t;
+		w = lyl->w;
+		swfac = lyl->f->swfac;
+		xx = w + 2 * cwid(' ') * swfac;
+		if (isdigit((unsigned char) *p)
+		    || p[1] == ':'
+		    || p[1] == '(' || p[1] == ')') {
+			float sz;
+
+			if (p[1] == '(')
+				sz = cwid((unsigned char) p[1]);
+			else {
+				sz = 0;
+				while (*p != '\0') {
+/*fixme: KO when '\ooo'*/
+					if (*p == '\\') {
+						p++;
+						continue;
+					}
+					sz += cwid((unsigned char) *p);
+					if (*p == ' ')
+						break;
+					p++;
+				}
+			}
+			sz *= swfac;
+			shift = (w - sz + 2 * cwid(' ') * swfac)
+				* VOCPRE;
+			if (shift > 20)
+				shift = 20;
+			shift += sz;
+			if (isdigit((unsigned char) lyl->t[0])) {
+				if (shift > align)
+					align = shift;
+			}
+		} else if (*p == '\x02' || *p == '\x03')
+			shift = 0;
+		else {
+			shift = xx * VOCPRE;
+			if (shift > 20)
+				shift = 20;
+		}
+		lyl->s = shift;
+		AT_LEAST(wlw, shift);
+		xx -= shift;
+		shift = 2 * cwid(' ') * swfac;
+		for (k = s->next; k != 0; k = k -> next) {
+			switch (k->type) {
+			case NOTEREST:
+				if (k->ly == 0
+				    || k->ly->lyl[i] == 0)
+					xx -= 9;
+				else if (k->ly->lyl[i]->t[0] == '\x02'
+					 || k->ly->lyl[i]->t[0] == '\x03')
+					xx -= shift;
+				else	break;
+				if (xx <= 0)
+					break;
+				continue;
+			case CLEF:
+			case TIMESIG:
+			case KEYSIG:
+				xx -= 10;
+				continue;
+			default:
+				xx -= 5;
+				break;
+			}
+			break;
+		}
+		if (xx > s->wr)
+			s->wr = xx;
+		}
+	if (align > 0) {
+		for (i = 0; i < MAXLY; i++) {
+			if ((lyl = ly->lyl[i]) == 0)
+				continue;
+			if (isdigit((unsigned char) lyl->t[0]))
+				lyl->s = align;
+		}
+	}
+	return wlw;
+}
+
 /* -- set the width of a symbol -- */
 /* This routine sets the minimal left and right widths wl,wr
  * so that successive symbols are still separated when
  * no extra glue is put between them */
 static void set_width(struct SYMBOL *s)
 {
-	struct SYMBOL *s2, *k;
+	struct SYMBOL *s2;
 	int i, m;
 	float xx, w, wlnote, wlw;
 
@@ -1073,107 +1188,8 @@ static void set_width(struct SYMBOL *s)
 
 		/* leave room for vocals under note */
 		/* related to draw_lyrics() */
-		if (s->ly) {
-			struct lyrics *ly = s->ly;
-			struct lyl *lyl;
-			float align = 0;
-
-			if (voice_tb[s->voice].tabhead == 0)
-			    for (i = 0; i < MAXLY; i++) {
-				float swfac, shift;
-				char *p;
-
-				if ((lyl = ly->lyl[i]) == 0)
-					continue;
-				p = lyl->t;
-				w = lyl->w;
-				swfac = lyl->f->swfac;
-				xx = w + 2 * cwid(' ') * swfac;
-				if (isdigit((unsigned char) *p)
-				    || p[1] == ':'
-				    || p[1] == '(' || p[1] == ')') {
-					float sz;
-
-					if (p[1] == '(')
-						sz = cwid((unsigned char) p[1]);
-					else {
-						sz = 0;
-						while (*p != '\0') {
-/*fixme: KO when '\ooo'*/
-							if (*p == '\\') {
-								p++;
-								continue;
-							}
-							sz += cwid((unsigned char) *p);
-							if (*p == ' ')
-								break;
-							p++;
-						}
-					}
-					sz *= swfac;
-					shift = (w - sz + 2 * cwid(' ') * swfac)
-						* VOCPRE;
-					if (shift > 20)
-						shift = 20;
-					shift += sz;
-					if (isdigit((unsigned char) lyl->t[0])) {
-						if (shift > align)
-							align = shift;
-					}
-				} else if (*p == '\x02' || *p == '\x03')
-					shift = 0;
-				else {
-					shift = xx * VOCPRE;
-					if (shift > 20)
-						shift = 20;
-				}
-				lyl->s = shift;
-				AT_LEAST(wlw, shift);
-				xx -= shift;
-				shift = 2 * cwid(' ') * swfac;
-				for (k = s->next; k != 0; k = k -> next) {
-					switch (k->type) {
-					case NOTEREST:
-						if (k->ly == 0
-						    || k->ly->lyl[i] == 0)
-							xx -= 9;
-						else if (k->ly->lyl[i]->t[0] == '\x02'
-							 || k->ly->lyl[i]->t[0] == '\x03')
-							xx -= shift;
-						else	break;
-						if (xx <= 0)
-							break;
-						continue;
-					case CLEF:
-					case TIMESIG:
-					case KEYSIG:
-						xx -= 10;
-						continue;
-					default:
-						xx -= 5;
-						break;
-					}
-					break;
-				}
-				if (xx > s->wr)
-					s->wr = xx;
-			} else {
-			    for (i = 0; i < MAXLY; i++) {
-				if ((lyl = ly->lyl[i]) == 0)
-					continue;
-				lyl->s = 0;
-			    }
-			}
-			if (align > 0) {
-				for (i = 0; i < MAXLY; i++) {
-					if ((lyl = ly->lyl[i]) == 0)
-						continue;
-					if (isdigit((unsigned char) lyl->t[0]))
-						lyl->s = align;
-				}
-			}
-		}
-
+		if (s->ly != 0)
+			wlw = ly_width(s, wlw);
 #if 0
 /*new fixme*/
 		/* reduce right space when not followed by a note */
@@ -1280,28 +1296,24 @@ static void set_width(struct SYMBOL *s)
 			f = &cfmt.font_tb[ft];
 			xx = tex_str(s->as.text) + cwid(' ') * f->swfac * 1.5;
 		}
-		if (!s->as.u.bar.repeat_bar) {
-			if (s->prev->as.text != 0) {
-				float spc;
+		if (s->as.u.bar.repeat_bar)
+			xx += 8;
+		else if (s->prev->as.text != 0) {
+			float spc;
 
-				spc = xx * GCHPRE;
-				if (spc > 8)
-					spc = 8;
-				AT_LEAST(s->wl, spc);
-/*				s->space = s->wl; */
-				xx -= spc;
-			}
+			spc = xx * GCHPRE;
+			if (spc > 8)
+				spc = 8;
+			AT_LEAST(s->wl, spc);
+			xx -= spc;
 		}
 		for (s2 = s->next; s2 != 0; s2 = s2->next) {
 			switch (s2->type) {
 			case GRACE:
 				continue;
 			case NOTEREST:
-				if (s2->as.text != 0) {
+				if (s2->as.text != 0)
 					AT_LEAST(s->wr, xx);
-/*new fixme
-					s->pr = s->wr; */
-				}
 				break;
 			default:
 				break;
@@ -1521,12 +1533,11 @@ static float set_space(struct SYMBOL *s)
  * then, once per music line up to the first sequence */
 static void set_allsymwidth(void)
 {
+	struct VOICE_S *p_voice;
 	struct SYMBOL *s, *s2, *s3;
+	struct tblt_s *tblt;
 	int i;
 	float new_val, shrink, space;
-	/* whistle space at start of line !! see /tw_head !! */
-	static unsigned char pitwh[12] =
-		{28, 54, 28, 54, 28, 28, 54, 28, 54, 28, 54, 28};
 
 	/* loop on the symbol sequences */
 	s = tsfirst;
@@ -1573,8 +1584,17 @@ static void set_allsymwidth(void)
 			break;
 	}
 
-	/* have room for the whistle header */
-	if (nwhistle == 0)
+	/* have room for the tablature header */
+	space = 0;
+	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+		for (i = 0; i < 2; i++) {
+			if ((tblt = p_voice->tblts[i]) == 0)
+				continue;
+			if (tblt->wh > space)
+				space = tblt->wh;
+		}
+	}
+	if (space == 0)
 		return;
 	shrink = 0;
 	for (s = tsfirst; s != 0; s = s->ts_next) {
@@ -1583,18 +1603,11 @@ static void set_allsymwidth(void)
 		if (s->as.type == ABC_T_NOTE)
 			break;
 	}
-	if (s == 0)
-		return;
-	while (!(s->sflags & S_SEQST))
-		s = s->ts_prev;
-	space = 0;
-	for (i = 0; i < nwhistle; i++) {
-		new_val = pitwh[whistle_tb[i].pitch % 12];
-		if (new_val > space)
-			space = new_val;
-	}
-	if (shrink < space)
+	if (s != 0 && shrink < space) {
+		while (!(s->sflags & S_SEQST))
+			s = s->ts_prev;
 		s->shrink += space - shrink;
+	}
 }
 
 /* -- set the repeat sequences / measures -- */
@@ -3855,12 +3868,12 @@ static void set_sym_glue(float width)
 		if (tsnext != 0 && tsnext->space * 0.8 > s->wr + 4) {
 			x += tsnext->space * 0.8 * spafac;
 			xmax += tsnext->space * 0.8 * spafac * 1.8;
-#if 0
+//#if 0
 		} else {
 /*fixme:should calculate the space according to the last symbol duration */
 			x += (min + 4) * spafac;
 			xmax += (min + 4) * spafac * 1.8;
-#endif
+//#endif
 		}
 	}
 
@@ -4045,8 +4058,6 @@ void output_music(void)
 			}
 		}
 		bskip(line_height);
-		if (nwhistle != 0)
-			draw_whistle();
 		if (indent != 0)
 			PUT1("%.2f 0 T\n", -indent);
 		if ((tsfirst = tsnext) == 0)

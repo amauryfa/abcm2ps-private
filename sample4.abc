@@ -27,7 +27,8 @@ s:"^annotation;in 's:' line"**+1+|||H|
 
 X:2
 T:abcm2ps-4.x.x new features
-%% graceslurs 0
+%%graceslurs 0
+%%breakoneoln 0		% needed with abcm2ps-5.x.x
 M:C
 L:1/4
 Q:1/4=ca. 80
@@ -48,6 +49,7 @@ C///D///E///F///G///F///E///D///\
 C///D///E///F///G///F///E///D/// \
 "^beam break"C///D///E///F///!beambr2!G///F///E///D///\
 !beambr1!C///D///E///F///!beambr2!G///F///E///D///||
+T:		% needed with abcm2ps-5.x.x
 %%staves 1 2
 %%rightmargin 12cm
 V:1

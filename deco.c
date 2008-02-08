@@ -1404,7 +1404,7 @@ void draw_deco_staff(void)
 
 			/* have room for the repeat numbers */
 			if (s1->as.text != 0) {
-				w = cwid('W') * cfmt.font_tb[REPEATFONT].swfac
+				w = cwid('2') * cfmt.font_tb[REPEATFONT].swfac
 					* strlen(s1->as.text);
 				y2 = y_get(s1, 1, s1->x + 4, w, 0);
 				y2 += cfmt.font_tb[REPEATFONT].size + 2;

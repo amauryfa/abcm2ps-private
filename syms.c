@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -312,7 +312,7 @@ static char ps_head[] =
 	"	1.3 0.7 2.9 -1.3 0.7 -2 RC\n"
 	"	fill\n"
 	"	M 0.8 SLW -6 1.2 RM 12.6 12.6 RL stroke\n"
-	"	7 add exch -6 add exch 1.2 0 360 arc fill\n"
+	"	7 add exch 6 sub exch 1.2 0 360 arc fill\n"
 	"	8 add exch 6 add exch 1.2 0 360 arc fill}!\n"
 
 	/* w x y cresc - crescendo */
@@ -402,15 +402,12 @@ static char ps_head[] =
 	"	0 -6 -5 -6 -5 0 RC\n"
 	"	2 add M 0 -4 RL stroke}!\n"
 
-	/* y hl - helper line at height y */
-	"/hl{	.8 SLW x -6 add exch M\n"
-	"	12 0 RL stroke}!\n"
-	/* y hl1 - longer helper line */
-	"/hl1{	.8 SLW x -7 add exch M\n"
-	"	14 0 RL stroke}!\n"
-	/* y hl2 - more longer helper line */
-	"/hl2{	.7 SLW x -9 add exch M\n"
-	"	18 0 RL stroke}!\n"
+	/* x y hl - ledger line */
+	"/hl{	.8 SLW M -6 0 RM 12 0 RL stroke}!\n"
+	/* x y hl1 - longer ledger line */
+	"/hl1{	.8 SLW M -7 0 RM 14 0 RL stroke}!\n"
+	/* x y hl2 - more longer ledger line */
+	"/hl2{	.7 SLW M -9 0 RM 18 0 RL stroke}!\n"
 
 	/* -- accidentals -- */
 	/* x y sh0 - sharp sign */
@@ -609,7 +606,7 @@ static char ps_head[] =
 	"	-1.7 2 RM 10.5 -1 12 4.5 12 3.5 RC\n"
 	"	0 -1 -3.5 -5.5 -8.5 -5.5 RC fill\n"
 	"	3 SLW M 0 2 RM\n"
-	"	0 exch neg -8 add RL currentpoint stroke\n"
+	"	0 exch neg 8 sub RL currentpoint stroke\n"
 	"	dlw M -1.7 0 RM\n"
 	"	10.5 1 12 -4.5 12 -3.5 RC\n"
 	"	0 1 -3.5 5.5 -8.5 5.5 RC fill}!\n"
@@ -716,31 +713,11 @@ static char ps_head[] =
 	"/gua{x y M -1 4 RM RL stroke}!\n"
 	"/gda{x y M -5 -4 RM RL stroke}!\n"
 
-	/* y ghl - grace note helper line */
-	"/ghl{	.6 SLW x -3 add exch M\n"
-	"	6 0 RL stroke}!\n"
+	/* x y ghl - grace note ledger line */
+	"/ghl{	.6 SLW M -3 0 RM 6 0 RL stroke}!\n"
 
 	/* x1 y2 x2 y2 x3 y3 x0 y0 gsl - grace note slur */
 	"/gsl{dlw M curveto stroke}!\n"
-
-	/* tin whistle */
-	"/tw_head{/Helvetica 8 selectfont\n"
-	"	0 -45 M 90 rotate(WHISTLE)show -90 rotate\n"
-	"	/Helvetica-Bold 36 selectfont\n"
-	"	0 -45 M show .5 SLW newpath}!\n"
-	"/tw_under{\n"
-	"	1 index 2.5 sub -4 M 2.5 -2.5 RL 2.5 2.5 RL\n"
-	"	-2.5 -2.5 RM 0 6 RL stroke}!\n"
-	"/tw_over{\n"
-	"	1 index 2.5 sub -3 M 2.5 2.5 RL 2.5 -2.5 RL\n"
-	"	-2.5 2.5 RM 0 -6 RL stroke}!\n"
-	"/tw_0{7 sub 2 copy 3.5 sub 3 0 360 arc stroke}!\n"
-	"/tw_1{7 sub 2 copy 3.5 sub 2 copy 3 90 270 arc fill 3 270 90 arc stroke}!\n"
-	"/tw_2{7 sub 2 copy 3.5 sub 3 0 360 arc fill}!\n"
-	"/tw_p{pop -55 M 0 6 RL -3 -3 RM 6 0 RL stroke}!\n"
-	"/tw_pp{	pop 3 sub -53.5 M 6 0 RL\n"
-	"	-1.5 -1.5 RM 0 3 RL\n"
-	"	-3 0 RM 0 -3 RL stroke}!\n"
 
 	/* x y showerror */
 	"/showerror{	gsave 1 0.7 0.7 setrgbcolor 2.5 SLW 2 copy newpath\n"
@@ -929,7 +906,7 @@ void define_symbols(void)
 		"		1 sub{	currentpoint\n"
 		"			0.9 -3.7 9.1 -6.4 6 -12.4 RC\n"
 		"			1 5.4 -4.2 8.4 -6 8.4 RC\n"
-		"			fill -5.4 add M\n"
+		"			fill 5.4 sub M\n"
 		"		}repeat\n"
 		"		1.2 -3.2 9.6 -5.7 5.6 -14.6 RC\n"
 		"		1.6 5.4 -1 10.2 -5.6 11.4 RC\n"
@@ -969,12 +946,12 @@ void define_symbols(void)
 		"		}repeat\n"
 		"	}{\n"
 		"		dlw x y M %.1f %.1f RM\n"
-		"		-%.1f add 0 exch RL currentpoint stroke\n"
+		"		%.1f sub 0 exch RL currentpoint stroke\n"
 		"		M{	currentpoint\n"
 		"			7 -%.1f RL\n"
 		"			0 -%.1f RL\n"
 		"			-7 %.1f RL\n"
-		"			fill -5.4 add M\n"
+		"			fill 5.4 sub M\n"
 		"		}repeat\n"
 		"	}ifelse}!\n",
 		STEM_XOFF, STEM_YOFF, STEM_YOFF,
@@ -1003,7 +980,7 @@ void define_symbols(void)
 		"		{	currentpoint\n"
 		"			1 -3.2 5.6 -2.8 3.2 -8 RC\n"
 		"			1.4 4.8 -2.4 5.4 -3.2 5.2 RC\n"
-		"			fill -3.5 add M\n"
+		"			fill 3.5 sub M\n"
 		"		}repeat\n"
 		"	  }ifelse}!\n",
 		GSTEM_XOFF);
@@ -1030,7 +1007,7 @@ void define_symbols(void)
 		"	0 exch RL currentpoint stroke\n"
 		"	M{	currentpoint\n"
 		"		3 -1.5 RL 0 -2 RL -3 1.5 RL\n"
-		"		closepath fill -3 add M\n"
+		"		closepath fill 3 sub M\n"
 		"	}repeat}!\n",
 		GSTEM_XOFF);
 }

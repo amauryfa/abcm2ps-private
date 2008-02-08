@@ -1349,6 +1349,33 @@ static void get_bar(struct SYMBOL *s)
 		gchord_adjust(s);		/* adjust the guitar chords */
 }
 
+/* -- activate the tablature from the command line '-T' -- */
+static void set_tblt(struct VOICE_S *p_voice)
+{
+	struct tblt_s *tblt;
+	int i;
+
+	for (i = 0; i < ncmdtblt; i++) {
+		if (!cmdtblts[i].active)
+			continue;
+		if (cmdtblts[i].vn[0] != '\0') {
+			if (strcmp(cmdtblts[i].vn, p_voice->name) != 0
+			    && (p_voice->nm == 0
+				|| strcmp(cmdtblts[i].vn, p_voice->nm) != 0)
+			    && (p_voice->snm == 0
+				|| strcmp(cmdtblts[i].vn, p_voice->snm) != 0))
+				continue;
+		}
+		tblt = tblts[cmdtblts[i].index];
+		if (p_voice->tblts[0] == tblt
+		    || p_voice->tblts[1] == tblt)
+			continue;
+		if (p_voice->tblts[0] == 0)
+			p_voice->tblts[0] = tblt;
+		else	p_voice->tblts[1] = tblt;
+	}
+}
+
 /* -- do a tune -- */
 void do_tune(struct abctune *t,
 	     int header_only)
@@ -1362,7 +1389,6 @@ void do_tune(struct abctune *t,
 	staves_found = -1;
 	memset(staff_tb, 0, sizeof staff_tb);
 	memset(voice_tb, 0, sizeof voice_tb);
-	voice_tb[0].name = "1";		/* implicit voice */
 	for (i = 0; i < MAXVOICE; i++) {
 		voice_tb[i].clef.line = 2;	/* treble clef on 2nd line */
 		voice_tb[i].clef.stafflines = 5;
@@ -1376,6 +1402,8 @@ void do_tune(struct abctune *t,
 		voice_tb[i].clone = -1;
 	}
 	curvoice = first_voice = voice_tb;
+	voice_tb[0].name = "1";		/* implicit voice */
+	set_tblt(first_voice);
 	micro_tb = t->micro_tb;		/* microtone values */
 
 	parsys = 0;
@@ -1451,7 +1479,8 @@ void do_tune(struct abctune *t,
 			get_clef(s);
 			break;
 		case ABC_T_EOLN:
-			if (cfmt.breakoneoln)
+			if (cfmt.breakoneoln
+			    || (s->as.flags & ABC_F_SPACE))
 				curvoice->space = 1;
 			if (curvoice->second)
 				continue;
@@ -1774,8 +1803,8 @@ static void get_meter(struct SYMBOL *s)
 /* -- treat a 'V:' -- */
 static void get_voice(struct SYMBOL *s)
 {
-	int voice;
 	struct VOICE_S *p_voice;
+	int voice;
 
 	voice = s->as.u.voice.voice;
 	p_voice = &voice_tb[voice];
@@ -1815,14 +1844,6 @@ static void get_voice(struct SYMBOL *s)
 		}
 	}
 
-	/* if in tune, switch to this voice */
-	switch (s->as.state) {
-	case ABC_S_TUNE:
-	case ABC_S_EMBED:
-		curvoice = p_voice;
-		break;
-	}
-
 	/* if something has changed, update */
 	if (s->as.u.voice.name != 0)
 		p_voice->name = s->as.u.voice.name;
@@ -1846,6 +1867,16 @@ static void get_voice(struct SYMBOL *s)
 			? s->as.u.voice.lyrics : 0;
 	if (s->as.u.voice.scale != 0)
 		p_voice->scale = s->as.u.voice.scale;
+
+	set_tblt(p_voice);
+
+	/* if in tune, switch to this voice */
+	switch (s->as.state) {
+	case ABC_S_TUNE:
+	case ABC_S_EMBED:
+		curvoice = p_voice;
+		break;
+	}
 }
 
 /* -- note or rest -- */
@@ -1982,6 +2013,8 @@ static void get_note(struct SYMBOL *s)
 static void ps_def(struct SYMBOL *s,
 		   char *p)
 {
+	if (s->as.prev != 0)
+		s->as.state = s->as.prev->state;
 	if (s->as.state == ABC_S_TUNE
 	    || s->as.state == ABC_S_EMBED) {
 		sym_link(s, FMTCHG);
@@ -1992,8 +2025,6 @@ static void ps_def(struct SYMBOL *s,
 			s->sflags |= S_EOLN;
 			s->prev->sflags &= ~S_EOLN;
 		}
-		if (s->as.prev != 0)
-			s->as.state = s->as.prev->state;
 		return;
 	}
 	if (file_initialized) {
@@ -2010,8 +2041,6 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	float h1;
 	struct SYMBOL *s = (struct SYMBOL *) as;
 
-	if (as->prev != 0)
-		as->state = as->prev->state;
 	p = as->text + 2;		/* skip '%%' */
 	while (isspace((unsigned char) *p))
 		p++;
@@ -2390,49 +2419,38 @@ irepeat:
 			return as;
 		}
 		if (strcmp(w, "tablature") == 0) {
-			float h;
+			struct tblt_s *tblt;
+			int i, j;
 
-			if (as->state != ABC_S_TUNE
-			    && as->state != ABC_S_EMBED)
+			tblt = tblt_parse(p);
+			if (tblt == 0)
 				return as;
-/* %%tablature [<h above>] <h under> <head funct> <note funct> <bar funct> */
-			h = scan_u(p);
-			while (*p != '\0' && !isspace((unsigned char) *p))
-				p++;
-			while (isspace((unsigned char) *p))
-				p++;
-			if (isdigit(*p)) {
-				curvoice->tabha = h;
-				curvoice->tabhu = scan_u(p);
-				while (*p != '\0' && !isspace((unsigned char) *p))
-					p++;
-				while (isspace((unsigned char) *p))
-					p++;
-			} else	curvoice->tabhu = h;
-			if (*p != '\0') {
-				curvoice->tabhead = p;
-				while (*p != '\0' && !isspace((unsigned char) *p))
-					p++;
+
+			switch (as->state) {
+			case ABC_S_TUNE:
+			case ABC_S_EMBED:
+				for (i = 0; i < ncmdtblt; i++) {
+					if (cmdtblts[i].active)
+						continue;
+					j = cmdtblts[i].index;
+					if (j < 0 || tblts[j] == tblt)
+						return as;
+				}
+				/* !! 2 tblts per voice !! */
+				if (curvoice->tblts[0] == tblt
+				    || curvoice->tblts[1] == tblt)
+					break;
+				if (curvoice->tblts[1] != 0) {
+					error(1, s, "Too many tablatures for voice %s",
+						curvoice->name);
+					break;
+				}
+				if (curvoice->tblts[0] == 0)
+					curvoice->tblts[0] = tblt;
+				else	curvoice->tblts[1] = tblt;
+				break;
 			}
-			if (*p != '\0') {
-				*p = '\0';
-				p++;
-				while (isspace((unsigned char) *p))
-					p++;
-				curvoice->tabnote = p;
-				while (*p != '\0' && !isspace((unsigned char) *p))
-					p++;
-			}
-			if (*p != '\0') {
-				*p = '\0';
-				p++;
-				while (isspace((unsigned char) *p))
-					p++;
-				curvoice->tabbar = p;
-			} else {
-				error(1, s, "Wrong values in %%%%tablature");
-				curvoice->tabhead = 0;
-			}
+			return as;
 		}
 		break;
 	case 'v':

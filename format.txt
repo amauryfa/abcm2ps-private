@@ -981,7 +981,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Set the vocals above the staff.
+		Force the vocals to be above the staff.
 
   vocalfont <font> [<encoding>] [<size>]
 	Default: Times-Bold 13
@@ -1129,28 +1129,61 @@ List of the pseudo-comments treated while parsed
   staves <definition>
 	See 'features.txt' for description.
 
-  tablature [<unit-1>] <unit-2> <head-func> <note-func> <bar-func>
+  tablature [#<int>] [[<unit-1>] <unit-2>] <unit-3> \
+			[pitch=<pitch>] <head-func> <note-func> [<bar-func>]
 	Define a tablature for the current voice.
-	<unit-1> gives the tablature height above the staff.
-	<unit-2> gives the tablature height under the staff.
-	<head-func> is the PostScript function called at tablature
-	start. When called, the stack contains:
-		- the music line width,
-		- the x and y offsets,
-		- the number of w: lines.
-	<note-func> is the PostScript function called at each note.
-	When called, the stack contains:
-		- the string as defined by the 'w:' line.
-		- the x and y offsets.
-		- the w: line number (0 .. n-1).
-	<bar-func> is the PostScript function called at each bar.
-	When called, the stack contains:
-		- the ABC bar as a string.
-		- the x and y offsets.
-		- the w: line number (0 .. n-1).
-	See 'accordion.abc', 'http://moinejf.free.fr/abc/banjo.abc',
-	'http://moinejf.free.fr/abc/bataille.abc'
-	and 'http://moinejf.free.fr/abc/tabyf1.abc' for examples.
+
+	Arguments:
+		<int> gives the tablature number (from 1 to 8, default=1).
+		<unit-1> gives the width of the header (left side of
+			the music line.
+		<unit-2> gives the tablature height above the staff.
+		<unit-3> gives the tablature height under the staff.
+		<pitch> is the pitch of the instrument. It looks like
+			a normal ABC note. When present, the pitch of
+			each note is given to the note function.
+			When absent, the information about the note(s)
+			is given by one or many lyrics (w:).
+		<head-func> is the PostScript function called at start
+			of a new music line.
+		<note-func> is the PostScript function called at each note.
+		<bar-func> is the PostScript function called at each bar.
+
+	The arguments of the PostScript functions depend on the pitch
+	presence.
+	When the pitch is absent, the stack contains:
+		- head function:
+			- the music line width,
+			- the x and y offsets,
+			- the number of w: lines.
+		- note function:
+			- the string as defined by the 'w:' line.
+			- the x and y offsets.
+			- the w: line number (0 .. n-1).
+		- bar function:
+			- the ABC bar as a string.
+			- the x and y offsets.
+			- the w: line number (0 .. n-1).
+	Otherwise (pitch present), the PS origins are translated to
+	the tablature area and the stack contains:
+		- head function:
+			- the instrument pitch with a single uppercase
+			  letter and a sharp or flat.
+		- note function:
+			- the octave (0 is 'C') letting pitch >= 0 and < 36
+			- the pitch in 12th of octave on 3 octaves (0..35)
+			- the x offset
+		- the bar function is never called.
+
+	For examples of tablatures without pitch, see:
+		'accordion.abc'
+		'http://moinejf.free.fr/abc/banjo.abc',
+		'http://moinejf.free.fr/abc/bataille.abc'
+		'http://moinejf.free.fr/abc/tabyf1.abc'
+	For examples of tablatures without pitch, look at
+		flute.abc
+	and try:
+		abcm2ps sample.abc -e1 -f flute.fmt -T1 -T3
 
   text <line of text>
 	Print one line of text.

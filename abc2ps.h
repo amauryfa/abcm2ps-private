@@ -296,13 +296,27 @@ extern time_t mtime;		/* last modification time of the input file */
 extern int file_initialized;	/* for output file */
 extern FILE *fout;		/* output file */
 
-#define MAXWHISTLE	4	/* max number of whistle tablature */
-struct WHISTLE_S {
-	short voice;		/* voice number */
-	short pitch;		/* absolute key pitch */
+#define MAXTBLT 8
+struct tblt_s {
+	char *head;		/* PS head function */
+	char *note;		/* PS note function */
+	char *bar;		/* PS bar function */
+	float wh;		/* width of head */
+	float ha;		/* height above the staff */
+	float hu;		/* height under the staff */
+	short pitch;		/* pitch when no associated 'w:' / 0 */
+	char instr[2];		/* instrument pitch */
 };
-extern struct WHISTLE_S whistle_tb[MAXWHISTLE];
-extern int nwhistle;
+extern struct tblt_s *tblts[MAXTBLT];
+
+#define MAXCMDTBLT	4	/* max number of -T in command line */
+struct cmdtblt_s {
+	short index;		/* tablature number */
+	short active;		/* activate or not */
+	char *vn;		/* voice name */
+};
+extern struct cmdtblt_s cmdtblts[MAXCMDTBLT];
+extern int ncmdtblt;
 
 extern int s_argc;		/* command line arguments */
 extern char **s_argv;
@@ -328,11 +342,7 @@ struct VOICE_S {
 	char *bar_text;		/* bar text at start of staff when bar_start */
 	struct SYMBOL *tie;	/* note with ties of previous line */
 	struct SYMBOL *rtie;	/* note with ties before 1st repeat bar */
-	char *tabhead;		/* tablature:	PS head function */
-	char *tabnote;		/*		note function */
-	char *tabbar;		/*		bar function */
-	float tabha;		/*		height above the staff */
-	float tabhu;		/*		height under the staff */
+	struct tblt_s *tblts[2]; /* tablatures */
 	float scale;		/* scale */
 	int time;		/* current time while parsing */
 	struct clef_s clef;	/* current clef */
@@ -455,7 +465,6 @@ void y_set(struct SYMBOL *s,
 void draw_sym_near(void);
 void draw_all_symb(void);
 float draw_systems(float indent);
-void draw_whistle(void);
 void set_scale(int staff);
 void output_ps(struct SYMBOL *s, int state);
 void putf(float f);
@@ -475,6 +484,7 @@ FILE *open_file(char *fn,
 void print_format(void);
 int read_fmt_file(char *filename);
 void set_format(void);
+struct tblt_s *tblt_parse(char *p);
 /* music.c */
 void output_music(void);
 void reset_gen(void);

@@ -1,3 +1,22 @@
+---- Version 5.8.0 - 08/02/09 ----
+
+Extend %%tablature.
+Add the command line argument '-T'.
+Remove the command line argument '-W'.
+
+---- Version 5.7.4 - 08/02/01 ----
+
+Output the ledger lines before the note heads (useful with colored notes).
+Forbid a null voice in '-W'.
+Some format parameters (as %%tablature) were ignored when immediately
+	after K: or V:.
+Move the PostScript definitions for the twin whistle to the file
+	'flute.fmt'.
+Bad whistle tablature since 4.x.x!
+Loss of the space before the line continuation sign since 5.7.1.
+Bad key signature at end of line since 5.7.3.
+Don't shift up the repeat brackets when guitar chord on the next note.
+
 ---- Version 5.7.3 - 08/01/14 ----
 
 Break the beams on end of line per default.

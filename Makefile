@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.7.3
+VERSION = 5.8.0
 
 CC = gcc
 INSTALL = /usr/bin//install -c
@@ -74,6 +74,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/draw.c \
 	abcm2ps-$(VERSION)/fbook.fmt \
 	abcm2ps-$(VERSION)/features.txt \
+	abcm2ps-$(VERSION)/flute.fmt \
 	abcm2ps-$(VERSION)/fonts.fmt \
 	abcm2ps-$(VERSION)/format.c \
 	abcm2ps-$(VERSION)/format.txt \

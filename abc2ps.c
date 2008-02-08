@@ -1,7 +1,7 @@
 /*
  * abcm2ps: a program to typeset tunes written in abc format using PostScript
  *
- * Copyright (C) 1998-2007 Jean-François Moine
+ * Copyright (C) 1998-2008 Jean-François Moine
  *
  * Adapted from abc2ps-1.2.5:
  *  Copyright (C) 1996,1997  Michael Methfessel
@@ -72,8 +72,9 @@ time_t mtime;			/* last modification time of the input file */
 int s_argc;			/* command line arguments */
 char **s_argv;
 
-struct WHISTLE_S whistle_tb[MAXWHISTLE];
-int nwhistle;
+struct tblt_s *tblts[MAXTBLT];
+struct cmdtblt_s cmdtblts[MAXCMDTBLT];
+int ncmdtblt;
 
 /* -- local variables -- */
 
@@ -105,7 +106,7 @@ static void usage(void);
 #ifdef linux
 static void wherefmtdir(void);
 #endif
-static void whistle_parse(char *p);
+static struct cmdtblt_s *cmdtblt_parse(char *p);
 static void write_version(void);
 
 /* -- main program -- */
@@ -149,11 +150,15 @@ int main(int argc,
 	while (--argc > 0) {
 		argv++;
 		p = *argv;
-		if (*p == 0)
+		if ((c = *p) == '\0')
 			continue;
-		if (*p == '+') {	/* switch off flags with '+' */
+		if (c == '-' && p[1] != '-' && p[strlen(p) - 1] == '-')
+			c = '+';	/* switch off flags with '-x-' */
+		if (c == '+') {		/* switch off flags with '+' */
 			while (*++p != '\0') {
 				switch (*p) {
+				case '-':
+					break;
 				case 'B':
 					cfmt.barsperstaff = 0;
 					lock_fmt(&cfmt.barsperstaff);
@@ -196,11 +201,30 @@ int main(int argc,
 					cfmt.printtempo = 0;
 					lock_fmt(&cfmt.printtempo);
 					break;
+				case 'T': {
+					struct cmdtblt_s *cmdtblt;
+					aaa = p + 1;
+					if (*aaa == '\0') {
+						if (argc > 1
+						    && argv[1][0] != '-') {
+							aaa = *++argv;
+							argc--;
+						}
+					} else {
+						while (p[1] != '\0')	/* stop */
+							p++;
+						if (*p == '-')
+							*p-- = '\0';	/* (not clean) */
+					}
+					cmdtblt = cmdtblt_parse(aaa);
+					if (cmdtblt != 0)
+						cmdtblt->active = 0;
+					break;
+				   }
 				case 'x':
 					cfmt.withxrefs = 0;
 					lock_fmt(&cfmt.withxrefs);
 					break;
-				case 'W': nwhistle = 0; break;
 				case '0':
 					cfmt.splittune = 0;
 					lock_fmt(&cfmt.splittune);
@@ -220,8 +244,8 @@ int main(int argc,
 			continue;
 		}
 
-		if (*p == '-') {	     /* interpret a flag with '-'*/
-			if (p[1] == '\0') {
+		if (c == '-') {		     /* interpret a flag with '-' */
+			if (p[1] == '\0') {		/* '-' alone */
 				if (in_fname != 0) {
 					output_file(sel);
 					sel = 0;
@@ -229,7 +253,7 @@ int main(int argc,
 				in_fname = "";		/* read from stdin */
 				continue;
 			}
-			if (p[1] == '-') {
+			if (p[1] == '-') {	/* long argument */
 				p += 2;
 				if (--argc <= 0) {
 					fprintf(stderr,
@@ -240,8 +264,8 @@ int main(int argc,
 				interpret_fmt_line(p, *argv, 1);
 				continue;
 			}
-			while (*++p != '\0') {
-				switch (c = *p) {
+			while ((c = *++p) != '\0') {
+				switch (*p) {
 
 					/* simple flags */
 				case 'c':
@@ -345,8 +369,8 @@ int main(int argc,
 				case 'm':
 				case 'O':
 				case 's':
+				case 'T':
 				case 'w':
-				case 'W':
 					aaa = p + 1;
 					if (*aaa == '\0') {
 						aaa = *++argv;
@@ -460,6 +484,14 @@ int main(int argc,
 						sscanf(aaa, "%f", &cfmt.scale);
 						lock_fmt(&cfmt.scale);
 						break;
+					case 'T': {
+						struct cmdtblt_s *cmdtblt;
+
+						cmdtblt = cmdtblt_parse(aaa);
+						if (cmdtblt != 0)
+							cmdtblt->active = 1;
+						break;
+					    }
 					case 'w': {
 						float w;
 
@@ -470,9 +502,6 @@ int main(int argc,
 						lock_fmt(&cfmt.rightmargin);
 						break;
 					    }
-					case 'W':
-						whistle_parse(aaa);
-						break;
 					}
 					break;
 				default:
@@ -732,7 +761,7 @@ static void usage(void)
 		"     -k n[b] same as '-j' (abc2ps compatibility)\n"
 		"     -b n    set the first measure number to n\n"
 		"     -f      have flat beams when bagpipe tunes\n"
-		"     -W vk   output a whistle tablature for voice 'v', key 'k'\n"
+		"     -T n[v]   output the tablature 'n' for voice 'v' / all voices\n"
 		"  .line breaks:\n"
 		"     -c      auto line break\n"
 		"     -B n    break every n bars\n"
@@ -778,47 +807,29 @@ static void wherefmtdir(void)
 }
 #endif
 
-/* -- parse the whistle command ('-Wvk') -- */
-static void whistle_parse(char *p)
+/* -- parse the tablature command ('-T n[v]') -- */
+static struct cmdtblt_s *cmdtblt_parse(char *p)
 {
-	short pitch;
-	char *q;
-	static char notes_tb[14] = "CDEFGABcdefgab";
-	static char pitch_tb[14] = {60, 62, 64, 65, 67, 69, 71,
-				    72, 74, 76, 77, 79, 81, 83};
+	struct cmdtblt_s *cmdtblt;
+	short val;
 
-	if (nwhistle >= MAXWHISTLE) {
-		fprintf(stderr, "++++ Too many '-W'\n");
-		return;
+	if (ncmdtblt >= MAXCMDTBLT) {
+		fprintf(stderr, "++++ Too many '-T'\n");
+		return 0;
 	}
-	if ((unsigned) (*p - '0') > 9) {
-		fprintf(stderr, "++++ Bad voice number in '-W'\n");
-		return;
+	if (*p == '\0')
+		val = -1;
+	else {
+		val = *p++ - '0' - 1;
+		if ((unsigned) val > MAXTBLT) {
+			fprintf(stderr, "++++ Bad tablature number in '-T'\n");
+			return 0;
+		}
 	}
-	whistle_tb[nwhistle].voice = *p++ - '0' - 1;
-	pitch = 0;
-	if (*p == '^' || *p == '_') {
-		if (*p++ == '^')
-			pitch++;
-		else	pitch--;
-	}
-	if (*p == '\0' || (q = strchr(notes_tb, *p)) == 0) {
-		fprintf(stderr, "++++ Bad note name in '-W'\n");
-		return;
-	}
-	pitch += pitch_tb[q - notes_tb];
-	p++;
-	if (*p == '#' || *p == 'b') {
-		if (*p++ == '#')
-			pitch++;
-		else	pitch--;
-	}
-	while (*p == '\'' || *p == ',') {
-		if (*p++ == '\'')
-			pitch += 12;
-		else	pitch -= 12;
-	}
-	whistle_tb[nwhistle++].pitch = pitch;
+	cmdtblt = &cmdtblts[ncmdtblt++];
+	cmdtblt->index = val;
+	cmdtblt->vn = p;
+	return cmdtblt;
 }
 
 /* -- write the program version -- */
