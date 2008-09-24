@@ -302,7 +302,7 @@ float cwid(unsigned char c)
 /* -- change string taking care of some tex-style codes -- */
 /* Puts \ in front of ( and ) in case brackets are not balanced,
  * interprets all ISOLatin1..6 escape sequences as defined in rfc1345.
- * Returns an estimate of the string width. */
+ * Returns an estimated width of the string. */
 float tex_str(char *s)
 {
 	char *d, c1, c2, *p_enc, *p;
@@ -322,40 +322,28 @@ float tex_str(char *s)
 	while ((c1 = *s++) != '\0') {
 		switch (c1) {
 		case '\\':			/* backslash sequences */
-			if ((c1 = *s++) == '\0')
-				break;
+			if (*s == '\0')
+				continue;
+			c1 = *s++;
 			if (c1 == ' ')
-				goto addchar1;
+				break;
 			if (c1 == 't') {
 				c1 = '\t';
-				goto addchar1;
+				break;
 			}
 			if (c1 == '\\' || (c2 = *s) == '\0') {
 				if (--maxlen <= 0)
 					break;
 				*d++ = '\\';
-				goto addchar1;
+				break;
 			}
 			/* treat escape with octal value */
 			if ((unsigned) (c1 - '0') <= 3
 			    && (unsigned) (c2 - '0') <= 7
 			    && (unsigned) (s[1] - '0') <= 7) {
-#if 1
 				c1 = ((c1 - '0') << 6) + ((c2 - '0') << 3) + s[1] - '0';
-				s += 2;
-				goto addchar1;
-#else
-				if ((maxlen -= 4) <= 0)
-					break;
-				*d++ = '\\';
-				*d++ = c1;
-				*d++ = c2;
-				*d++ = s[1];
-				c1 = ((c1 - '0') << 6) + ((c2 - '0') << 3) + s[1] - '0';
-				w += cwid((unsigned char) c1) * swfac;
 				s += 2;
 				break;
-#endif
 			}
 			/* convert to rfc1345 */
 			switch (c1) {
@@ -386,7 +374,7 @@ float tex_str(char *s)
 			}
 			if (i < 0)
 				c1 = s[-1];
-			goto addchar1;
+			break;
 		case '$':
 			if (isdigit((unsigned char) *s)
 			    && (unsigned) (*s - '0') < FONT_UMAX) {
@@ -399,28 +387,31 @@ float tex_str(char *s)
 				if ((unsigned) i >= sizeof esc_tb / sizeof esc_tb[0])
 					i = 0;
 				p_enc = esc_tb[i];
-			} else if (*s == '$') {
 				if (--maxlen <= 0)
 					break;
 				*d++ = c1;
-				w += cwid((unsigned char) c1) * swfac;
+				c1 = *s++;
+				goto addchar_nowidth;
+			}
+			if (*s == '$') {
+				if (--maxlen <= 0)
+					break;
+				*d++ = c1;
 				s++;
 			}
-			goto addchar1;
+			break;
 		case '(':
 		case ')':			/* ( ) becomes \( \) */
 			if (--maxlen <= 0)
 				break;
 			*d++ = '\\';
-			/* fall thru */
-		default:		/* other characters: pass through */
-		addchar1:
-			if (--maxlen <= 0)
-				break;
-			*d++ = c1;
-			w += cwid((unsigned char) c1) * swfac;
 			break;
 		}
+		w += cwid((unsigned char) c1) * swfac;
+	addchar_nowidth:
+		if (--maxlen <= 0)
+			break;
+		*d++ = c1;
 	}
 	*d = '\0';
 	return w;

@@ -25,6 +25,15 @@ Q:"Tempo in the tune body"
 	[I:repeat 4 3]C//E//G//E// "^sequence repeat"C//E//G//E// C//E//G//E//|
 "^measure repeat"GABc|[I:repeat 1 2]GABc|GABc|\
 	G2d2|B2d2|[I:repeat 2]G2d2|B2d2|c4||
+"^tremolo 2 notes"\
+	z/ C//!trem1!c// C/!trem1!c/ C!trem1!c | C2!trem1!c2 | \
+	z/ C//!trem2!c// C/!trem2!c/ C!trem2!c | C2!trem2!c2 |
+"^tremolo 1 note"\
+	z C//!/!c// c//!/!C// C/!/!c/ c/!/!C/ | \
+	z C//!//!c// c//!//!C// C/!//!c/ c/!//!C/ |
+	z !/!C/ !/!c/ !/!C !/!c | !/!C2 !/!c2 | \
+	z !//!C/ !//!c/ !//!C !//!c | !//!C2 !//!c2 ||
+	!/!C4 | !/!c4 | !//!C4 | !//!c4 |
 
 %%writehistory 0
 X:2

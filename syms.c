@@ -402,6 +402,13 @@ static char ps_head[] =
 	"	0 -6 -5 -6 -5 0 RC\n"
 	"	2 add M 0 -4 RL stroke}!\n"
 
+	/* n x y trem - <n> tremolo on one note */
+	"/trem{	M -4.5 0 RM{\n"
+	"		currentpoint\n"
+	"		9 3 RL 0 -3 RL -9 -3 RL 0 3 RL\n"
+	"		fill 5.4 sub M\n"
+	"	}repeat}!\n"
+
 	/* x y hl - ledger line */
 	"/hl{	.8 SLW M -6 0 RM 12 0 RL stroke}!\n"
 	/* x y hl1 - longer ledger line */
@@ -482,24 +489,24 @@ static char ps_head[] =
 	"	/CharStrings CharStrings dup length 3 add dict copy def\n"
 	"	FontMatrix 0 get 1 eq{\n"
 	"	 CharStrings/sharpchar{pop\n"
-	"		.65 0 0 -.05 .65 .75 setcachedevice\n"
-	"		.056 dup scale 5.8 7 sh0}bind put\n"
+	"		.60 0 0 -.10 .60 .75 setcachedevice\n"
+	"		.056 dup scale 5.8 6 sh0}bind put\n"
 	"	 CharStrings/flatchar{pop\n"
-	"		.60 0 0 0 .60 .75 setcachedevice\n"
+	"		.60 0 0 0 .60 .78 setcachedevice\n"
 	"		.056 dup scale 5.8 5 ft0}bind put\n"
 	"	 CharStrings/natchar{pop\n"
-	"		.60 0 0 0 .60 .75 setcachedevice\n"
-	"		.056 dup scale 5.8 7 nt0}bind put\n"
+	"		.60 0 0 -.10 .60 .75 setcachedevice\n"
+	"		.056 dup scale 5.8 6 nt0}bind put\n"
 	"	}{\n"
 	"	 CharStrings/sharpchar{pop\n"
-	"		650 0 0 -50 650 750 setcachedevice\n"
-	"		56 dup scale 5.8 7 sh0}bind put\n"
+	"		600 0 0 -100 600 750 setcachedevice\n"
+	"		56 dup scale 5.8 6 sh0}bind put\n"
 	"	 CharStrings/flatchar{pop\n"
-	"		600 0 0 0 600 750 setcachedevice\n"
+	"		600 0 0 0 600 780 setcachedevice\n"
 	"		56 dup scale 5.8 5 ft0}bind put\n"
 	"	 CharStrings/natchar{pop\n"
-	"		600 0 0 0 600 750 setcachedevice\n"
-	"		56 dup scale 5.8 7 nt0}bind put\n"
+	"		600 0 0 -100 600 750 setcachedevice\n"
+	"		56 dup scale 5.8 6 nt0}bind put\n"
 	"	 }ifelse\n"
 	/*if RoPS and Font Type 3, change BuildChar*/
 	"	product(RoPS)eq FontType 3 eq and{\n"
@@ -751,11 +758,11 @@ static char *enc_tb[MAXENC] = {
 	"/Racute/Aacute/Acircumflex/Abreve/Adieresis/Lacute/Cacute/Ccedilla\n"
 	"/Ccaron/Eacute/Eogonek/Edieresis/Ecaron/Iacute/Icircumflex/Dcaron\n"
 	"/Dcroat/Nacute/Ncaron/Oacute/Ocircumflex/Ohungarumlaut/Odieresis/multiply\n"
-	"/Rcaron/Uring/Uacute/Uhungarumlaut/Udieresis/Yacute/Tcedilla/germandbls\n"
+	"/Rcaron/Uring/Uacute/Uhungarumlaut/Udieresis/Yacute/Tcommaaccent/germandbls\n"
 	"/racute/aacute/acircumflex/abreve/adieresis/lacute/cacute/ccedilla\n"
 	"/ccaron/eacute/eogonek/edieresis/ecaron/iacute/icircumflex/dcaron\n"
 	"/dcroat/nacute/ncaron/oacute/ocircumflex/ohungarumlaut/odieresis/divide\n"
-	"/rcaron/uring/uacute/uhungarumlaut/udieresis/yacute/tcedilla/dotaccent",
+	"/rcaron/uring/uacute/uhungarumlaut/udieresis/yacute/tcommaaccent/dotaccent",
 	/* 3 */
 	"/space/Hstroke/breve/sterling/currency/yen/Hcircumflex/section\n"
 	"/dieresis/Idotaccent/Scedilla/Gbreve/Jcircumflex/hyphen/registered/Zdotaccent\n"

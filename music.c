@@ -489,7 +489,7 @@ static void insert_clef(struct SYMBOL *s,
 	s->ts_prev = new_s;
 }
 
-/* -- define the clef for a staff -- */
+/* -- define the clef for a staff with no explicit clef -- */
 /* this function is called only once for the whole tune */
 static void set_clef(int staff)
 {
@@ -797,7 +797,10 @@ static float set_graceoffs(struct SYMBOL *s)
 	gspinside = ((cfmt.gracespace >> 8) & 0xff) * 0.1;
 	gspright = (cfmt.gracespace & 0xff) * 0.1;
 	xx = 0;
-	g = s->extra;
+	for (g = s->extra; ; g = g->next) {
+		if (g->type == NOTEREST)
+			break;
+	}
 	g->sflags |= S_BEAM_ST;
 	for ( ; ; g = g->next) {
 		if (g->type != NOTEREST)
@@ -1148,6 +1151,10 @@ static void set_width(struct SYMBOL *s)
 			if (s->dots >= 2)
 				s->wr += 3.5 * (s->dots - 1);
 		}
+
+		/* if a tremolo on 2 notes, have space for the small beam(s) */
+		if ((s->sflags & S_TREM2) && (s->sflags & S_BEAM_END))
+			AT_LEAST(wlnote, 20);
 
 		wlw = wlnote;
 
@@ -2008,7 +2015,10 @@ static void cut_tune(float lwidth, float indent)
 	xmin = indent;
 	s2 = s;
 	for ( ; s != 0; s = s->ts_next) {
-		if (s->sflags & S_SEQST) {
+//fixme:test
+//		if (s->sflags & S_SEQST) {
+		if (!(s->sflags & S_SEQST))
+			continue;
 			xmin += s->shrink;
 			if (xmin > lwidth) {
 				error(0, s, "Line overfull (%.0fpt of %.0fpt)",
@@ -2023,7 +2033,7 @@ static void cut_tune(float lwidth, float indent)
 				xmin = s->shrink;
 				indent = 0;
 			}
-		}
+//		}
 		if (!(s->sflags & S_EOLN))
 			continue;
 		s2 = set_nl(s);
@@ -2713,17 +2723,7 @@ static void set_global(void)
 	struct SYMBOL *s;
 	struct VOICE_S *p_voice;
 	int staff;
-static signed char maxpit[4] =		/* !! index = clef type !! */
-		{100,
-		  25,		/* e */
-		  21,		/* A */
-		 100};
-static signed char minpit[4] =
-		{-100,
-		   14,		/* G, */
-		   10,		/* C, */
-		 -100};
-static signed char delpit[4] = {0, -7, -14, 0};
+	static signed char delpit[4] = {0, -7, -14, 0};
 
 	/* get the max number of staves */
 	sy = cursys;
@@ -2735,18 +2735,31 @@ static signed char delpit[4] = {0, -7, -14, 0};
 	nstaff = staff;
 
 	/* adjust the pitches if old abc2ps behaviour of clef definition */
+	sy = cursys;
 	if (cfmt.abc2pscompat) {
-		int old_behaviour, done, max, min, i;
+		int i;
+#if 0
+		int old_behaviour, done, max, min;
+		static signed char maxpit[4] =	/* !! index = clef type !! */
+			{100,
+			  25,		/* e */
+			  21,		/* A */
+			 100};
+		static signed char minpit[4] =
+			{-100,
+			   14,		/* G, */
+			   10,		/* C, */
+			 -100};
 
 		old_behaviour = done = 0;
 		for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+			i = p_voice - voice_tb;
+			i = sy->voice[i].clef.type;
 			if (!p_voice->forced_clef
-			    || p_voice->clef.type == PERC)
+			    || i == PERC)
 				continue;
 
 			/* search if any pitch is too high for the clef */
-			i = p_voice - voice_tb;
-			i = cursys->voice[i].clef.type;
 			max = maxpit[i];
 			min = minpit[i];
 			for (s = p_voice->sym; s != 0; s = s->next) {
@@ -2764,7 +2777,7 @@ static signed char delpit[4] = {0, -7, -14, 0};
 						continue;
 					if (s->pits[0] < min) {
 						done = 1;
-						break;		/* new behaviour */
+						break;	/* new behaviour */
 					}
 					if (s->pits[s->nhd] <= max)
 						continue;
@@ -2778,15 +2791,16 @@ static signed char delpit[4] = {0, -7, -14, 0};
 				break;
 		}
 		if (old_behaviour) {
+#endif
 			for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 				int delta;
 				struct SYMBOL *g;
 
-				if (!p_voice->forced_clef
-				    || p_voice->clef.type == PERC)
-					continue;
 				i = p_voice - voice_tb;
-				i = cursys->voice[i].clef.type;
+				i = sy->voice[i].clef.type;
+				if (!p_voice->forced_clef
+				    || i == PERC)
+					continue;
 				delta = delpit[i];
 				for (s = p_voice->sym; s != 0; s = s->next) {
 					switch (s->type) {
@@ -2817,7 +2831,7 @@ static signed char delpit[4] = {0, -7, -14, 0};
 					}
 				}
 			}
-		}
+/*		} */
 	}
 
 	/* set a pitch for all symbols and the start/stop of words (beams) */
@@ -2857,7 +2871,7 @@ static signed char delpit[4] = {0, -7, -14, 0};
 					s->prev->head = H_SQUARE;
 				break;
 			case NOTEREST:
-				if (s->sflags & S_TREM)
+				if (s->sflags & S_TREM2)
 					break;
 				if (s->as.flags & ABC_F_SPACE)
 					start_flag = 1;
@@ -3053,6 +3067,17 @@ static void set_overlap(void)
 		if (s->as.type != ABC_T_NOTE
 		    || (s->as.flags & ABC_F_INVIS))
 			continue;
+
+		/* treat the stem on two staves with different directions */
+		if ((s->sflags & S_XSTEM)
+		    && s->ts_prev->stem < 0) {
+			s2 = s->ts_prev;
+			for (m = 0; m <= s2->nhd; m++) {
+				s2->shhd[m] += STEM_XOFF * 2;
+				s2->shac[m] -= STEM_XOFF * 2;
+			}
+			s2->xmx += STEM_XOFF * 2;
+		}
 
 		/* search the next note at the same time on the same staff */
 		s2 = s;
@@ -3499,6 +3524,8 @@ static void set_stems(void)
 			slen -= 2;
 			ymx = 3 * (s->pits[s->nhd] - 18);
 		} else	ymx = ymn;
+		if (s->u != 0)
+			slen += 2 * s->u;		/* tremolo */
 		if (s->as.flags & ABC_F_STEMLESS) {
 			if (s->stem >= 0) {
 				s->y = ymn;
@@ -3868,12 +3895,12 @@ static void set_sym_glue(float width)
 		if (tsnext != 0 && tsnext->space * 0.8 > s->wr + 4) {
 			x += tsnext->space * 0.8 * spafac;
 			xmax += tsnext->space * 0.8 * spafac * 1.8;
-//#if 0
+/*#if 0*/
 		} else {
 /*fixme:should calculate the space according to the last symbol duration */
 			x += (min + 4) * spafac;
 			xmax += (min + 4) * spafac * 1.8;
-//#endif
+/*#endif*/
 		}
 	}
 

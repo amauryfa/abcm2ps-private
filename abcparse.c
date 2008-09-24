@@ -139,8 +139,7 @@ static char *parse_basic_note(char *p,
 static void parse_info(struct abctune *t,
 		       char *p,
 		       char *comment);
-static char *parse_gchord(char *p,
-			  int *p_more_gch);
+static char *parse_gchord(char *p);
 static int parse_line(struct abctune *t,
 		      char *p);
 static char *parse_note(struct abctune *t,
@@ -606,10 +605,18 @@ static void parse_clef(struct abcsym *s,
 	int clef = -1;
 	int transpose = 0;
 	int clef_line = 2;
+	char str[80];
 
+	str[0] = '\0';
 	if (name != 0 && strncmp(name, "clef=", 5) == 0) {
 		name += 5;
 		switch (*name) {
+		case '\"':
+			name = get_str(str, name, sizeof str);
+			s->u.clef.name = alloc_f(strlen(str) + 1);
+			strcpy(s->u.clef.name, str);
+			clef = TREBLE;
+			break;
 		case 'g':
 			transpose = -7;
 		case 'G':
@@ -718,7 +725,7 @@ static void parse_clef(struct abcsym *s,
 
 	s->u.clef.type = clef;
 	s->u.clef.line = clef_line;
-	s->u.clef.transpose = curvoice->add_pitch = transpose;
+	curvoice->add_pitch = transpose;
 	s->u.clef.stafflines = -1;
 	s->u.clef.staffscale = 0;
 	if (lines != 0) {
@@ -819,8 +826,10 @@ static void parse_key(char *p,
 			break;
 		case 'e':
 		case 'E':
-			if (strncasecmp(p, "exp", 3) == 0)
+			if (strncasecmp(p, "exp", 3) == 0) {
+				s->u.key.exp = 1;
 				break;
+			}
 			goto unk;
 		case 'i':
 		case 'I':
@@ -906,7 +915,7 @@ static void parse_key(char *p,
 			int i;
 
 			for (i = MAXVOICE; --i >= 0; )
-				voice_tb[i].add_pitch = s->u.clef.transpose;
+				voice_tb[i].add_pitch = curvoice->add_pitch;
 		}
 	}
 }
@@ -1476,7 +1485,8 @@ static struct kw_s {
 	{"dyn=", 4, 8},
 	{"lyrics=", 7, 9},
 	{"scale=", 6, 10},
-	{0, 0, 0}
+	{"gchord=", 7, 11},
+	{}
 };
 	struct kw_s *kw;
 
@@ -1576,6 +1586,9 @@ static struct kw_s {
 				p++;
 			break;
 		    }
+		case 11:		/* gchord= */
+			p_stem = &s->u.voice.gchord;
+			break;
 		}
 	}
 	if (clef_name != 0 || clef_middle != 0 || clef_lines != 0 || clef_scale != 0) {
@@ -1863,15 +1876,9 @@ static char *parse_decoline(char *p)
 			syntax("'\\' ignored", p);
 			p++;
 			continue;
-		case '"': {
-			int more_gch;
-
-			p = parse_gchord(p + 1, &more_gch);
-			if (more_gch)
-				syntax("No end of guitar chord / annotation in deco line",
-				       p);
+		case '"':
+			p = parse_gchord(p + 1);
 			break;
-		    }
 		case '!':
 		case '+':
 			p = get_deco(p + 1, &d);
@@ -1920,19 +1927,17 @@ static char *parse_decoline(char *p)
 }
 
 /* -- parse a guitar chord / annotation -- */
-static char *parse_gchord(char *p,
-			  int *p_more_gch)
+static char *parse_gchord(char *p)
 {
 	char *q;
-	int l, l2, more_gch;
+	int l, l2;
 
-	more_gch = 0;
 	q = p;
 	while (*p != '"') {
 		if (*p == '\\')
 			p++;
 		if (*p == '\0') {
-			more_gch = 1;
+			syntax("No end of guitar chord", p);
 			break;
 		}
 		p++;
@@ -1941,11 +1946,11 @@ static char *parse_gchord(char *p,
 	if (gchord) {
 		char *gch;
 
-		/* many guitar chords: concatenate with '\n' or ';' */
+		/* many guitar chords: concatenate with ';' */
 		l2 = strlen(gchord);
 		gch = alloc_f(l2 + 1 + l + 1);
 		strcpy(gch, gchord);
-		gch[l2++] = more_gch ? ';' : '\n';
+		gch[l2++] = '\n';
 		strncpy(&gch[l2], q, l);
 		gch[l2 + l] = '\0';
 		if (free_f)
@@ -1958,7 +1963,6 @@ static char *parse_gchord(char *p,
 	}
 	if (*p != '\0')
 		p++;
-	*p_more_gch = more_gch;
 	return p;
 }
 
@@ -2149,23 +2153,11 @@ again:					/* for history */
 	while (*p != '\0') {
 		colnum = p - scratch_line;
 		switch (char_tb[(unsigned) *p++]) {
-		case CHAR_GCHORD: {			/* " */
-			int more_gch;
-
+		case CHAR_GCHORD:			/* " */
 			if (flags & ABC_F_GRACE)
 				goto bad_char;
-			for (;;) {
-				p = parse_gchord(p, &more_gch);
-				if (!more_gch)
-					break;
-				if ((p = get_line()) == 0) {
-					syntax("EOF reached while parsing guitar chord",
-					       p);
-					return 1;
-				}
-			}
+			p = parse_gchord(p);
 			break;
-		    }
 		case CHAR_GR_ST:		/* '{' */
 			if (flags & ABC_F_GRACE)
 				goto bad_char;

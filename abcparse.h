@@ -103,6 +103,7 @@ struct abcsym {
 			char bagpipe;		/* HP or Hp */
 			char minor;		/* major (0) / minor (1) */
 			char empty;		/* clef alone if 1, 'none' if 2 */
+			char exp;		/* exp (1) or mod (0) */
 			signed char nacc;	/* explicit accidentals */
 			char pits[8];
 			char accs[8];
@@ -137,6 +138,7 @@ struct abcsym {
 			signed char gstem;	/* have grace stems up or down (2 = auto) */
 			signed char dyn;	/* have dynamic marks above or below the staff */
 			signed char lyrics;	/* have lyrics above or below the staff */
+			signed char gchord;	/* have gchord above or below the staff */
 		} voice;
 		struct {		/* bar, mrest or mrep */
 			struct deco dc;		/* decorations */
@@ -146,6 +148,7 @@ struct abcsym {
 			char dotted;
 		} bar;
 		struct clef_s {		/* clef (and staff!) */
+			char *name;		/* PS drawing function */
 			float staffscale;	/* != 0 when change */
 			signed char stafflines;	/* >= 0 when change */
 			signed char type;	/* no clef if < 0 */
@@ -155,7 +158,6 @@ struct abcsym {
 #define PERC 3
 			char line;
 			signed char octave;
-			signed char transpose;
 			char invis;
 			char check_pitch;	/* check if old abc2ps transposition */
 		} clef;

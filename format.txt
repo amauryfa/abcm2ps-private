@@ -43,8 +43,7 @@ List of the format parameters
 	Command line: -u
 	Description:
 		When true, set 'M' as the +tenuto+ decoration and do a
-		pitch translation if the notes are too high for a bass
-		clef.
+		pitch translation for the bass and alto clefs.
 
   alignbars <int>
 	Default: 0
@@ -1136,7 +1135,7 @@ List of the pseudo-comments treated while parsed
 	Arguments:
 		<int> gives the tablature number (from 1 to 8, default=1).
 		<unit-1> gives the width of the header (left side of
-			the music line.
+			the music line).
 		<unit-2> gives the tablature height above the staff.
 		<unit-3> gives the tablature height under the staff.
 		<pitch> is the pitch of the instrument. It looks like

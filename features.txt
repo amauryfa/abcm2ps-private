@@ -1,5 +1,5 @@
-	Features of abcm2ps 5.4.1 (J.F. Moine, April 2007)
-	==================================================
+	Features of abcm2ps 5.9.0 (J.F. Moine, September 2008)
+	======================================================
 
 abcm2ps tries to follow the ABC standard version 2.0:
 
@@ -75,15 +75,11 @@ Information fields.
 	  'Area', and not 'Author of lyrics'. It is displayed only when
 	  'infoline' is set.
 
-	- In 'K' fields, when present, the list of accidentals always
-	  replaces the accidentals of the key signature (as if 'exp'
-	  was present).
-
 	- In 'K' fields, the list of accidentals may be 'none' (for
 	  no accidental).
 
 	- When a 'K' or 'M' field is found inside a tune, in the first
-	  voice, alone in a line (not enclosed by '[' / ']') and when
+	  voice, alone in a line (not enclosed by '[' and ']') and when
 	  the voice is empty, it is applied to all voices.
 
 Tune body.
@@ -121,7 +117,7 @@ Clefs.
 Multiple voices.
 
 	- The 'P' information field inside a tune and alone in a line
-	  (not enclosed by '[' / ']') is set in the first voice,
+	  (not enclosed by '[' and ']') is set in the first voice,
 	  without changing the current voice.
 
 Data format.
@@ -228,10 +224,11 @@ Tune body.
 		+rbstop+	stop here the current repeat bracket
 		+trem1+ .. +trem4+
 				tremolo (on the second of a couple of notes
-				- see sample4.abc for an example)
+				- see sample4.abc for example)
 		+xstem+		draw a stem up to the note on the previous
 				staff
 		!+!		same as +plus+
+		+/+ .. +///+	tremolo on one note
 
 	- There may be decorations on notes inside chords.
 	  Such decorations cannot be standard ones, they must be
@@ -240,10 +237,11 @@ Tune body.
 	- There may be decorations on grace notes.
 
 	- Multiple lines of guitar chord / annotation may also be
-	  indicated by '\n', ';' or a new line inside the quoted
-	  string. Ex:
-		"G3""4"G "G3\n4"G "G3;4"G "G3
-		4"G
+	  indicated by '\n' or ';'. In this case, the next lines are of
+	  the same type (gchord or annotation) .
+		"_ann1" "_ann2" "G3" "4" G
+		"_ann1;ann2" "G3;4" G
+		"_ann1\nann2" "G3\n4" G
 
 	- Annotations may contain '\#', '\b' and '\=' to display
 	  accidentals.
@@ -265,20 +263,21 @@ Clefs.
 	- When no clef is specified, clef changes are automatically
 	  inserted when needed ('bass' or 'treble').
 
-	- When the clef is bass or alto, for abc2ps compatibility,
-	  abcm2ps scans the beginning of the tune to see if some
-	  transposition was applied.
-	  If the option CLEF_TRANSPOSE was set during abcm2ps generation,
-	  abc2ps transposition always occurs.
+	- The clef name may be enclosed by double quotes in which case
+	  it is the name of a PostScript function which will draw the
+	  clef. This function arguments are the x and y offsets.
 
 Multiple voices.
-
-	- 'gstem=up' or 'gstem=down' in a V field forces the direction
-	  of the stems of the grace notes.
 
 	- 'stem=auto' and 'gstem=auto' in a V field re-enables the
 	  automatic computation of the direction of the stems (default
 	  values).
+
+	- 'gstem=up' or 'gstem=down' in a V field forces the direction
+	  of the stems of the grace notes.
+
+	- 'gchord=up' (default) or 'gchord=down' in a V field forces the
+	  display of guitar chords above or below the staff.
 
 	- 'dyn=up', 'dyn=down' or 'dyn=auto' in a V field forces the
 	  place of the dynamic marks (above or below the staff -
@@ -287,6 +286,9 @@ Multiple voices.
 	- 'lyrics=up', 'lyrics=down' or 'lyrics=auto' in a V field forces
 	  the place of the lyrics (above or below the staff - default
 	  is 'auto').
+
+	- 'stafflines=<value>' in a V field sets the number of lines
+	  of the associated staff. The default value is '5'.
 
 	- 'staffscale=<value>' in a V field sets the scale of the
 	  associated staff. The default value is '1'.

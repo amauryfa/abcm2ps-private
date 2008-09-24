@@ -2,7 +2,7 @@
 %!! syntax may change in next releases !!
 %
 % this option is required for !trem!
-%%setdefl 1
+% %setdefl 1
 %
 % == postscript definitions - must be before any tune ==
 %
@@ -50,13 +50,6 @@
 	22 add M 0 -6 RL currentpoint stroke M
 	[6] 0 setdash 30 add 0 RL stroke
 	[] 0 setdash}!
-%
-% -- single tremolo sign
-/trem{		% usage: x y trem
-	M defl 4 and 0 eq
-	{-3 -13 RM 9 3 RL 0 -3 RL -9 -3 RL}
-	{4 13 RM 9 3 RL 0 -3 RL -9 -3 RL}
-	ifelse fill}!
 %
 % -- write big letters (position marks) above the staff
 % (from Guido Gonzato)
@@ -358,9 +351,6 @@
 %%deco 8b( 7 - 24 0 0
 %%deco 8b) 7 octavab 24 0 0
 %
-% -- tremolo on stem
-%%deco / 1 trem 0 0 0
-%
 % -- big letters
 %%deco biga 3 bigl 20 0 0 A
 %%deco bigb 3 biglc 20 0 0 B
@@ -420,7 +410,7 @@ K:C treble-8
 %
 K: clef=treble
 !8(!!riten!EF !-!G2 !ped!GA!ped-end!B!8)!c|!8b(!!bigb!C2!()!E2 !tr(!G3!tr)!!8b)!c!alcoda!|\
-CE!-(!G2!-)!!/!C2"free text"!/!c2|
+CE!-(!G2!-)!C2"free text"c2|
 %
 "Dm"!Dm!e3/d/ d6 | "Bb"!Bb!z2 d/d3/ "C7"!C7!cB/A/- AG |\
 F!accent!G!accn!AB !sfa!c4||

@@ -1,7 +1,7 @@
 # Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.8.0
+VERSION = 5.9.0
 
 CC = gcc
 INSTALL = /usr/bin//install -c
@@ -101,7 +101,7 @@ DIST_FILES = \
 
 dist:
 	ln -s . abcm2ps-$(VERSION); \
-	tar -zcvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES); \
+	tar -zcvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES);
 	rm abcm2ps-$(VERSION)
 
 zip-dist:

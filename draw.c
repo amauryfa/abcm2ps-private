@@ -414,21 +414,22 @@ static void draw_beam(float x1,
 		      float x2,
 		      float dy,
 		      float h,
-		      struct BEAM *bm)
+		      struct BEAM *bm,
+		      int n)			/* beam number (1..n) */
 {
+	struct SYMBOL *s;
 	float y1, dy2;
 
-	if ((bm->s1->sflags & S_TREM) && bm->s1->head != H_EMPTY) {
-		if (bm->s1->head >= H_OVAL) {
-			x1 = bm->s1->x;
-			x2 = bm->s2->x;
+	s = bm->s1;
+	if (n > s->nflags - s->u
+	    && (s->sflags & S_TREM2) && s->head != H_EMPTY) {
+		if (s->head >= H_OVAL) {
+			x1 = s->x + 6;
+			x2 = bm->s2->x - 6;
+		} else {
+			x1 += 5;
+			x2 -= 6;
 		}
-		dy2 = (x2 - x1) * .7;
-		if (dy2 < 15)
-			dy2 = 15;
-		dy2 = (x2 - x1 - dy2) * .5;
-		x1 += dy2;
-		x2 -= dy2;
 	}
 
 	y1 = bm->a * x1 + bm->b - dy;
@@ -481,7 +482,7 @@ static void draw_beams(struct BEAM *bm)
 	}
 
 	/* make first beam over whole word and adjust the stem lengths */
-	draw_beam(s1->xs - shift, s2->xs + shift, 0., bh, bm);
+	draw_beam(s1->xs - shift, s2->xs + shift, 0., bh, bm, 1);
 	for (s = s1; ; s = s->next) {
 		if (s->as.type == ABC_T_NOTE
 		    && s->stem != beam_dir) {
@@ -502,7 +503,21 @@ static void draw_beams(struct BEAM *bm)
 			struct SYMBOL *k1, *k2;
 			float x1;
 
-			if (s->as.type != ABC_T_NOTE || s->nflags < i) {
+			if (s->as.type != ABC_T_NOTE
+			    || s->nflags < i) {
+				if (s == s2)
+					break;
+				continue;
+			}
+			if ((s->sflags & S_TREM1)
+			    && i > s->nflags - s->u) {
+				if (s->head >= H_OVAL)
+					x1 = s->x;
+				else
+					x1 = s->xs;
+				draw_beam(x1 - 5, x1 + 5,
+					  (shift + 2.5) * beam_dir,
+					  bh, bm, i);
 				if (s == s2)
 					break;
 				continue;
@@ -511,13 +526,13 @@ static void draw_beams(struct BEAM *bm)
 			for (;;) {
 				if (s == s2)
 					break;
-				s = s->next;
-				if ((s->dur > 0 && s->nflags < i)
-				    || (s->sflags & S_BEAM_BR1)
-				    || ((s->sflags & S_BEAM_BR2) && i > 2)) {
-					s = s->prev;
+				if ((s->next->type == NOTEREST
+				     && s->next->nflags < i)
+				    || (s->next->sflags & S_BEAM_BR1)
+				    || ((s->next->sflags & S_BEAM_BR2)
+					 && i > 2))
 					break;
-				}
+				s = s->next;
 			}
 			k2 = s;
 			while (k2->as.type != ABC_T_NOTE)
@@ -559,7 +574,7 @@ static void draw_beams(struct BEAM *bm)
 #else
 				  shift * k1->stem,	/*fixme: more complicated */
 #endif
-				  bh, bm);
+				  bh, bm, i);
 			if (s == s2)
 				break;
 		}
@@ -1070,6 +1085,9 @@ static char *rest_tb[NFLAGS_SZ] = {
 	    && staff_tb[s->staff].clef.stafflines <= 2)
 		y -= 6;				/* semibreve a bit lower */
 
+	putxy(x, y + staffb);				/* rest */
+	PUT1("%s ", rest_tb[i]);
+
 	/* output ledger line(s) when greater than minim */
 	if (i >= 6) {
 		int yb, yt;
@@ -1123,9 +1141,6 @@ static char *rest_tb[NFLAGS_SZ] = {
 			break;
 		}
 	}
-
-	putxy(x, y + staffb);				/* rest */
-	PUT1("%s ", rest_tb[i]);
 
 	dotx = 8;
 	for (i = 0; i < s->dots; i++) {
@@ -1416,7 +1431,7 @@ static void draw_note(float x,
 {
 	int i, m, ma, y;
 	float staffb, slen;
-	char *hltype;
+	char c, *hltype;
 	signed char y_tb[MAXHD];
 
 	if (s->dots)
@@ -1475,38 +1490,72 @@ static void draw_note(float x,
 
 	draw_basic_note(x, s, ma, y_tb);
 
-	if (!(s->as.flags & (ABC_F_INVIS | ABC_F_STEMLESS))) {	/* add stem and flags */
-		char c, c2;
+	/* add stem and flags */
+	if (!(s->as.flags & (ABC_F_INVIS | ABC_F_STEMLESS))) {
+		char c2;
 
 		c = s->stem >= 0 ? 'u' : 'd';
-		slen = s->ys - s->y;
-		if (!fl || s->nflags <= 0) {		/* stem only */
+		slen = (s->ys - s->y) / voice_tb[s->voice].scale;
+		if (!fl || s->nflags - s->u <= 0) {	/* stem only */
 			c2 = (s->as.flags & ABC_F_GRACE) ? 'g' : 's';
 			if (s->nflags > 0) {	/* (fix for PS low resolution) */
 				if (s->stem >= 0)
 					slen -= 1;
 				else	slen += 1;
 			}
-			slen /= voice_tb[s->voice].scale;
 			PUT3(" %.1f %c%c", slen, c2, c);
 		} else {				/* stem and flags */
 			if (cfmt.straightflags)
 				c = 's';		/* straight flag */
 			c2 = (s->as.flags & ABC_F_GRACE) ? 'g' : 'f';
-			slen /= voice_tb[s->voice].scale;
-			PUT4(" %d %.1f s%c%c", s->nflags, slen, c2, c);
+			PUT4(" %d %.1f s%c%c", s->nflags - s->u, slen, c2, c);
 		}
 	} else if (s->sflags & S_XSTEM) {	/* cross-staff stem */
 		struct SYMBOL *s2;
 
 		s2 = s->ts_prev;
+		if (s2->stem > 0)
+			slen = s2->y - s->y;
+		else
+			slen = s2->ys - s->y;
+		slen += staff_tb[s2->staff].y - staffb;
 /*fixme:KO when different scales*/
-		slen = s2->y + staff_tb[s2->staff].y - s->y - staffb;
 		slen /= voice_tb[s->voice].scale;
 		PUT1(" %.1f su", slen);
 	}
 
-	/* draw the other notes */
+	/* draw the tremolo bars */
+	if (!(s->as.flags & ABC_F_INVIS)
+	    && fl
+	    && (s->sflags & S_TREM1)) {
+		float x1;
+
+		x1 = x;
+		if (s->stem > 0)
+			slen = 3 * (s->pits[s->nhd] - 18);
+		else
+			slen = 3 * (s->pits[0] - 18);
+		if (s->head >= H_OVAL) {
+			if (s->stem > 0)
+				slen = slen + 5 + 5.4 * s->u;
+			else
+				slen = slen - 5 - 5.4;
+		} else {
+			x1 += ((s->as.flags & ABC_F_GRACE)
+					? GSTEM_XOFF : STEM_XOFF)
+							* s->stem;
+			if (s->stem > 0)
+				slen = slen + 6 + 5.4 * s->u;
+			else
+				slen = slen - 6 - 5.4;
+		}
+		slen /= voice_tb[s->voice].scale;
+		PUT1(" %d ", s->u);
+		putxy(x1, staffb + slen);
+		PUT0("trem");
+	}
+
+	/* draw the other note heads */
 	for (m = 0; m <= s->nhd; m++) {
 		if (m == ma)
 			continue;
@@ -2292,8 +2341,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
 			if (nb_only
 			    && !(s1->sflags & (S_BEAM_ST | S_BEAM_BR1 | S_BEAM_BR2))) {
 				for (sy = s1->prev; sy != 0; sy = sy->prev) {
-					if (sy->dur != 0
-					    && sy->type == NOTEREST) {
+					if (sy->type == NOTEREST) {
 						if (sy->nflags >= s1->nflags)
 							nb_only = 0;
 						break;
@@ -2302,7 +2350,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
 			}
 			if (nb_only && !(s2->sflags & S_BEAM_END)) {
 				for (sy = s2->next; sy != 0; sy = sy->next) {
-					if (sy->dur != 0) {
+					if (sy->type == NOTEREST) {
 						if (!(sy->sflags & (S_BEAM_BR1 | S_BEAM_BR2))
 						    && sy->nflags >= s2->nflags)
 							nb_only = 0;
@@ -2461,7 +2509,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
 	/* shift up bracket if needed */
 	dy = 0;
 	for (sy = s1; ; sy = sy->next) {
-		if (sy->dur == 0	/* not a note nor a rest */
+		if (sy->dur == 0	/* not a note or a rest */
 		    || sy->staff != upstaff) {
 			if (sy == s2)
 				break;
@@ -3160,10 +3208,13 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 			hyflag = 1;
 			p_voice->hy_st &= ~(1 << j);
 		}
-		for (s = p_voice->sym->next; /*s != 0*/; s = s->next)
+		for (s = p_voice->sym; /*s != 0*/; s = s->next)
 			if (s->type != KEYSIG && s->type != TIMESIG)
 				break;
-		lastx = s->prev->x;
+		if (s->prev != 0)
+			lastx = s->prev->x;
+		else
+			lastx = 0;
 		x0 = 0;
 		if (f != 0)
 			lskip = f->size * 1.1;
@@ -3302,6 +3353,8 @@ static void draw_all_lyrics(void)
 	staff = -1;
 	top = bot = 0;
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+		if (p_voice->sym == 0)
+			continue;
 		voice = p_voice - voice_tb;
 		if (p_voice->staff != staff) {
 			top = 0;
@@ -3907,9 +3960,11 @@ static void bar_set(float *bar_height)
 
 	dy = 0;
 	for (staff = 0; staff <= nstaff; staff++) {
-		if (cursys->staff[staff].empty)
+		if (cursys->staff[staff].empty) {
 			bar_height[staff] = 0;
-		else {
+			if (dy == 0)
+				continue;
+		} else {
 			if (dy == 0)
 				dy = staff_tb[staff].y + staff_tb[staff].topbar
 					* staff_tb[staff].clef.staffscale;
@@ -4080,7 +4135,8 @@ static void draw_symbols(struct VOICE_S *p_voice)
 	for (s = p_voice->sym; s != 0; s = s->next) {
 		if (s->extra != 0)
 			output_ps(s, 127);
-		if (s->as.flags & ABC_F_INVIS)
+		if ((s->as.flags & ABC_F_INVIS)
+		    && s->type != NOTEREST)
 			continue;
 		x = s->x;
 		switch (s->type) {
@@ -4117,9 +4173,12 @@ static void draw_symbols(struct VOICE_S *p_voice)
 			set_sscale(staff);
 			y = staff_tb[staff].y;
 			putxy(x, y + s->y);
-			PUT2("%c%cclef\n",
-			     s->u ? 's' : ' ',
-			     "tcbp"[(unsigned) s->as.u.clef.type]);
+			if (s->as.u.clef.name != 0)
+				PUT1("%s\n", s->as.u.clef.name);
+			else
+				PUT2("%c%cclef\n",
+				     s->u ? 's' : ' ',
+				     "tcbp"[(unsigned) s->as.u.clef.type]);
 			if (s->as.u.clef.octave == 0)
 				break;
 /*fixme:break the compatibility and avoid strange numbers*/
@@ -4179,8 +4238,7 @@ void draw_all_symb(void)
 	struct VOICE_S *p_voice;
 
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
-//fixme:test
-#if 1
+#if 1 /*fixme:test*/
 		if (p_voice->sym == 0)
 #else
 		if (staff_tb[p_voice->staff].empty || p_voice->sym == 0)

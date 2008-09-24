@@ -82,8 +82,8 @@ static int def_fmt_done = 0;	/* default format read */
 static struct SYMBOL notitle;
 
 /* memory arena (for clrarena, lvlarena & getarena) */
-#define MAXAREAL 3		/* max area levels:
-				 * 0; global, 1: file, 2: tune generation */
+#define MAXAREAL 2		/* max area levels:
+				 * 0; global, 1: tune */
 static int str_level;		/* current arena level */
 static struct str_a {
 	char	str[4096];	/* memory area */
@@ -122,9 +122,8 @@ int main(int argc,
 
 	/* initialize */
 	outfn[0] = '\0';
-	clrarena(0);			/* global description */
-	clrarena(1);			/* tune description */
-	clrarena(2);			/* tune generation */
+	clrarena(0);			/* global */
+	clrarena(1);			/* tune */
 	clear_buffer();
 	abc_init((void *(*)(int size)) getarena, /* alloc */
 		0,				/* free */
@@ -189,7 +188,9 @@ int main(int argc,
 					cfmt.musiconly = 0;
 					lock_fmt(&cfmt.musiconly);
 					break;
-				case 'N': pagenumbers = 0; break;
+				case 'N':
+					pagenumbers = 0;
+					break;
 				case 'n':
 					cfmt.writehistory = 0;
 					lock_fmt(&cfmt.writehistory);
@@ -253,7 +254,7 @@ int main(int argc,
 				in_fname = "";		/* read from stdin */
 				continue;
 			}
-			if (p[1] == '-') {	/* long argument */
+			if (p[1] == '-') {		/* long argument */
 				p += 2;
 				if (--argc <= 0) {
 					fprintf(stderr,
@@ -403,34 +404,24 @@ int main(int argc,
 					}
 
 					switch (c) {
-					case 'a': {
-						float alfa_c;
-
-						sscanf(aaa, "%f", &alfa_c);
-						if (alfa_c > 1 || alfa_c < 0) {
-							fprintf(stderr,
-								"++++ Bad parameter for flag -a: %s\n",
-								aaa);
-							return 2;
-						}
-						cfmt.maxshrink = alfa_c;
-						lock_fmt(&cfmt.maxshrink);
+					case 'a':
+						interpret_fmt_line("maxshrink",
+								aaa, 1);
 						break;
-					    }
 					case 'B':
-						sscanf(aaa, "%d", &cfmt.barsperstaff);
-						lock_fmt(&cfmt.barsperstaff);
+						interpret_fmt_line("barsperstaff",
+								aaa, 1);
 						break;
 					case 'b':
-						sscanf(aaa, "%d", &cfmt.measurefirst);
-						lock_fmt(&cfmt.measurefirst);
+						interpret_fmt_line("measurefirst",
+								aaa, 1);
 						break;
 					case 'D':
 						styd = aaa;
 						break;
 					case 'd':
-						cfmt.staffsep = scan_u(aaa);
-						lock_fmt(&cfmt.staffsep);
+						interpret_fmt_line("staffsep",
+								aaa, 1);
 						break;
 					case 'F':
 						read_def_format();
@@ -442,8 +433,8 @@ int main(int argc,
 						}
 						break;
 					case 'I':
-						cfmt.indent = scan_u(aaa);
-						lock_fmt(&cfmt.indent);
+						interpret_fmt_line("indent",
+								aaa, 1);
 						break;
 					case 'j':
 					case 'k':
@@ -455,18 +446,12 @@ int main(int argc,
 						lock_fmt(&cfmt.measurebox);
 						break;
 					case 'L':
-						sscanf(aaa, "%d", &cfmt.encoding);
-						if ((unsigned) cfmt.encoding > MAXENC) {
-							fprintf(stderr,
-								"++++ Bad encoding value %s - reset to 0\n",
-								aaa);
-							cfmt.encoding = 0;
-						}
-						lock_fmt(&cfmt.encoding);
+						interpret_fmt_line("encoding",
+								aaa, 1);
 						break;
 					case 'm':
-						cfmt.leftmargin = scan_u(aaa);
-						lock_fmt(&cfmt.leftmargin);
+						interpret_fmt_line("leftmargin",
+								aaa, 1);
 						break;
 					case 'N':
 						sscanf(aaa, "%d", &pagenumbers);
@@ -481,8 +466,8 @@ int main(int argc,
 						strcpy(outfn, aaa);
 						break;
 					case 's':
-						sscanf(aaa, "%f", &cfmt.scale);
-						lock_fmt(&cfmt.scale);
+						interpret_fmt_line("scale",
+								aaa, 1);
 						break;
 					case 'T': {
 						struct cmdtblt_s *cmdtblt;
@@ -492,16 +477,10 @@ int main(int argc,
 							cmdtblt->active = 1;
 						break;
 					    }
-					case 'w': {
-						float w;
-
-						w = scan_u(aaa);
-						cfmt.rightmargin = cfmt.pagewidth - w - cfmt.leftmargin;
-						if (cfmt.rightmargin < 0)
-							fprintf(stderr, "Warning: staffwidth too big\n");
-						lock_fmt(&cfmt.rightmargin);
+					case 'w':
+						interpret_fmt_line("staffwidth",
+								aaa, 1);
 						break;
-					    }
 					}
 					break;
 				default:
@@ -568,8 +547,6 @@ static void output_file(char *sel)
 	if (!epsf)
 		open_output_file();
 	fprintf(stderr, "File %s\n", in_fname);
-	clrarena(1);
-	lvlarena(0);
 	t = abc_parse(file);
 	free(file);
 
@@ -625,9 +602,7 @@ static void do_select(struct abctune *t,
 		print_tune = i >= first_tune && i <= last_tune;
 		if (print_tune
 		    || !t->client_data) {	/* (parse the global symbols) */
-			lvlarena(2);
 			do_tune(t, !print_tune);
-			clrarena(2);
 			t->client_data = (void *) 1;	/* treated */
 		}
 		t = t->next;

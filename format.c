@@ -314,7 +314,7 @@ void make_font_list(void)
 	used_font[f->font_tb[WORDSFONT].fnum] = 1;
 }
 
-/* -- set the name an information header type -- */
+/* -- set the name of an information header type -- */
 /* the argument is
  *	<letter> [ <possibly quoted string> ]
  * this information is kept in the 'I' information */
@@ -865,7 +865,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 			cfmt.textoption = get_textopt(p);
 		else	sscanf(p, "%d", (int *) fd->v);
 		switch (fd->subtype) {
-		case 1:
+		case 1:					/* 'encoding' */
 			if (isdigit(*p)
 			    && (unsigned) cfmt.encoding > MAXENC) {
 				error(1, 0,
@@ -885,7 +885,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 		case 2:
 			nbar = nbar_rep = cfmt.measurefirst;
 			break;
-		case 4:
+		case 4:				/* 'textoption' */
 			if (cfmt.textoption < 0) {
 				error(1, 0,
 				      "Bad 'textoption' value '%s'",
@@ -957,10 +957,8 @@ void interpret_fmt_line(char *w,		/* keyword */
 	case FORMAT_S: {
 		int l;
 
-		if (*((char **) fd->v) != 0)	/* !!no static allocation!! */
-			free(*((char **) fd->v));
 		l = strlen(p) + 1;
-		*((char **) fd->v) = malloc(l);
+		*((char **) fd->v) = getarena(l);
 		if (*p == '"')
 			get_str(*((char **) fd->v), p, l);
 		else	strcpy(*((char **) fd->v), p);

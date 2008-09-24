@@ -45,7 +45,7 @@
 %%endps
 
 % Define the alternate string fonts.
-% (don't forget the size - else 0!)
+% (don't forget the size, otherwise size = 0!)
 
 %%setfont-1 Times-Bold 20		% default latin 1
 %%setfont-2 Times-Bold iso-8859-2 20	% latin 2

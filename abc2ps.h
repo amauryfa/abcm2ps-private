@@ -144,7 +144,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_BEAM_BR1	0x0004		/* 2nd beam must restart here */
 #define S_OTHER_HEAD	0x0008		/* don't draw any note head */
 #define S_IN_TUPLET	0x0010		/* in a tuplet */
-#define S_TREM		0x0020		/* tremolo (when note) */
+#define S_TREM2		0x0020		/* tremolo on 2 notes */
 #define S_RRBAR		0x0040		/* right repeat bar (when bar) */
 #define S_XSTEM		0x0080		/* cross-staff stem (when note) */
 #define S_BEAM_ON	0x0200		/* continue beaming */
@@ -162,6 +162,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_FLOATING	0x00200000	/* symbol on a floating voice */
 #define S_NOREPBRA	0x00400000	/* don't print the repeat bracket */
 #define S_BEAM_END	0x00800000	/* beam starts here */
+#define S_TREM1		0x01000000	/* tremolo on 1 note */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
 	char dots;		/* number of dots */
@@ -179,6 +180,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 				 *	- KEYSIG: old key signature
 				 *	- BAR: new bar number
 				 *	- TUPLET: tuplet format
+				 *	- NOTE: tremolo number
 				 *	- FMTCHG (format change): subtype */
 #define PSSEQ 0				/* postscript sequence */
 #define REPEAT 1			/* repeat sequence or measure
@@ -368,6 +370,7 @@ struct VOICE_S {
 	signed char gstem;	/* grace stem direction while parsing */
 	signed char dyn;	/* place of dynamic marks while parsing */
 	signed char ly_pos;	/* place of lyrics (above / below) */
+	signed char gchord;	/* place of guitar chords (above / below) */
 	unsigned char slur_st;	/* slurs at start of staff */
 };
 extern struct VOICE_S voice_tb[MAXVOICE]; /* voice table */

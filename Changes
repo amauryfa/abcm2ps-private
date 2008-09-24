@@ -1,3 +1,38 @@
+---- Version 5.9.0 - 08/09/25 ----
+
+Loop when tabulation in guitar chord and next symbol is not a note/rest/bar.
+Bad vertical offset of longa rests.
+Bad grace note duration and beams when many notes.
+Crash when %%header/footer in tune.
+The clef name in K: or V: may be a PostScript function.
+'stafflines=<value>' in V: was not documented.
+Bad display when repeat bracket on two voices.
+Define the music lines from the EOL of the first voice only.
+Bad grace notes at start of tune when Q: present.
+Bad handling of %%alignbars since 5.7.0.
+Bad handling of multi-rests (Z) at start of tune.
+Replace the PostScript glyph 'Tcedilla' by 'Tcommaaccent'
+	(thanks to Erik Ronström).
+Bad horizontal offset of lyrics when word starts with '$n'.
+Draw the decorations of invisible notes and rests.
+Erroneous measure bar errors when %%staves order different from declaration.
+Crash when lyrics at start of secondary voice.
+Crash on one multi-rest ('Z1').
+Change a bit the guitar chord / annotation handling.
+'gchord=up|down' added in V:.
+Handle the lack of 'exp' in K:.
+Bad display when stem on two staves and reverse directions.
+Decorations +/+, +//+ and +///+ (tremolo on one note) added.
+
+---- Version 5.8.1 - 08/06/14 ----
+
+Always apply an octave translation for bass and alto when %%abc2pscompat.
+Bad bars when multi-voices and grace notes before bars.
+Bad bars when multi-voices and voice appearing after %%staves.
+Crash when %%staves with less voices and lyrics.
+Don't change 'b', '#' and '=' to accidentals when 1st char or
+	just after a slash in guitar chord.
+
 ---- Version 5.8.0 - 08/02/09 ----
 
 Extend %%tablature.
