@@ -151,8 +151,18 @@ int main(int argc,
 		p = *argv;
 		if ((c = *p) == '\0')
 			continue;
-		if (c == '-' && p[1] != '-' && p[strlen(p) - 1] == '-')
-			c = '+';	/* switch off flags with '-x-' */
+		if (c == '-') {
+			if (p[1] == '\0') {		/* '-' alone */
+				if (in_fname != 0) {
+					output_file(sel);
+					sel = 0;
+				}
+				in_fname = "";		/* read from stdin */
+				continue;
+			}
+			if (p[1] != '-' && p[strlen(p) - 1] == '-')
+				c = '+'; /* switch off flags with '-x-' */
+		}
 		if (c == '+') {		/* switch off flags with '+' */
 			while (*++p != '\0') {
 				switch (*p) {
@@ -246,14 +256,6 @@ int main(int argc,
 		}
 
 		if (c == '-') {		     /* interpret a flag with '-' */
-			if (p[1] == '\0') {		/* '-' alone */
-				if (in_fname != 0) {
-					output_file(sel);
-					sel = 0;
-				}
-				in_fname = "";		/* read from stdin */
-				continue;
-			}
 			if (p[1] == '-') {		/* long argument */
 				p += 2;
 				if (--argc <= 0) {

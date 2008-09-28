@@ -919,7 +919,7 @@ static float gchord_width(struct SYMBOL *s,
 	}
 /*fixme: pb when "<" only*/
 	s2 = s->prev;
-	if (s2->as.text != 0)
+	if (s2 != 0 && s2->as.text != 0)
 		AT_LEAST(wlw, lspc);
 /*fixme: pb when ">" only*/
 	for (s2 = s->next; s2 != 0; s2 = s2->next) {
@@ -1914,8 +1914,8 @@ static struct SYMBOL *set_lines(struct SYMBOL *first,	/* first symbol */
 		nlines = wwidth / lwidth + 0.999;
 		if (nlines <= 1) {
 			if (last != 0)
-				set_nl(last);
-			return 0;
+				last = set_nl(last);
+			return last;
 		}
 		xline = wwidth / nlines;
 		x = indent;
@@ -2015,8 +2015,6 @@ static void cut_tune(float lwidth, float indent)
 	xmin = indent;
 	s2 = s;
 	for ( ; s != 0; s = s->ts_next) {
-//fixme:test
-//		if (s->sflags & S_SEQST) {
 		if (!(s->sflags & S_SEQST))
 			continue;
 			xmin += s->shrink;
@@ -2033,7 +2031,6 @@ static void cut_tune(float lwidth, float indent)
 				xmin = s->shrink;
 				indent = 0;
 			}
-//		}
 		if (!(s->sflags & S_EOLN))
 			continue;
 		s2 = set_nl(s);

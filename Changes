@@ -1,3 +1,9 @@
+---- Version 5.9.1 - 08/09/29 ----
+
+Bad music line definition when line overfull inside the tune.
+Crash when guitar chord/annotation on first note of a secundary voice.
+Command line parameter '-' alone did not work since a long time ago..
+
 ---- Version 5.9.0 - 08/09/25 ----
 
 Loop when tabulation in guitar chord and next symbol is not a note/rest/bar.
