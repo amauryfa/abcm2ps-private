@@ -27,10 +27,11 @@ enum accidentals {
 #define B_CBRA 3	/* ] */
 #define B_COL 4		/* : */
 
-/* slur types (2 bits) */
+/* slur/tie types (3 bits) */
 #define SL_ABOVE 0x01
 #define SL_BELOW 0x02
 #define SL_AUTO 0x03
+#define SL_DOTTED 0x04		/* (modifier bit) */
 
 /* note structure */
 struct deco {		/* decorations */
@@ -90,8 +91,6 @@ struct abcsym {
 #define ABC_F_GRACE	0x0020		/* grace note */
 #define ABC_F_GR_END	0x0040		/* end of grace note sequence */
 #define ABC_F_SAPPO	0x0080		/* short appoggiatura */
-#define ABC_F_DOTTED_SLUR 0x0100	/* dotted slur */
-#define ABC_F_DOTTED_TIE 0x0200		/* dotted tie */
 	unsigned short free;
 	int linenum;		/* ABC source line number */
 	char *text;		/* main text (INFO, PSCOM),

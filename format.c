@@ -809,6 +809,8 @@ void interpret_fmt_line(char *w,		/* keyword */
 		if (strcmp(w, "postscript") == 0) {
 			if (!file_initialized)
 				user_ps_add(p);
+			else
+				PUT1("%s\n", p);
 			return;
 		}
 		break;
@@ -1060,6 +1062,8 @@ int read_fmt_file(char *fn)
 	if (strcmp(&line[strlen(line) - 3], ".ps") == 0) {
 		if (!file_initialized)
 			user_ps_add(line);
+		else
+			error(0, 0, "Cannot include the file %s", &line[1]);
 		fclose(fp);
 		return 0;
 	}
@@ -1098,6 +1102,8 @@ int read_fmt_file(char *fn)
 					break;
 				if (!file_initialized)
 					user_ps_add(p);
+				else
+					PUT1("%s\n", p);
 			}
 			continue;
 		}

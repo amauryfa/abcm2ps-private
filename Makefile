@@ -1,25 +1,25 @@
-# Generated automatically from Makefile.in by configure.
 # Makefile source for abcm2ps
 
-VERSION = 5.9.1
+VERSION = 5.9.3
 
 CC = gcc
 INSTALL = /usr/bin//install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
-CPPFLAGS = -Wall -pipe -DHAVE_CONFIG_H -I. #-ansi 
-CFLAGS = -g # -O2 
+CPPFLAGS = -DHAVE_CONFIG_H -I.
+CFLAGS = -g -O2 -Wall -pipe
 LDFLAGS =	# 
 
 prefix = /usr/local
 exec_prefix = ${prefix}
 
 srcdir = .
+
 bindir = ${exec_prefix}/bin
 libdir = ${exec_prefix}/lib
 datadir = ${prefix}/share
-docdir = ${prefix}/doc
+docdir = /usr/local/doc
 
 # unix
 OBJECTS=abc2ps.o \
@@ -101,7 +101,7 @@ DIST_FILES = \
 
 dist:
 	ln -s . abcm2ps-$(VERSION); \
-	tar -zcvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES);
+	tar -zcvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES); \
 	rm abcm2ps-$(VERSION)
 
 zip-dist:

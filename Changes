@@ -1,3 +1,31 @@
+---- Version 5.9.3 - 08/12/25 ----
+
+Newer config.guess and config.sub (x86_64 problem).
+Bad duration of the (deprecated) measure repeat in second voices.
+Fix compile warning in draw.c.
+Fix a possible bad tie when dotted.
+
+---- Version 5.9.2 - 08/12/23 ----
+
+Bad room calculation of upper annotations.
+Don't insert an automatic clef change at start of tune or new %%staves
+	when the first notes may fit the bass clef.
+Bad displayed clef when many automatic clef changes and multi voices.
+Bad clef when voice with some clef replaced by voice with other clef
+	on the same staff after %%staves.
+Smaller hyphen at start of line.
+Bad accidental on the upper voice when chord with second interval
+	in the lower voice.
+Keep the dotted information when slur or tie is continued on next line.
+Set max length of decoration names to 31 characters.
+Fix PostScript inclusion when output file already opened.
+Fix error with old M$ Visual C compiler.
+Bad PS output or crash when two consecutive %%staves have voices inverted
+	in the same staff.
+Crash when voice overlay ('&') in a voice out of %%staves.
+Crash when P: in a voice out of %%staves.
+Small errors in the '%%tablature' documentation.
+
 ---- Version 5.9.1 - 08/09/29 ----
 
 Bad music line definition when line overfull inside the tune.

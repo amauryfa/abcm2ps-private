@@ -1128,21 +1128,21 @@ List of the pseudo-comments treated while parsed
   staves <definition>
 	See 'features.txt' for description.
 
-  tablature [#<int>] [[<unit-1>] <unit-2>] <unit-3> \
-			[pitch=<pitch>] <head-func> <note-func> [<bar-func>]
+  tablature [#<int>] [pitch=<pitch>] [[<unit-1>] <unit-2>] <unit-3> \
+			<head-func> <note-func> [<bar-func>]
 	Define a tablature for the current voice.
 
 	Arguments:
 		<int> gives the tablature number (from 1 to 8, default=1).
-		<unit-1> gives the width of the header (left side of
-			the music line).
-		<unit-2> gives the tablature height above the staff.
-		<unit-3> gives the tablature height under the staff.
 		<pitch> is the pitch of the instrument. It looks like
 			a normal ABC note. When present, the pitch of
 			each note is given to the note function.
 			When absent, the information about the note(s)
 			is given by one or many lyrics (w:).
+		<unit-1> gives the width of the header (left side of
+			the music line).
+		<unit-2> gives the tablature height above the staff.
+		<unit-3> gives the tablature height under the staff.
 		<head-func> is the PostScript function called at start
 			of a new music line.
 		<note-func> is the PostScript function called at each note.
@@ -1179,8 +1179,8 @@ List of the pseudo-comments treated while parsed
 		'http://moinejf.free.fr/abc/banjo.abc',
 		'http://moinejf.free.fr/abc/bataille.abc'
 		'http://moinejf.free.fr/abc/tabyf1.abc'
-	For examples of tablatures without pitch, look at
-		flute.abc
+	For examples of tablatures with pitch, look at
+		flute.fmt
 	and try:
 		abcm2ps sample.abc -e1 -f flute.fmt -T1 -T3
 

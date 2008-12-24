@@ -1,4 +1,4 @@
-/* config.h.  Generated automatically by configure.  */
+/* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in */
 
 /* default directory to search for format files */
@@ -16,5 +16,5 @@
 /* Define to have ~ as roll instead of twiddle.  */
 /* #undef DECO_IS_ROLL */
 
-#define VERSION "5.9.1"
-#define VDATE "September 29, 2008"
+#define VERSION "5.9.3"
+#define VDATE "December 25, 2008"

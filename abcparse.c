@@ -1486,7 +1486,7 @@ static struct kw_s {
 	{"lyrics=", 7, 9},
 	{"scale=", 6, 10},
 	{"gchord=", 7, 11},
-	{}
+	{0}
 };
 	struct kw_s *kw;
 
@@ -2189,21 +2189,13 @@ again:					/* for history */
 				break;
 			}
 			if (p[-1] == '.') {
-				if (*p == '(') {
-					flags |= ABC_F_DOTTED_SLUR;
+				if (*p == '(' || *p == '-' || *p == ')')
 					break;
-				}
-				if (*p == '-') {
-					flags |= ABC_F_DOTTED_TIE;
-					break;
-				}
 				if (*p == '|') {
 					p = parse_bar(t, p + 1);
 					t->last_sym->u.bar.dotted = 1;
 					break;
 				}
-				if (*p == ')')
-					break;
 			}
 			p = parse_deco(p - 1, &dc);
 			dc.h = dc.s = dc.n;
@@ -2257,8 +2249,11 @@ again:					/* for history */
 			}
 
 			/* embedded header */
+#if 0
+/*fixme:OK for [I:staff n], ?? for other headers*/
 			if (flags & ABC_F_GRACE)
 				goto bad_char;
+#endif
 			c = ']';
 			q = p;
 			while (*p != '\0' && *p != c)
@@ -2338,7 +2333,9 @@ again:					/* for history */
 				vover = -1;		/* multi-bars */
 				break;
 			}
-			slur <<= 2;
+			slur <<= 3;
+			if (p[-2] == '.')
+				slur |= SL_DOTTED;
 			switch (*p) {
 			case '\'':
 				slur += SL_ABOVE;
@@ -2399,26 +2396,26 @@ again:					/* for history */
 			if (curvoice->last_note == 0
 			    || curvoice->last_note->type != ABC_T_NOTE)
 				goto bad_char;
+			if (p[-2] == '.')
+				tie_pos = SL_DOTTED;
+			else
+				tie_pos = 0;
 			switch (*p) {
 			case '\'':
-				tie_pos = SL_ABOVE;
+				tie_pos += SL_ABOVE;
 				p++;
 				break;
 			case ',':
-				tie_pos = SL_BELOW;
+				tie_pos += SL_BELOW;
 				p++;
 				break;
 			default:
-				tie_pos = SL_AUTO;
+				tie_pos += SL_AUTO;
 				break;
 			}
 			for (i = 0; i <= curvoice->last_note->u.note.nhd; i++) {
 				if (curvoice->last_note->u.note.ti1[i] == 0)
 					curvoice->last_note->u.note.ti1[i] = tie_pos;
-			}
-			if (flags & ABC_F_DOTTED_TIE) {
-				curvoice->last_note->flags |= ABC_F_DOTTED_TIE;
-				flags &= ~ABC_F_DOTTED_TIE;
 			}
 			break;
 		    }
@@ -2546,12 +2543,12 @@ static char *parse_note(struct abctune *t,
 		int tmp;
 
 		if (chord) {
-			if (*p == '.' && p[1] == '(') {
-				s->flags |= ABC_F_DOTTED_SLUR;
+			if (*p == '.' && p[1] == '(')
 				p++;
-			}
 			if (*p == '(') {
-				s->u.note.sl1[m] <<= 2;
+				s->u.note.sl1[m] <<= 3;
+				if (p[-1] == '.')
+					s->u.note.sl1[m] |= SL_DOTTED;
 				p++;
 				switch (*p) {
 				case '\'':
@@ -2598,11 +2595,8 @@ static char *parse_note(struct abctune *t,
 			if (chord) {
 				for (;;) {
 					if (*p == '.') {
-						if (p[1] == '-')
-							s->flags |= ABC_F_DOTTED_TIE;
-						else if (p[1] == '-')
-							;
-						else	break;
+						if (p[1] != '-')
+							break;
 						p++;
 					}
 					if (*p == '-') {
@@ -2621,7 +2615,8 @@ static char *parse_note(struct abctune *t,
 						}
 					} else if (*p == ')')
 						s->u.note.sl2[m]++;
-					else	break;
+					else
+						break;
 					p++;
 				}
 			}

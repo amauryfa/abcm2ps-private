@@ -639,7 +639,7 @@ void deco_add(char *text)
 {
 	struct deco_def_s *dd;
 	int c_func, deco, h, wl, wr, n, ps_x, str_x;
-	char name[16];
+	char name[32];
 	char ps_func[16];
 
 	/* extract the arguments */
@@ -1700,9 +1700,9 @@ static void draw_gchord(struct SYMBOL *s,
 			if (xspc > 8)
 				xspc = 8;
 			x = s->x - xspc;
+			y_set(s, 1, x, w, gchya);
 			gchya -= yspca;
 			y = gchya;
-			y_set(s, 1, x, w, gchya);
 			break;
 		default:		/* guitar chord */
 			xspc = w;
@@ -1797,7 +1797,7 @@ void draw_measnb(void)
 
 	/* get the current bar number */
 /*fixme: what to do if no symbol in the 1st voice?*/
-	if ((s = first_voice->sym) == 0
+	if ((s = voice_tb[cursys->top_voice].sym) == 0
 	    || (s = s->next) == 0)
 		return;
 	for ( ; s->next != 0; s = s->next) {
@@ -1865,9 +1865,9 @@ void draw_measnb(void)
 	}
 
 /*fixme: KO when no bar at the end of the previous line */
-	wmeasure = first_voice->meter.wmeasure;
-	bar_time = first_voice->sym->time + wmeasure;
-	for (s = first_voice->sym->next; s != 0; s = s->next) {
+	wmeasure = voice_tb[cursys->top_voice].meter.wmeasure;
+	bar_time = voice_tb[cursys->top_voice].sym->time + wmeasure;
+	for (s = voice_tb[cursys->top_voice].sym->next; s != 0; s = s->next) {
 		switch (s->type) {
 		case TIMESIG:
 			wmeasure = s->as.u.meter.wmeasure;
@@ -2049,7 +2049,7 @@ void write_tempo(struct SYMBOL *s,
 		sc *= 0.7 * cfmt.font_tb[TEMPOFONT].size / 15.0;	/*fixme: 15.0 = initial tempofont*/
 		if (s->as.u.tempo.length[0] == 0) {
 			if (beat == 0)
-				beat = get_beat(&first_voice->meter);
+				beat = get_beat(&voice_tb[cursys->top_voice].meter);
 			s->as.u.tempo.length[0] = beat;
 		}
 		for (j = 0;
@@ -2093,7 +2093,9 @@ float draw_partempo(float top,
 		shift = 1;
 		x = 0;
 /*fixme:have tempo on other voices but the 1st?*/
-		for (s = first_voice->sym->next; s != 0; s = s->next) {
+		for (s = voice_tb[cursys->top_voice].sym->next;
+		     s != 0;
+		     s = s->next) {
 			if ((g = s->extra) == 0)
 				continue;
 			for (; g != 0; g = g->next)
@@ -2120,7 +2122,9 @@ float draw_partempo(float top,
 		/* draw the tempo indications */
 		set_font(TEMPOFONT);
 		beat = 0;
-		for (s = first_voice->sym; s != 0; s = s->next) {
+		for (s = voice_tb[cursys->top_voice].sym;
+		     s != 0;
+		     s = s->next) {
 			if (s->type == TIMESIG)
 				beat = get_beat(&s->as.u.meter);
 			if ((g = s->extra) == 0)
@@ -2147,7 +2151,7 @@ float draw_partempo(float top,
 	h = cfmt.font_tb[PARTSFONT].size + 2 + 2;	/* + cfmt.partsspace; */
 	str_font(PARTSFONT);
 	ymin = staff_tb[0].topbar + 14;
-	for (s = first_voice->sym->next; s != 0; s = s->next) {
+	for (s = voice_tb[cursys->top_voice].sym->next; s != 0; s = s->next) {
 		if ((g = s->extra) == 0)
 			continue;
 		for (; g != 0; g = g->next)
@@ -2164,7 +2168,7 @@ float draw_partempo(float top,
 		dy = ymin + h + ht - top;
 
 	set_font(PARTSFONT);
-	for (s = first_voice->sym->next; s != 0; s = s->next) {
+	for (s = voice_tb[cursys->top_voice].sym->next; s != 0; s = s->next) {
 		if ((g = s->extra) == 0)
 			continue;
 		for (; g != 0; g = g->next)

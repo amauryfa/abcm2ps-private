@@ -958,7 +958,7 @@ static void draw_bar(struct SYMBOL *s)
 		} else {
 			putxy(x, yb);
 			PUT0("mrep2\n");
-			if (s->voice == first_voice - voice_tb) {
+			if (s->voice == cursys->top_voice) {
 /*fixme				set_font(s->gcf); */
 				set_font(cfmt.anf);
 				putxy(x, yb + staff_tb[staff].topbar + 4);
@@ -1063,7 +1063,7 @@ static char *rest_tb[NFLAGS_SZ] = {
 		else {
 			PUT0("mrep\n");
 			if (s->doty > 2
-			    && s->voice == first_voice - voice_tb) {
+			    && s->voice == cursys->top_voice) {
 /*fixme				set_font(s->gcf); */
 				set_font(cfmt.anf);
 				putxy(x, staffb + 24 + 4);
@@ -1757,8 +1757,7 @@ static int draw_slur(struct SYMBOL *k1,
 		     struct SYMBOL *k2,
 		     int m1,
 		     int m2,
-		     int slur_type,
-		     int dotted)
+		     int slur_type)
 {
 	struct SYMBOL *k;
 	float x1, y1, x2, y2, height, addy;
@@ -1766,7 +1765,7 @@ static int draw_slur(struct SYMBOL *k1,
 	int s, nn, upstaff, two_staves;
 
 /*fixme: if two staves, may have upper or lower slur*/
-	switch (slur_type) {
+	switch (slur_type & 0x03) {	/* (ignore dot bit) */
 	case SL_ABOVE: s = 1; break;
 	case SL_BELOW: s = -1; break;
 	default:
@@ -2036,7 +2035,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 	if (m2 >= 0)
 		y2 = (float) (3 * (k2->pits[m2] - 18) + 5 * s);
 
-	slur_out(x1, y1, x2, y2, s, height, dotted, upstaff);
+	slur_out(x1, y1, x2, y2, s, height, slur_type & SL_DOTTED, upstaff);
 
 	/* have room for other symbols */
 	dx = x2 - x1;
@@ -2061,7 +2060,7 @@ if (two_staves) error(0, k1, "*** multi-staves slurs not treated");
 			y_set(k, s > 0, x1, dx, y);
 		}
 	}
-	return s > 0 ? SL_ABOVE : SL_BELOW;
+	return (s > 0 ? SL_ABOVE : SL_BELOW) | (slur_type & SL_DOTTED);
 }
 
 /* -- draw the slurs between 2 symbols --*/
@@ -2166,15 +2165,15 @@ static void draw_slurs(struct SYMBOL *first,
 				gr2->as.u.note.slur_st = SL_AUTO;
 			}
 			if (s->as.u.note.slur_st) {
-				slur_type = s->as.u.note.slur_st & 0x03;
-				s->as.u.note.slur_st >>= 2;
+				slur_type = s->as.u.note.slur_st & 0x07;
+				s->as.u.note.slur_st >>= 3;
 				m1 = -1;
 			} else {
 				for (m1 = 0; m1 <= s->nhd; m1++)
 					if (s->as.u.note.sl1[m1])
 						break;
-				slur_type = s->as.u.note.sl1[m1] & 0x03;
-				s->as.u.note.sl1[m1] >>= 2;
+				slur_type = s->as.u.note.sl1[m1] & 0x07;
+				s->as.u.note.sl1[m1] >>= 3;
 				if (s->as.u.note.sl1[m1] == 0) {
 					for (i = m1 + 1; i <= s->nhd; i++)
 						if (s->as.u.note.sl1[i])
@@ -2213,11 +2212,10 @@ static void draw_slurs(struct SYMBOL *first,
 					    || k->as.text[0] == '1')))
 					cont = 1;
 			}
-			slur_type = draw_slur(s, k, m1, m2,
-					      slur_type, s->as.flags & ABC_F_DOTTED_SLUR);
+			slur_type = draw_slur(s, k, m1, m2, slur_type);
 			if (cont) {
 /*fixme: the slur types are inverted*/
-				voice_tb[k->voice].slur_st <<= 2;
+				voice_tb[k->voice].slur_st <<= 3;
 				voice_tb[k->voice].slur_st += slur_type;
 			}
 
@@ -2314,7 +2312,7 @@ static struct SYMBOL *draw_tuplet(struct SYMBOL *t,	/* tuplet in extra */
 	if ((t->u & 0x0f0) == 0x10) {	/* 'what' == slur */
 		nb_only = 1;
 		draw_slur(s1, s2, -1, -1, 
-			  s1->stem > 0 ? SL_ABOVE : SL_BELOW, 0);
+			  s1->stem > 0 ? SL_ABOVE : SL_BELOW);
 	} else {
 
 		/* search if a bracket is needed */
@@ -2651,7 +2649,6 @@ static void draw_note_ties(struct SYMBOL *k1,
 			   int ntie,
 			   int *mhead1,
 			   int *mhead2,
-			   int dotted,
 			   int job)
 {
 	int i, s, m1, m2, p1, p2, y1, y2;
@@ -2662,7 +2659,7 @@ static void draw_note_ties(struct SYMBOL *k1,
 		p1 = k1->pits[m1];
 		m2 = mhead2[i];
 		p2 = k2->pits[m2];
-		if (k1->as.u.note.ti1[m1] == SL_ABOVE)
+		if ((k1->as.u.note.ti1[m1] & 0x03) == SL_ABOVE)
 			s = 1;
 		else	s = -1;
 		x1 = k1->x;
@@ -2742,9 +2739,11 @@ static void draw_note_ties(struct SYMBOL *k1,
 				y1 = y2;
 		} else {
 			y2 = y1;
-			if (k1 == k2)		/* if continuation on next line */
-				k1->as.u.note.ti1[m1] =
+			if (k1 == k2) {		/* if continuation on next line */
+				k1->as.u.note.ti1[m1] &= SL_DOTTED;
+				k1->as.u.note.ti1[m1] +=
 					s > 0 ? SL_ABOVE : SL_BELOW;
+			}
 		}
 
 		/* tie between 2 staves */
@@ -2766,7 +2765,7 @@ static void draw_note_ties(struct SYMBOL *k1,
 		h = (.04 * (x2 - x1) + 8) * s;
 		slur_out(x1, staff_tb[k1->staff].y + y1,
 			 x2, staff_tb[k1->staff].y + y2,
-			 s, h, dotted, -1);
+			 s, h, k1->as.u.note.ti1[m1] & SL_DOTTED, -1);
 	}
 }
 
@@ -2801,8 +2800,7 @@ static void draw_ties(struct SYMBOL *k1,
 			}
 		}
 		draw_note_ties(k1, k2,
-				ntie, mhead1, mhead2,
-				k1->as.flags & ABC_F_DOTTED_TIE, job);
+				ntie, mhead1, mhead2, job);
 		if (ntie3 == 0)
 			return;			/* no bad tie */
 	} else {
@@ -2814,8 +2812,7 @@ static void draw_ties(struct SYMBOL *k1,
 		}
 		if (job == 2) {
 			draw_note_ties(k1, k2 ? k2 : k1,
-					ntie3, mhead3, mhead3,
-					k1->as.flags & ABC_F_DOTTED_TIE, job);
+					ntie3, mhead3, mhead3, job);
 			return;
 		}
 	}
@@ -2846,7 +2843,6 @@ static void draw_ties(struct SYMBOL *k1,
 		if (ntie > 0) {
 			draw_note_ties(k1, k2,
 					ntie, mhead1, mhead2,
-					k1->as.flags & ABC_F_DOTTED_TIE,
 					job == 1 ? 1 : 0);
 			if (ntie3 == 0)
 				return;
@@ -2956,8 +2952,16 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 
 	if ((s = p_voice->sym->next) == 0)
 		return;
-	slur_st = p_voice->slur_st;
+	slur_type = p_voice->slur_st;
 	p_voice->slur_st = 0;
+
+	/* the slurs are inverted */
+	slur_st = 0;
+	while (slur_type != 0) {
+		slur_st <<= 3;
+		slur_st |= (slur_type & 0x07);
+		slur_type >>= 3;
+	}
 
 	/* draw the slurs inside the music line */
 	draw_slurs(s, 0);
@@ -2984,9 +2988,9 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 						s->sflags &= ~S_SL2;
 				}
 			}
-			slur_type = slur_st & 0x03;
+			slur_type = slur_st & 0x07;
 			k = prev_scut(s);
-			draw_slur(k, s, -1, m2, slur_type, 0);
+			draw_slur(k, s, -1, m2, slur_type);
 			if (k->type != BAR
 			    || (!(k->sflags & S_RRBAR)
 				&& k->as.u.bar.type != B_THIN_THICK
@@ -2994,15 +2998,15 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 				&& (!k->as.u.bar.repeat_bar
 				    || k->as.text == 0
 				    || k->as.text[0] == '1')))
-				slur_st >>= 2;
+				slur_st >>= 3;
 		}
 	}
 	s = p_voice->sym->next;
 	while (slur_st != 0) {
-		slur_type = slur_st & 0x03;
-		slur_st >>= 2;
+		slur_type = slur_st & 0x07;
+		slur_st >>= 3;
 		k = next_scut(s);
-		draw_slur(s, k, -1, -1, slur_type, 0);
+		draw_slur(s, k, -1, -1, slur_type);
 		if (k->type != BAR
 		    || (!(k->sflags & S_RRBAR)
 			&& k->as.u.bar.type != B_THIN_THICK
@@ -3010,8 +3014,8 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 			&& (!k->as.u.bar.repeat_bar
 			    || k->as.text == 0
 			    || k->as.text[0] == '1'))) {
-/*fixme: the slur types are inverted*/
-			p_voice->slur_st <<= 2;
+/*fixme: the slur types are inverted again*/
+			p_voice->slur_st <<= 3;
 			p_voice->slur_st += slur_type;
 		}
 	}
@@ -3209,7 +3213,8 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 			p_voice->hy_st &= ~(1 << j);
 		}
 		for (s = p_voice->sym; /*s != 0*/; s = s->next)
-			if (s->type != KEYSIG && s->type != TIMESIG)
+			if (s->type != CLEF
+			    && s->type != KEYSIG && s->type != TIMESIG)
 				break;
 		if (s->prev != 0)
 			lastx = s->prev->x;
@@ -3845,7 +3850,8 @@ static float set_staff(void)
 		for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 			if (p_voice->scale != 1)
 				PUT2("/scvo%d{gsave %.2f dup scale}def\n",
-				     p_voice - voice_tb, p_voice->scale);
+				     (int) (p_voice - voice_tb),
+				     p_voice->scale);
 			staff = p_voice->staff;
 			if (!staff_tb[staff].empty)
 				continue;
@@ -3871,7 +3877,7 @@ static float set_staff(void)
 
 	/* scan the first voice to see if any part or tempo */
 	any_part = any_tempo = 0;
-	for (s = first_voice->sym; s != 0; s = s->next) {
+	for (s = voice_tb[cursys->top_voice].sym; s != 0; s = s->next) {
 		if ((g = s->extra) == 0)
 			continue;
 		for ( ; g != 0; g = g->next) {
@@ -4163,10 +4169,6 @@ static void draw_symbols(struct VOICE_S *p_voice)
 			if (s->sflags & S_SECOND)
 /*			    || p_voice->staff != staff)	*/
 				break;		/* only one clef per staff */
-			cursys->staff[staff].clef.type = s->as.u.clef.type;
-			cursys->staff[staff].clef.line = s->as.u.clef.line;
-			cursys->staff[staff].clef.octave = s->as.u.clef.octave;
-			cursys->staff[staff].clef.invis = s->as.u.clef.invis;
 			if ((s->as.flags & ABC_F_INVIS)
 			    || staff_tb[staff].empty)
 				break;

@@ -161,7 +161,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_SECOND	0x00100000	/* symbol on a secondary voice */
 #define S_FLOATING	0x00200000	/* symbol on a floating voice */
 #define S_NOREPBRA	0x00400000	/* don't print the repeat bracket */
-#define S_BEAM_END	0x00800000	/* beam starts here */
+#define S_BEAM_END	0x00800000	/* beam ends here */
 #define S_TREM1		0x01000000	/* tremolo on 1 note */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
@@ -386,6 +386,8 @@ extern float space_tb[NFLAGS_SZ]; /* note spacing */
 
 struct SYSTEM {			/* staff system */
 	struct SYSTEM *next;
+	short top_voice;	/* first voice in the staff system */
+	short nstaff;
 	struct {
 		short flags;	/* brace and bracket flags (from %%staves) */
 		char empty;
@@ -393,7 +395,6 @@ struct SYSTEM {			/* staff system */
 		struct clef_s clef;
 		float sep, maxsep;
 	} staff[MAXSTAFF];
-	int nstaff;
 	struct {
 		signed char range;
 		unsigned char staff;
