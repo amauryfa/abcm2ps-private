@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2008 Jean-François Moine
+ * Copyright (C) 1998-2009 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -904,13 +904,15 @@ static int bar_cnv(int bar_type)
 {
 	switch (bar_type) {
 	case B_OBRA:
-	case B_CBRA:
+/*	case B_CBRA: */
 	case (B_OBRA << 4) + B_CBRA:
 		return 0;			/* invisible */
 	case B_COL:
 		return B_BAR;			/* dotted */
+#if 0
 	case (B_CBRA << 4) + B_BAR:
 		return B_BAR;
+#endif
 	case (B_BAR << 4) + B_COL:
 		bar_type |= (B_OBRA << 8);
 		break;
@@ -1341,8 +1343,10 @@ static void draw_basic_note(float x,
 	identify_note(s, s->as.u.note.lens[m],
 		      &head, &dots, &nflags);
 
-	/* output a ledger line if horizontal shift */
-	if (s->shhd[m]) {
+	/* output a ledger line if horizontal shift / chord
+	 * and note on a line */
+	if (y % 6 == 0
+	    && shhd != (s->stem > 0 ? s->shhd[0] : s->shhd[s->nhd])) {
 		int yy;
 
 		yy = 0;
@@ -1430,7 +1434,7 @@ static void draw_note(float x,
 		      int fl)
 {
 	int i, m, ma, y;
-	float staffb, slen;
+	float staffb, slen, shhd;
 	char c, *hltype;
 	signed char y_tb[MAXHD];
 
@@ -1457,16 +1461,18 @@ static void draw_note(float x,
 				break;
 			}
 		}
+		shhd = s->stem > 0 ? s->shhd[0] : s->shhd[s->nhd]
+			* cur_scale;
 		y = 3 * (s->pits[0] - 18);	/* lower ledger lines */
-		i = -6;
 		switch (staff_tb[s->staff].clef.stafflines) {
 		case 0:
 		case 1: i = 6; break;
 		case 2:
 		case 3: i = 0; break;
+		default: i = -6; break;
 		}
 		for ( ; i >= y; i -= 6) {
-			putxy(x, i + staffb);
+			putxy(x + shhd, i + staffb);
 			PUT1("%s ", hltype);
 		}
 		y = 3 * (s->pits[s->nhd] - 18);	/* upper ledger lines */
@@ -1478,7 +1484,7 @@ static void draw_note(float x,
 		default: i = staff_tb[s->staff].clef.stafflines * 6; break;
 		}
 		for ( ; i <= y; i += 6) {
-			putxy(x, i + staffb);
+			putxy(x + shhd, i + staffb);
 			PUT1("%s ", hltype);
 		}
 	}
@@ -2810,11 +2816,13 @@ static void draw_ties(struct SYMBOL *k1,
 			if (k1->as.u.note.ti1[i])
 				mhead3[ntie3++] = i;
 		}
+#if 0
 		if (job == 2) {
 			draw_note_ties(k1, k2 ? k2 : k1,
 					ntie3, mhead3, mhead3, job);
 			return;
 		}
+#endif
 	}
 
 	/* try an other voice */
@@ -2849,8 +2857,13 @@ static void draw_ties(struct SYMBOL *k1,
 		}
 		k2 = k2->ts_next;
 	}
-	if (ntie3 != 0)
-		error(1, k1, "Bad tie");
+	if (ntie3 != 0) {
+		if (job == 2)
+			draw_note_ties(k1, k2 ? k2 : k1,
+					ntie3, mhead3, mhead3, job);
+		else
+			error(1, k1, "Bad tie");
+	}
 }
 
 /* -- draw all ties between neighboring notes -- */
@@ -2968,7 +2981,7 @@ static void draw_all_slurs(struct VOICE_S *p_voice)
 
 	/* do unbalanced slurs still left over */
 	for ( ; s != 0; s = s->next) {
-		if (s->type != NOTEREST)
+		if (s->type != NOTEREST && s->type != SPACE)
 			continue;
 		while (s->as.u.note.slur_end
 		       || (s->sflags & S_SL2)) {
@@ -3653,6 +3666,8 @@ static void draw_vname(float indent)
 	memset(staff_d, 0, sizeof staff_d);
 	n = 0;
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+		if (p_voice->sym == 0)
+			continue;
 		staff = p_voice->staff;
 		if (cursys->staff[staff].empty)
 			continue;

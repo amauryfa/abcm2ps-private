@@ -449,7 +449,7 @@ List of the format parameters
 		D "Discography: "
 		N "Notes: "
 		Z "Transcription: "
-		H History: "
+		H "History: "
 	Compilation: none
 	Command line: none
 	Description:

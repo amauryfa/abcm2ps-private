@@ -1,6 +1,6 @@
 # Makefile source for abcm2ps
 
-VERSION = 5.9.3
+VERSION = 5.9.5
 
 CC = gcc
 INSTALL = /usr/bin//install -c
@@ -8,7 +8,7 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
 CPPFLAGS = -DHAVE_CONFIG_H -I.
-CFLAGS = -g -O2 -Wall -pipe
+CFLAGS = -g -Wall -pipe # -O2 
 LDFLAGS =	# 
 
 prefix = /usr/local

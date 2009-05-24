@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2008 Jean-François Moine
+ * Copyright (C) 1998-2009 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -77,7 +77,12 @@ static void init_ps(char *str, int is_epsf)
 				- p_fmt->rightmargin + 20,
 			-bposy);
 		cur_lmarg = p_fmt->leftmargin - 10;
-	} else	fprintf(fout, "%%!PS-Adobe-2.0\n");
+	} else {
+		fprintf(fout, "%%!PS-Adobe-2.0\n");
+		fprintf(fout, "%%%%BoundingBox: 0 0 %.0f %.0f\n",
+			p_fmt->pagewidth,
+			p_fmt->pageheight);
+	}
 	fprintf(fout, "%%%%Title: %s\n", str);
 	time(&ltime);
 	strftime(tex_buf, TEX_BUF_SZ, "%b %e, %Y %H:%M", localtime(&ltime));

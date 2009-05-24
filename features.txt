@@ -200,7 +200,7 @@ Tune body.
 
 	- Repeat bars may contain a set of digits, '-' (hyphen),
 	  ',' (comma) or '.' (dot), or even a free string. Ex:
-		|: ... [1,3 ... :|2,4-6 :|["last time" ...
+		|: ... [1,3 ... :|2,4-6 ... :|["last time" ...
 	  (note that a '[' is needed before the string - this one may
 	   be empty).
 

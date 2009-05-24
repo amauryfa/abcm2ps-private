@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2008 Jean-François Moine
+ * Copyright (C) 1998-2009 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -157,7 +157,6 @@ static void sort_all(void)
 	prev = 0;
 	fl = 1;				/* set start of sequence */
 	for (;;) {
-
 		if (sysadv) {
 			sysadv = 0;
 			memset(vn, -1, sizeof vn);
@@ -345,6 +344,24 @@ static void voice_compress(void)
 					ns = s;
 				sflags |= s->sflags;
 				continue;
+			case MREST:		/* don't shift P: and Q: */
+				if (ns == 0)
+					continue;
+				s2 = (struct SYMBOL *) getarena(sizeof *s);
+				memset(s2, 0, sizeof *s2);
+				s2->type = SPACE;
+				s2->as.u.note.lens[1] = -1;
+				s2->as.flags = ABC_F_INVIS;
+				s2->voice = s->voice;
+				s2->staff = s->staff;
+				s2->time = s->time;
+				s2->sflags = s->sflags;
+				s2->next = s;
+				s2->prev = s->prev;
+				s2->prev->next = s2;
+				s->prev = s2;
+				s = s2;
+				break;
 			}
 			if (s->as.flags & ABC_F_GRACE) {
 				if (ns == 0)
@@ -808,7 +825,9 @@ static char *get_lyric(char *p)
 		}
 
 		/* store word in next note */
-		while (s != 0 && s->as.type != ABC_T_NOTE)
+		while (s != 0
+		       && (s->as.type != ABC_T_NOTE
+			   || (s->as.flags & ABC_F_GRACE)))
 			s = s->next;
 		if (s == 0)
 			return "Too many words in lyric line";
@@ -845,7 +864,9 @@ static char *get_lyric(char *p)
 		}
 		s = s->next;
 	}
-	while (s != 0 && s->as.type != ABC_T_NOTE)
+	while (s != 0
+	       && (s->as.type != ABC_T_NOTE
+		   || (s->as.flags & ABC_F_GRACE)))
 		s = s->next;
 	if (s != 0)
 		return "Not enough words for lyric line";
@@ -1432,7 +1453,7 @@ static void get_bar(struct SYMBOL *s)
 	/* set some flags */
 	switch (bar_type) {
 	case B_OBRA:
-	case B_CBRA:
+/*	case B_CBRA:			thick bar or end of repeat braket */
 	case (B_OBRA << 4) + B_CBRA:
 		s->as.flags |= ABC_F_INVIS;
 		break;
@@ -1512,6 +1533,7 @@ void do_tune(struct abctune *t,
 	voice_tb[0].name = "1";		/* implicit voice */
 	set_tblt(first_voice);
 	micro_tb = t->micro_tb;		/* microtone values */
+	abc2win = 0;
 
 	parsys = 0;
 	system_new();			/* create the 1st staff system */
@@ -1618,8 +1640,9 @@ void do_tune(struct abctune *t,
 				curvoice->time += dur;
 				break;
 			}
-			s->dur = dur;
 			sym_link(s, MREST);
+			s->dur = dur;
+			curvoice->time += dur;
 			if (s->as.text != 0)		/* adjust the */
 				gchord_adjust(s);	/* guitar chords */
 			if (s->as.u.bar.dc.n > 0)
@@ -2062,8 +2085,8 @@ static void get_note(struct SYMBOL *s)
 		s->dur /= div;
 	}
 	sym_link(s,  s->as.u.note.lens[0] != 0 ? NOTEREST : SPACE);
-	if (s->as.flags & ABC_F_GRACE)
-		curvoice->time -= s->dur;
+	if (!(s->as.flags & ABC_F_GRACE))
+		curvoice->time += s->dur;
 	s->nohdix = -1;
 
 	/* convert the decorations */
@@ -2659,26 +2682,60 @@ irepeat:
 }
 
 /* -- set the duration of notes/rests in a tuplet -- */
+/*fixme: KO if voice change*/
+/*fixme: one nesting level only*/
+/*fixme: KO if in a grace sequence*/
 static void set_tuplet(struct SYMBOL *t)
 {
-	struct abcsym *as, *first;
+	struct abcsym *as;
 	struct SYMBOL *s;
 	int l, r, lplet, grace;
 
 	r = t->as.u.tuplet.r_plet;
 	grace = t->as.flags & ABC_F_GRACE;
+
 	l = 0;
-	first = 0;
 	for (as = t->as.next; as != 0; as = as->next) {
-/*fixme: KO if voice change..*/
+		if (as->type == ABC_T_TUPLET) {
+			struct abcsym *as2;
+			int l2, r2;
+
+			r2 = as->u.tuplet.r_plet;
+			l2 = 0;
+			for (as2 = as->next; as2 != 0; as2 = as2->next) {
+				if (as2->type != ABC_T_NOTE
+				    && as2->type != ABC_T_REST)
+					continue;
+				if (as2->u.note.lens[0] == 0)
+					continue;
+				if (grace ^ (as2->flags & ABC_F_GRACE))
+					continue;
+				s = (struct SYMBOL *) as2;
+				l2 += s->dur;
+				if (--r2 <= 0)
+					break;
+			}
+			l2 = l2 * as->u.tuplet.q_plet
+					/ as->u.tuplet.p_plet;
+			((struct SYMBOL *) as)->u = l2;
+			l += l2;
+			r -= as->u.tuplet.r_plet;
+			if (r == 0)
+				break;
+			if (r < 0) {
+				error(1, t,
+				      "Bad nested tuplet");
+				break;
+			}
+			as = as2;
+			continue;
+		}
 		if (as->type != ABC_T_NOTE && as->type != ABC_T_REST)
 			continue;
 		if (as->u.note.lens[0] == 0)	/* space ('y') */
 			continue;
 		if (grace ^ (as->flags & ABC_F_GRACE))
 			continue;
-		if (first == 0)
-			first = as;
 		s = (struct SYMBOL *) as;
 		l += s->dur;
 		if (--r <= 0)
@@ -2689,12 +2746,39 @@ static void set_tuplet(struct SYMBOL *t)
 		      "End of tune found inside a tuplet");
 		return;
 	}
-	lplet = (l * t->as.u.tuplet.q_plet) / t->as.u.tuplet.p_plet;
+	if (t->u != 0)		/* if nested tuplet */
+		lplet = t->u;
+	else	lplet = (l * t->as.u.tuplet.q_plet) / t->as.u.tuplet.p_plet;
 	r = t->as.u.tuplet.r_plet;
-	for (as = first; as != 0; as = as->next) {
+	for (as = t->as.next; as != 0; as = as->next) {
 		int olddur;
 
-/*fixme: KO if voice change..*/
+		if (as->type == ABC_T_TUPLET) {
+			int r2;
+
+			r2 = as->u.tuplet.r_plet;
+			s = (struct SYMBOL *) as;
+			olddur = s->u;
+			s->u = (olddur * lplet) / l;
+			l -= olddur;
+			lplet -= s->u;
+			r -= r2;
+			for (;;) {
+				as = as->next;
+				if (as->type != ABC_T_NOTE
+				    && as->type != ABC_T_REST)
+					continue;
+				if (as->u.note.lens[0] == 0)
+					continue;
+				if (grace ^ (as->flags & ABC_F_GRACE))
+					continue;
+				if (--r2 <= 0)
+					break;
+			}
+			if (r <= 0)
+				goto done;
+			continue;
+		}
 		if (as->type != ABC_T_NOTE && as->type != ABC_T_REST)
 			continue;
 		if (as->u.note.lens[0] == 0)
@@ -2705,13 +2789,12 @@ static void set_tuplet(struct SYMBOL *t)
 		s->sflags |= S_IN_TUPLET;
 		olddur = s->dur;
 		s->dur = (olddur * lplet) / l;
-		if (--r <= 0) {
+		if (--r <= 0)
 			break;
-		}
 		l -= olddur;
 		lplet -= s->dur;
 	}
-/*fixme: KO if in a grace sequence*/
+done:
 	if (grace)
 		error(1, t,
 		      "Tuplets in grace note sequence not yet treated");
@@ -2758,6 +2841,4 @@ static void sym_link(struct SYMBOL *s, int type)
 	s->voice = p_voice - voice_tb;
 	s->staff = p_voice->cstaff;
 	s->time = p_voice->time;
-	if (s->dur != 0)
-		p_voice->time += s->dur;
 }

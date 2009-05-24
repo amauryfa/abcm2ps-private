@@ -402,8 +402,11 @@ static void combine_voices(void)
 				if (--i <= 0)
 					break;
 			}
-			if (i > 0)
+			if (i > 0) {
+				while (--r > 0)
+					s = s->next;
 				continue;
+			}
 			r = s->as.u.tuplet.r_plet;
 			for (s2 = s; s2 != 0; s2 = s2->next) {
 				if (s2->type != NOTEREST)
@@ -1758,8 +1761,8 @@ static void set_repeat(struct SYMBOL *g,
 	/* second check and replace */
 	i = g->nohdix * n;			/* check if NL later in the line*/
 	for (s2 = s; s2 != 0; s2 = s2->next) {
-		if (s2->sflags & S_NL)
-			goto delrep;
+//		if (s2->sflags & S_NL)
+//			goto delrep;
 		if (s2->type == BAR) {
 			if (--i <= 0)
 				break;
@@ -1773,15 +1776,15 @@ static void set_repeat(struct SYMBOL *g,
 				s2 = s2->prev;
 				break;
 			}
-			if (s2->sflags & S_NL)
-				goto delrep;
+//			if (s2->sflags & S_NL)
+//				goto delrep;
 		}
 	}
 	for (; s2 != 0; s2 = s2->prev) {
 		if (s2->type == BAR || s2->type == CLEF)
 			break;
-		if (s2->sflags & S_NL)
-			goto delrep;
+//		if (s2->sflags & S_NL)
+//			goto delrep;
 	}
 	if (s2 == 0 || s->time - s2->time != dur)
 		goto delrep;	/* the previous measure is not in the music line */
@@ -1801,7 +1804,8 @@ static void set_repeat(struct SYMBOL *g,
 		s3->as.type = ABC_T_REST;
 		s3->dur = s3->as.u.note.lens[0] = dur;
 		s3->as.flags = ABC_F_INVIS;
-		set_width(s3);
+/*fixme: should set many parameters for set_width*/
+//		set_width(s3);
 		if (s3->sflags & S_SEQST)
 			s3->space = set_space(s3);
 		s2->as.u.bar.len = 2;
@@ -1842,8 +1846,10 @@ static void set_repeat(struct SYMBOL *g,
 		s3->type = NOTEREST;
 		s3->as.type = ABC_T_REST;
 		s3->dur = s3->as.u.note.lens[0] = dur;
-		s3->sflags = S_REPEAT | S_BEAM_ST;
-		set_width(s3);
+		s3->sflags &= S_NL | S_SEQST;
+		s3->sflags |= S_REPEAT | S_BEAM_ST;
+/*fixme: should set many parameters for set_width*/
+//		set_width(s3);
 		if (s3->sflags & S_SEQST)
 			s3->space = set_space(s3);
 		if (s2->sflags & S_SEQST)

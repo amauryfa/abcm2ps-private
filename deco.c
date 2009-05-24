@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 2000-2007, Jean-François Moine.
+ * Copyright (C) 2000-2009, Jean-François Moine.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1460,9 +1460,13 @@ void draw_deco_staff(void)
 				else if ((s2->as.u.bar.type & 0x0f) == B_COL)
 					w = 12;
 				else if (!(s2->sflags & S_RRBAR)
-					 || s2->as.u.bar.type == B_CBRA)
+					 || s2->as.u.bar.type == B_CBRA) {
 					w = 0;		/* explicit repeat end */
-				else	w = 8;
+
+					/* if ']', don't display as thick bar */
+					if (s2->as.u.bar.type == B_CBRA)
+						s2->as.flags |= ABC_F_INVIS;
+				} else	w = 8;
 			} else	w = 8;
 			w = s2->x - x - w;
 			p = s1->as.text;

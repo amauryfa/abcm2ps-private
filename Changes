@@ -1,3 +1,28 @@
+---- Version 5.9.5 - 09/05/25 ----
+
+Bad duration of notes in nested tuplets.
+Bad clef vertical offset when should go to the 5th line with 'middle='.
+Bad horizontal offset of guitar chords in repeat measures.
+May have repeat measures / sequences on many following music lines.
+No legder line when shifted note of chord between lines.
+Fix bad horizontal offset of ledger lines when note/chord shift.
+Don't display the name/subname of voices with no notes in the staff.
+
+---- Version 5.9.4 - 09/04/12 ----
+
+Bad end of slur when should stop on space at start of line.
+Resolve tie on two voices at end of line.
+Bad tuplets when combinevoices and some possible chords.
+Bad value of 'q' in tuplets when omitted and depending of M:
+	(for p = 5, 7, 9 and above).
+Have ']' as a thick bar when not end of repeat.
+Accept ']|' (same as '[|') and '[:' (same as ']:').
+Add the BoundingBox in PS output (thanks to Martin Meyerspeer).
+Crash when more than 8 notes in a chord.
+Don't put lyrics on grace notes.
+Don't put P: or Q: above a multimeasure rest.
+Reset the ABC2WIN flag (detection of new line by '!') at each tune.
+
 ---- Version 5.9.3 - 08/12/25 ----
 
 Newer config.guess and config.sub (x86_64 problem).

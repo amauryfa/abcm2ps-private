@@ -1,7 +1,7 @@
 /*++
  * Generic ABC parser.
  *
- * Copyright (C) 1998-2008 Jean-François Moine
+ * Copyright (C) 1998-2009 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996, 1997  Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -359,6 +359,7 @@ struct abctune *abc_parse(char *file_api)
 			last_tune = t;
 			ulen = gulen;
 			p_micro = t->micro_tb;
+			meter = 0;
 		}
 
 		/* parse the music line */
@@ -706,20 +707,24 @@ static void parse_clef(struct abcsym *s,
 		/* 'middle=<note pitch>' */
 		curvoice->add_pitch = 0;
 		parse_basic_note(middle, &pit, &len, &acc, &nostem);
-		l = 20;
 		if (clef < 0)
 			clef = TREBLE;
 		switch (clef) {
+		default:
+			l = 20 + 4;
+			break;
 		case ALTO:
-			l = 16;
+			l = 16 + 4;
 			break;
 		case BASS:
-			l = 12;
+			l = 12 + 4;
 			break;
 		}
-		l = l - pit + 4 + 14;
-		clef_line = (l % 7) / 2 + 1;
-		transpose = l / 7 * 7 - 14;
+		clef_line = (l - pit + 14) % 7;
+		if (clef_line & 1)
+			clef_line += 7;
+		clef_line = clef_line / 2 + 1;
+		transpose = l - (clef_line - 1) * 2 - pit;
 		s->u.clef.check_pitch = 0;
 	}
 
@@ -1058,6 +1063,7 @@ static char *top_err = "Cannot identify meter top";
 	nm = 0;
 	in_parenth = 0;
 	wmeasure = 0;
+	m1 = 0;
 	if (*p == 'N' || *p == 'n')
 		p++;				/* no meter */
 	else while (*p != '\0') {
@@ -1141,6 +1147,7 @@ static char *top_err = "Cannot identify meter top";
 		else if (*p == '+')
 			s->u.meter.meter[nm++].top[0] = *p++;
 	}
+	meter = m1;
 	if (*p == '=') {
 		if (sscanf(++p, "%d/%d", &m1, &m2) != 2
 		    || m1 <= 0
@@ -1633,10 +1640,15 @@ static char *parse_bar(struct abctune *t,
 		break;
 	}
 	p--;
-	if ((bar_type & 0x0f) == B_OBRA && bar_type != B_OBRA) {
-		bar_type >>= 4;		/* have an other bar for '[' */
+
+	/* if the last element is '[', it may start
+	 * a chord, an embedded header or an other bar */
+	if ((bar_type & 0x0f) == B_OBRA && bar_type != B_OBRA
+	    && *p != ' ') {
+		bar_type >>= 4;
 		p--;
 	}
+
 	if (bar_type == (B_OBRA << 8) + (B_BAR << 4) + B_CBRA)	/* [|] */
 		bar_type = (B_OBRA << 4) + B_CBRA;		/* [] */
 
@@ -2232,8 +2244,9 @@ again:					/* for history */
 			syntax("'\\' ignored", p - 1);
 			break;
 		case CHAR_OBRA:			/* '[' */
-			if (*p == '|' || *p == ']'
-			    || isdigit((unsigned) *p) || *p == '"') {
+			if (*p == '|' || *p == ']' || *p == ':'
+			    || isdigit((unsigned) *p) || *p == '"'
+			    || *p == ' ') {
 				if (flags & ABC_F_GRACE)
 					goto bad_char;
 				p = parse_bar(t, p);
@@ -2543,6 +2556,10 @@ static char *parse_note(struct abctune *t,
 		int tmp;
 
 		if (chord) {
+			if (m >= MAXHD) {
+				syntax("Too many notes in chord", p);
+				m--;
+			}
 			if (*p == '.' && p[1] == '(')
 				p++;
 			if (*p == '(') {
