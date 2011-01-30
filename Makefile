@@ -1,14 +1,14 @@
 # Makefile source for abcm2ps
 
-VERSION = 5.9.5
+VERSION = 5.9.21
 
 CC = gcc
-INSTALL = /usr/bin//install -c
+INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
 CPPFLAGS = -DHAVE_CONFIG_H -I.
-CFLAGS = -g -Wall -pipe # -O2 
+CFLAGS = -g -O2 -Wall -pipe
 LDFLAGS =	# 
 
 prefix = /usr/local
@@ -29,14 +29,14 @@ abcm2ps: $(OBJECTS)
 	$(CC) $(CFLAGS) -o abcm2ps $(OBJECTS) $(LDFLAGS)
 $(OBJECTS): abcparse.h abc2ps.h config.h
 
-DOCFILES=Changes License README *.abc *.eps *.txt
+DOCFILES=$(addprefix $(srcdir)/,Changes License README *.abc *.eps *.txt)
 
 install: abcm2ps
 	mkdir -p $(bindir); \
 	mkdir -p $(datadir)/abcm2ps; \
 	mkdir -p $(docdir)/abcm2ps; \
 	$(INSTALL_PROGRAM) abcm2ps $(bindir)
-	for f in *.fmt; do \
+	for f in $(srcdir)/*.fmt; do \
 		$(INSTALL_DATA) $$f $(datadir)/abcm2ps; \
 	done
 	for f in $(DOCFILES); do \

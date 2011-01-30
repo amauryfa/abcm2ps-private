@@ -1,3 +1,111 @@
+---- Version 5.9.21 - 11/01/31 ----
+
+Bad tempo note duration of Q:Cxx or Q:Lxx
+	(reported by Paul Rosen).
+Crash when note length divisor = 0.
+Build and install abcm2ps from outside the source tree
+	(fixed by Matthias Rustler).
+
+---- Version 5.9.20 - 10/12/26 ----
+
+Bad clef when voice going to a different staff after %%score.
+Bad generation after %%score when the previous %%score did not contain
+	the first declared voice (reported by Marc Sabatella).
+Output the lyrics (W:) in the last page when %%newpage's in the tune.
+Bad scale when %%newpage in tune (reported by Paul Rosen).
+Avoid bad PostScript when "$n" used before definition of %%setfont-n
+	(reported by Paul Rosen).
+Crash when a nested slur started on a grace note
+	(reported by Paul Rosen).
+
+---- Version 5.9.19 - 10/11/30 ----
+
+Part display missing when P: defined before a clef change at start of line.
+Lack of %%postscript output when defined just after K:.
+Bad clef change with K: or V: when stafflines or staffscale present.
+
+---- Version 5.9.18 - 10/11/26 ----
+
+Bad clef changes when many voices per staff.
+Bad key signatures on all staff systems but the first one when clef
+	different from treble.
+
+---- Version 5.9.17 - 10/11/20 ----
+
+Bad memory allocation mechanism making random crashes.
+Bad vertical offset of key signature when clef change.
+
+---- Version 5.9.16 - 10/09/17 ----
+
+Loop when '%%staves' inside the tune with a cloned voice.
+Loop when '%%staves' without any parameter (reported by Reinier Maliepaard).
+
+---- Version 5.9.15 - 10/08/02 ----
+
+Don't forget the %%infoname at start of file.
+Crash on '%%infoname R' (reported by Chuck Boody).
+Crash when clef in V: and no note in the tune (reported by Reinier Maliepaard).
+Bad tie direction when dotted.
+
+---- Version 5.9.14 - 10/06/22 ----
+
+Bad tune selection when <last_index> absent in "-e".
+Bad title when title trim.
+Change the directory separator for MAC systems.
+
+---- Version 5.9.13 - 10/04/11 ----
+
+Fix more security vulnerabilities (thanks to Tim Starling).
+
+---- Version 5.9.12 - 10/04/05 ----
+
+Fix some security vulnerabilities (thanks to Tim Starling).
+Add %%Begin/EndDocument when inserting a EPS file (thanks to Reinier Maliepaard).
+
+---- Version 5.9.11 - 10/02/24 ----
+
+Fix measure bar numbering when %%setbarnb and many voices.
+Fix measure bar numbering when M:none.
+Fix the output of user postscript sequences when many output files.
+Fix a crash when slur ending on a grace note at end of a secundary voice.
+Fix a crash when a tune ends with T:.
+
+---- Version 5.9.10 - 10/02/02 ----
+
+Fix lyrics display when not enough or too many lyrics in a music line alone
+	(the previous fix was not applied).
+
+---- Version 5.9.9 - 10/01/31 ----
+
+Fix bar numbering when incomplete measure at start of tune.
+Fix bar numbering when incomplete measure at end of previous line.
+Fix lyrics display when not enough or too many lyrics in a music line alone.
+
+---- Version 5.9.8 - 10/01/19 ----
+
+Add all whistle types in flute.fmt (thanks to Guido Gonzato).
+
+---- Version 5.9.7 - 09/11/18 ----
+
+Add default PS definitions for dble sharp/flat percussion heads.
+Lack of time signature at start of new voices.
++invertedfermata+ did not work since a long time ago!
+Don't loose the words when %%alignbars.
+Don't output the lyrics at end of alignbars.
+Don't align measure bars and notes.
+Bad multi-rests when different durations.
+
+---- Version 5.9.6 - 09/10/02 ----
+
+Crash when whole measure rest at start of a voice appearing in %%staves
+	in the middle of a music line.
+Bad multi-rest when Zn at start of new voice appearing in %%staves.
+Bad vertical offset of guitar chords when annotations above.
+May have flatbeams for any music type (not only bagpipe).
+Change the default %%dateformat value on MS-Windows.
+Fix a compilation warning in draw.c.
+Have the bars between staves working again in deco.abc.
+
 ---- Version 5.9.5 - 09/05/25 ----
 
 Bad duration of notes in nested tuplets.

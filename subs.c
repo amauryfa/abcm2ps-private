@@ -912,8 +912,7 @@ void put_history(void)
 static char *trim_title(char *p, int first)
 {
 	char *b, *q;
-	int l;
-static char buf[256];
+static char buf[STRL1];
 
 	q = 0;
 	if (cfmt.titletrim) {
@@ -925,20 +924,27 @@ static char buf[256];
 		}
 	}
 	if (q == 0 && !cfmt.titlecaps && !(first && cfmt.withxrefs))
-		return p;	/* keep the title as it is */
+		return p;		/* keep the title as it is */
 	b = buf;
-	if (first && cfmt.withxrefs)
-		b += sprintf(b, "%s.  ", &info['X' - 'A']->as.text[2]);
-	if (q != 0) {
-		strcpy(b, q + 2);
-		b += strlen(q + 2);
-		*b++ = ' ';
-		l = q - p;
-		if (l > buf + sizeof buf - b - 1)
-			l = buf + sizeof buf - b - 1;
-	} else	l = buf + sizeof buf - b - 1;
-	strncpy(b, p, l);
-	b[l] = '\0';
+	if (first && cfmt.withxrefs) {
+		char *r;
+
+		r = &info['X' - 'A']->as.text[2];
+		if (strlen(p) + strlen(r) + 3 >= STRL1) {
+			error(1, 0, "Title or X: too long");
+			return p;
+		}
+		b += sprintf(b, "%s.  ", r);
+	} else {
+		if (strlen(p) >= STRL1) {
+			error(1, 0, "Title too long");
+			return p;
+		}
+	}
+	if (q != 0)
+		sprintf(b, "%s %.*s", q + 2, (int) (q - p), p);
+	else
+		strcpy(b, p);
 	if (cfmt.titlecaps)
 		cap_str(buf);
 	return buf;
@@ -1300,12 +1306,9 @@ void user_ps_add(char *s)
 /* -- output the user defined postscript sequences -- */
 void user_ps_write(void)
 {
-	struct u_ps *t, *r;
+	struct u_ps *t;
 
-	if ((t = user_ps) == 0)
-		return;
-	user_ps = 0;
-	for (;;) {
+	for (t = user_ps; t != 0; t = t->next) {
 		if (t->text[0] == '\001') {	/* PS file */
 			FILE *f;
 			char line[BSIZE];
@@ -1318,10 +1321,8 @@ void user_ps_write(void)
 					fwrite(line, 1, strlen(line), fout);
 				fclose(f);
 			}
-		} else	fprintf(fout, "%s\n", t->text);
-		r = t->next;
-		free(t);
-		if ((t = r) == 0)
-			break;
+		} else {
+			fprintf(fout, "%s\n", t->text);
+		}
 	}
 }

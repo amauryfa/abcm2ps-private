@@ -321,7 +321,6 @@ void make_font_list(void)
 static void set_infoname(char *p)
 {
 	struct SYMBOL *s, *prev;
-	int old_lvl;
 
 	if (*p == 'I')
 		return;
@@ -335,12 +334,13 @@ static void set_infoname(char *p)
 	}
 	if (p[1] == '\0') {		/* if delete */
 		if (s != 0) {
-			if ((prev->next = s->next) != 0)
+			if (prev == 0)
+				info['I' - 'A'] = s->next;
+			else if ((prev->next = s->next) != 0)
 				prev->next->prev = prev;
 		}
 		return;
 	}
-	old_lvl = lvlarena(0);
 	if (s == 0) {
 		s = (struct SYMBOL *) getarena(sizeof *s);
 		memset(s, 0, sizeof *s);
@@ -353,7 +353,6 @@ static void set_infoname(char *p)
 	}
 	s->as.text = (char *) getarena(strlen(p) + 1);
 	strcpy(s->as.text, p);
-	lvlarena(old_lvl);
 }
 
 /* -- set the default format -- */
@@ -400,7 +399,11 @@ void set_format(void)
 	f->aligncomposer = A_RIGHT;
 	f->notespacingfactor = 1.414;
 	f->stemheight = STEM;
+#ifndef WIN32
 	f->dateformat = strdup("\\%b \\%e, \\%Y \\%H:\\%M");
+#else
+	f->dateformat = strdup("\\%b \\%#d, \\%Y \\%H:\\%M");
+#endif
 	f->gracespace = (65 << 16) | (80 << 8) | 120;	/* left-inside-right - unit 1/10 pt */
 	f->textoption = T_LEFT;
 	f->ndfont = FONT_DYN;
@@ -1143,8 +1146,10 @@ void set_font(int ft)
 		      fontnames[fnum]);
 		fnum = 0;
 	}
-	if (f->size == 0)
-		error(0, 0, "Font \"%s\" with a null size",
+	if (f->size == 0) {
+		error(0, 0, "Font \"%s\" with a null size - set to 8",
 		      fontnames[fnum]);
+		f->size = 8;
+	}
 	PUT2("%.1f F%d ", f->size, fnum);
 }

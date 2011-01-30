@@ -238,16 +238,25 @@ Tune body.
 
 	- Multiple lines of guitar chord / annotation may also be
 	  indicated by '\n' or ';'. In this case, the next lines are of
-	  the same type (gchord or annotation) .
+	  the same type (gchord or annotation).
+	  The 3 next notations are equivalent:
 		"_ann1" "_ann2" "G3" "4" G
 		"_ann1;ann2" "G3;4" G
 		"_ann1\nann2" "G3\n4" G
+	  (annotation on 2 lines and guitar chord on 2 lines)
+	  The two next notations are NOT equivalent:
+		"_ann1" "G"
+		"_ann1;G"
+	  (in the 1st line, 'G' is a guitar chord, in the 2nd one,
+	  it is the 2nd line of the annotation)
+	  A new annotation type may be indicated after the new line as:
+		"^above;_below"
 
 	- Annotations may contain '\#', '\b' and '\=' to display
 	  accidentals.
 
-	- Strings with ISO latin encoding may contain '\201', '\202'
-	  and '\203' to display accidentals.
+	- Strings with ISO latin encoding may contain '\201', '\202', '\203',
+	  '\204' and '\205' to display accidentals.
 
 Clefs.
 

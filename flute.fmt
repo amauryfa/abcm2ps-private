@@ -120,6 +120,13 @@ beginps
 	pop grestore
 }!
 endps
-tablature #1 pitch=C 28 0 63 tw_head tw_note
-tablature #2 pitch=Bb, 54 0 63 tw_head tw_note
-tablature #3 pitch=C 10 0 56 gbl_tete gbl_note
+% all tin whistle transpositions
+tablature #1 pitch=D 28 0 63 tw_head tw_note
+tablature #2 pitch=C 28 0 63 tw_head tw_note
+tablature #3 pitch=Eb 28 0 63 tw_head tw_note
+tablature #4 pitch=Bb, 54 0 63 tw_head tw_note
+tablature #5 pitch=F, 54 0 63 tw_head tw_note
+tablature #6 pitch=G, 54 0 63 tw_head tw_note
+tablature #7 pitch=A, 54 0 63 tw_head tw_note
+% galoubet
+tablature #8 pitch=C 10 0 56 gbl_tete gbl_note

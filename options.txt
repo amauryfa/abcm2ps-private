@@ -141,6 +141,7 @@ List of the options
   -T<int>[<voice>], +T[<int>[<voice>]]
 	Activate or deactivate tablature drawing.
 	<int> is the tablature number as defined in %%tablature.
+		There may be only 8 different tablatures.
 	<voice> is the voice name, full name or subname as found in V:.
 		When absent, apply to all voices.
 	Up to 4 such commands may be defined.

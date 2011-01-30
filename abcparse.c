@@ -1,7 +1,7 @@
 /*++
  * Generic ABC parser.
  *
- * Copyright (C) 1998-2009 Jean-François Moine
+ * Copyright (C) 1998-2011 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996, 1997  Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,7 +31,7 @@
 /* interface */
 static void *(*alloc_f)(int size);
 static void (*free_f)(void *);
-static void (*level_f)(int level);
+//static void (*level_f)(int level);
 static int client_sz;
 static int keep_comment;
 
@@ -245,7 +245,7 @@ void abc_init(void *alloc_f_api(int size),
 	scratch_length = 256;
 	alloc_f = alloc_f_api;
 	free_f = free_f_api;
-	level_f = level_f_api;
+//	level_f = level_f_api;
 	client_sz = client_sz_api;
 	keep_comment = keep_comment_api;
 }
@@ -259,8 +259,8 @@ void abc_insert(char *file_api,
 
 	/* initialize */
 	file = file_api;
-	if (level_f)
-		level_f(abc_state != ABC_S_GLOBAL);
+//	if (level_f)
+//		level_f(abc_state != ABC_S_GLOBAL);
 	abc_state = ABC_S_TUNE;
 	linenum = 0;
 	t = s->tune;
@@ -323,8 +323,8 @@ struct abctune *abc_parse(char *file_api)
 	file = file_api;
 	t = 0;
 	abc_state = ABC_S_GLOBAL;
-	if (level_f)
-		level_f(0);
+//	if (level_f)
+//		level_f(0);
 	linenum = 0;
 	last_tune = 0;
 	gulen = 0;
@@ -560,11 +560,11 @@ static char *get_deco(char *p,
 
 	/* new decoration */
 	if (i < 128) {
-		if (level_f && abc_state != ABC_S_GLOBAL)
-			level_f(0);
+//		if (level_f && abc_state != ABC_S_GLOBAL)
+//			level_f(0);
 		*t = alloc_f(l + 1);
-		if (level_f && abc_state != ABC_S_GLOBAL)
-			level_f(1);
+//		if (level_f && abc_state != ABC_S_GLOBAL)
+//			level_f(1);
 		memcpy(*t, q, l);
 		(*t)[l] = '\0';
 		*p_deco = i + 128;
@@ -940,6 +940,10 @@ static char *get_len(char *p,
 		return "Bad unit note length: unchanged";
 	}
 
+	if (l2 == 0) {
+		error_txt = "Bad length divisor, set to 4";
+		l2 = 4;
+	}
 	d = BASE_LEN / l2;
 	if (d * l2 != BASE_LEN) {
 		error_txt = "Length incompatible with BASE, using 1/8";
@@ -1389,8 +1393,8 @@ static char *parse_tempo(char *p,
 		p = parse_len(p + 1, &len);
 		if (len <= 0)
 			have_error++;
-		else	s->u.tempo.length[0] = len;
-		while (isspace((unsigned) *p))
+		else	s->u.tempo.length[0] = len * ulen / BASE_LEN;
+		while (isspace((unsigned char) *p))
 			p++;
 	} else if (isdigit((unsigned) *p) && strchr(p, '/') != 0) {
 		int i;
@@ -1958,7 +1962,7 @@ static char *parse_gchord(char *p)
 	if (gchord) {
 		char *gch;
 
-		/* many guitar chords: concatenate with ';' */
+		/* many guitar chords: concatenate with '\n' */
 		l2 = strlen(gchord);
 		gch = alloc_f(l2 + 1 + l + 1);
 		strcpy(gch, gchord);
@@ -1999,6 +2003,10 @@ static char *parse_len(char *p,
 		p++;
 		if (isdigit((unsigned char) *p)) {
 			fac *= strtol(p, (char **) &q, 10);
+			if (fac == 0) {
+				syntax("Bad length divisor", p - 1);
+				fac = 1;
+			}
 			p = q;
 		} else	fac *= 2;
 		if (len % fac) {
@@ -2039,8 +2047,8 @@ again:					/* for history */
 		t->abc_vers = abc_vers;
 		abc_state = ABC_S_GLOBAL;
 		abc_vers = abc_vers_g;
-		if (level_f)
-			level_f(0);
+//		if (level_f)
+//			level_f(0);
 		return 1;
 	case '%':
 		if (p[1] == '%') {
@@ -2765,8 +2773,8 @@ static void parse_info(struct abctune *t,
 		curvoice = &voice_tb[0];
 		abc_state = ABC_S_HEAD;
 		abc_vers_g = abc_vers;
-		if (level_f)
-			level_f(1);
+//		if (level_f)
+//			level_f(1);
 		break;
 	}
 	if (error_txt != 0) {

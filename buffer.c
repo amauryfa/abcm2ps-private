@@ -85,7 +85,11 @@ static void init_ps(char *str, int is_epsf)
 	}
 	fprintf(fout, "%%%%Title: %s\n", str);
 	time(&ltime);
+#ifndef WIN32
 	strftime(tex_buf, TEX_BUF_SZ, "%b %e, %Y %H:%M", localtime(&ltime));
+#else
+	strftime(tex_buf, TEX_BUF_SZ, "%b %#d, %Y %H:%M", localtime(&ltime));
+#endif
 	fprintf(fout, "%%%%Creator: abcm2ps-" VERSION "\n"
 		"%%%%CreationDate: %s\n", tex_buf);
 	if (!is_epsf)
@@ -557,7 +561,7 @@ void a2b(void)
 
 	l = strlen(mbf);
 	nbuf += l;
-	if (nbuf >= BUFFSZ - 500) {	/* must have place for 1 more line */
+	if (nbuf >= BUFFSZ - BSIZE) {	/* must have room for 1 more line */
 		error(1, 0, "a2b: buffer full, BUFFSZ=%d", BUFFSZ);
 		exit(3);
 	}
@@ -645,14 +649,16 @@ void write_buffer(void)
 				error(1, 0, "Cannot open EPS file '%s'", p);
 			} else {
 				fprintf(fout,
-					"save	%% EPS file '%s'\n"
+					"save\n"
 					"/showpage{}def/setpagedevice{pop}def\n"
-					"%s T\n", 
-					p, &buf[i]);
+					"%s T\n"
+					"%%%%BeginDocument: %s\n",
+					&buf[i], p);
 				while (fgets(line, sizeof line, f))	/* copy the file */
 					fwrite(line, 1, strlen(line), fout);
 				fclose(f);
-				strcpy(line, "restore	% end EPS\n");
+				strcpy(line, "%%EndDocument\n"
+					"restore\n");
 				fwrite(line, 1, strlen(line), fout);
 			}
 		}

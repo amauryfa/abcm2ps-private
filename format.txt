@@ -283,7 +283,7 @@ List of the format parameters
 	Compilation: none
 	Command line: -f
 	Description:
-		Have flat beams in bagpipe tunes.
+		Draw flat beams.
 
   font <font> [<encoding>]
 	Default: none

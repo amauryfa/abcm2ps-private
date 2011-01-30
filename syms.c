@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2008 Jean-François Moine
+ * Copyright (C) 1998-2009 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -497,6 +497,12 @@ static char ps_head[] =
 	"	 CharStrings/natchar{pop\n"
 	"		.60 0 0 -.10 .60 .75 setcachedevice\n"
 	"		.056 dup scale 5.8 6 nt0}bind put\n"
+	"	 CharStrings/dsharpchar{pop\n"
+	"		.60 0 0 -.10 .60 .75 setcachedevice\n"
+	"		.056 dup scale 5.8 6 dsh0}bind put\n"
+	"	 CharStrings/dflatchar{pop\n"
+	"		.60 0 0 0 .60 .78 setcachedevice\n"
+	"		.056 dup scale 5.8 5 dft0}bind put\n"
 	"	}{\n"
 	"	 CharStrings/sharpchar{pop\n"
 	"		600 0 0 -100 600 750 setcachedevice\n"
@@ -507,6 +513,12 @@ static char ps_head[] =
 	"	 CharStrings/natchar{pop\n"
 	"		600 0 0 -100 600 750 setcachedevice\n"
 	"		56 dup scale 5.8 6 nt0}bind put\n"
+	"	 CharStrings/dsharpchar{pop\n"
+	"		600 0 0 -100 600 750 setcachedevice\n"
+	"		56 dup scale 5.8 6 dsh0}bind put\n"
+	"	 CharStrings/dflatchar{pop\n"
+	"		600 0 0 0 600 780 setcachedevice\n"
+	"		56 dup scale 5.8 5 dft0}bind put\n"
 	"	 }ifelse\n"
 	/*if RoPS and Font Type 3, change BuildChar*/
 	"	product(RoPS)eq FontType 3 eq and{\n"
@@ -709,6 +721,9 @@ static char ps_head[] =
 	/* x y pfthd - percussion flat head */
 	"/pfthd{/x 2 index def/y 1 index def dsh0\n"
 	"	.7 SLW x y 4 0 360 arc stroke}!\n"
+	/* same for dble sharp/flat */
+	"/pdshhd{pshhd}!\n"
+	"/pdfthd{pfthd}!\n"
 
 	/* x y ghd - grace note head */
 	"/ghd{	xymove\n"
@@ -851,7 +866,9 @@ void define_encoding(int enc,		/* index */
 		fprintf(fout,
 			"%s dup 8#201/sharpchar put\n"
 			"dup 8#202/flatchar put\n"
-			"8#203/natchar put\n",
+			"dup 8#203/natchar put\n"
+			"dup 8#204/dsharpchar put\n"
+			"8#205/dflatchar put\n",
 			ename);
 	}
 	fprintf(fout, "/mkfontext%d{\n"

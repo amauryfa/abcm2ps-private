@@ -1,7 +1,7 @@
 /*
  * abcm2ps: a program to typeset tunes written in abc format using PostScript
  *
- * Copyright (C) 1998-2008 Jean-François Moine
+ * Copyright (C) 1998-2010 Jean-François Moine
  *
  * Adapted from abc2ps-1.2.5:
  *  Copyright (C) 1996,1997  Michael Methfessel
@@ -48,7 +48,7 @@
 
 /* -- global variables -- */
 
-INFO info, default_info;
+INFO info;
 unsigned char deco_glob[256], deco_tune[256];
 struct SYMBOL *sym;		/* (points to the symbols of the current voice) */
 
@@ -84,9 +84,10 @@ static struct SYMBOL notitle;
 /* memory arena (for clrarena, lvlarena & getarena) */
 #define MAXAREAL 2		/* max area levels:
 				 * 0; global, 1: tune */
+#define MAXAREANASZ 8192
 static int str_level;		/* current arena level */
 static struct str_a {
-	char	str[4096];	/* memory area */
+	char	str[MAXAREANASZ]; /* memory area */
 	char	*p;		/* pointer in area */
 	struct str_a *n;	/* next area */
 	int	r;		/* remaining space in area */
@@ -134,7 +135,6 @@ int main(int argc,
 	info['T' - 'A'] = &notitle;
 	notitle.as.text = "T:";
 	set_format();
-	memcpy(&default_info, &info, sizeof default_info);
 	s_argc = argc;
 	s_argv = argv;
 
@@ -160,7 +160,8 @@ int main(int argc,
 				in_fname = "";		/* read from stdin */
 				continue;
 			}
-			if (p[1] != '-' && p[strlen(p) - 1] == '-')
+			if (p[1] != '-' && p[1] != 'e'
+			 && p[strlen(p) - 1] == '-')
 				c = '+'; /* switch off flags with '-x-' */
 		}
 		if (c == '+') {		/* switch off flags with '+' */
@@ -275,7 +276,10 @@ int main(int argc,
 					cfmt.continueall = 1;
 					lock_fmt(&cfmt.continueall);
 					break;
-				case 'E': epsf = 1; break;
+				case 'E':
+					close_output_file();
+					epsf = 1;
+					break;
 				case 'f':
 					cfmt.flatbeams = 1;
 					lock_fmt(&cfmt.flatbeams);
@@ -465,6 +469,11 @@ int main(int argc,
 						}
 						break;
 					case 'O':
+						if (strlen(aaa) >= sizeof outfn) {
+							fprintf(stderr,
+								"++++ '-O' too large\n");
+							exit(1);
+						}
 						strcpy(outfn, aaa);
 						break;
 					case 's':
@@ -543,7 +552,6 @@ static void output_file(char *sel)
 	/* initialize if not already done */
 	if (fout == 0)
 		set_page_format();
-	memcpy(&info, &default_info, sizeof info);
 	reset_deco();
 	memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
 	if (!epsf)
@@ -737,7 +745,7 @@ static void usage(void)
 		"             if 'b', display in a box\n"
 		"     -k n[b] same as '-j' (abc2ps compatibility)\n"
 		"     -b n    set the first measure number to n\n"
-		"     -f      have flat beams when bagpipe tunes\n"
+		"     -f      have flat beams\n"
 		"     -T n[v]   output the tablature 'n' for voice 'v' / all voices\n"
 		"  .line breaks:\n"
 		"     -c      auto line break\n"
@@ -860,7 +868,13 @@ char *getarena(int len)
 
 	a_p = str_c[str_level];
 	len = (len + 7) & ~7;		/* align at 64 bits boundary */
-	if (a_p->r < len) {
+	if (len > a_p->r) {
+		if (len > MAXAREANASZ) {
+			fprintf(stderr,
+				"++++ getarena - data too wide %d - aborting\n",
+				len);
+			exit(1);
+		}
 		if (a_p->n == 0) {
 			a_p->n = malloc(sizeof *str_r[0]);
 			a_p->n->n = 0;

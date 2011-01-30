@@ -29,14 +29,14 @@ abcm2ps: $(OBJECTS)
 	$(CC) $(CFLAGS) -o abcm2ps $(OBJECTS) $(LDFLAGS)
 $(OBJECTS): abcparse.h abc2ps.h config.h
 
-DOCFILES=Changes License README *.abc *.eps *.txt
+DOCFILES=$(addprefix $(srcdir)/,Changes License README *.abc *.eps *.txt)
 
 install: abcm2ps
 	mkdir -p $(bindir); \
 	mkdir -p $(datadir)/abcm2ps; \
 	mkdir -p $(docdir)/abcm2ps; \
 	$(INSTALL_PROGRAM) abcm2ps $(bindir)
-	for f in *.fmt; do \
+	for f in $(srcdir)/*.fmt; do \
 		$(INSTALL_DATA) $$f $(datadir)/abcm2ps; \
 	done
 	for f in $(DOCFILES); do \

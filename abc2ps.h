@@ -3,7 +3,7 @@
 #include "config.h"
 
 #define OUTPUTFILE	"Out.ps"	/* standard output file */
-#if defined(unix) || defined(__unix__)
+#ifndef WIN32
 #define DIRSEP '/'
 #else
 #define DIRSEP '\\'
@@ -268,7 +268,7 @@ extern struct FORMAT cfmt;	/* current local format for output */
 extern struct FORMAT dfmt;	/* current global format for output */
 
 typedef struct SYMBOL *INFO[26];	/* information fields */
-extern INFO info, default_info;
+extern INFO info;
 
 extern char *mbf;		/* where to PUTx() */
 extern int nbuf;		/* number of bytes buffered */

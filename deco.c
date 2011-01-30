@@ -105,7 +105,7 @@ static char *std_deco_tb[] = {
 	"longphrase 3 lphr 0 1 1",
 	"mediumphrase 3 mphr 0 1 1",
 	"shortphrase 3 sphr 0 1 1",
-	"invertedfermata 3 2 12 7 7",
+	"invertedfermata 3 hld 12 7 7",
 	"invertedturn 3 turn 10 0 5",
 	"invertedturnx 3 turnx 10 0 5",
 	"0 3 fng 8 3 3 0",
@@ -1543,7 +1543,7 @@ void draw_deco_staff(void)
 static void draw_gchord(struct SYMBOL *s,
 			float gchy_min, float gchy_max)
 {
-	float x, y, w, yspca, yspcc, gchya, gchyb, gchyl, gchyr;
+	float x, y, w, yspca, yspcc, gchya, gchyb, gchyc, gchyl, gchyr;
 	float xmin, xmax, ymin, ymax, xspc;
 	int box, gch_place;
 	char *p, *q, *psf, sep, antype;
@@ -1553,10 +1553,7 @@ static void draw_gchord(struct SYMBOL *s,
 	gch_place = voice_tb[s->voice].gchord;
 	yspcc = cfmt.font_tb[s->gcf].size;
 	yspca = cfmt.font_tb[s->anf].size;
-/*fixme: should analyse the fields*/
-	w = cwid('0') * yspca * strlen(p);
-	gchya = y_get(s, 1, s->x, w, 0) + 4;
-	gchyb = y_get(s, 0, s->x, w, 0) - 4;
+	gchya = gchyb = gchyc = 0;
 	gchyl = gchyr = s->yav + yspca * 0.25;
 	box = cfmt.gchordbox;
 
@@ -1564,20 +1561,18 @@ static void draw_gchord(struct SYMBOL *s,
 	antype = '\0';
 	sep = '\n';
 	for (;;) {
-		if (sep == '\n') {
-			if (*p != '\0' && strchr("^_<>@", *p) != 0)
-				antype = *p++;
-			else	antype = '\0';
-		}
+		if (*p != '\0' && strchr("^_<>@", *p) != 0)
+			antype = *p++;
+		else if (sep == '\n')
+			antype = '\0';
 		switch (antype) {
 		default:		/* guitar chord */
 			if (gch_place < 0)
 				break;	/* below */
-			if (gchya < gchy_max)
-				gchya = gchy_max;
 			gchya += yspcc;
 			if (box)
 				gchya += 2;
+			gchyc = gchya;
 			break;
 		case '^':		/* above */
 			gchya += yspca;
@@ -1607,6 +1602,13 @@ static void draw_gchord(struct SYMBOL *s,
 			break;
 		p++;
 	}
+/*fixme: should have got the max width*/
+	p = s->as.text;
+	w = cwid('0') * yspca * strlen(p);
+	gchya += y_get(s, 1, s->x, w, 0) + 4;
+	if (gchya < gchy_max + gchyc)
+		gchya = gchy_max + gchyc;
+	gchyb += y_get(s, 0, s->x, w, 0) - 4;
 	if (gch_place >= 0) {
 		ymax = 0;
 		ymin = 100;
@@ -1619,32 +1621,30 @@ static void draw_gchord(struct SYMBOL *s,
 	x = y = 0;				/* (compiler warning) */
 
 	/* loop on each line */
-	p = s->as.text;
 	antype = '\0';
 	sep = '\n';
 	for (;;) {
-		if (sep == '\n') {
-			if (*p == '@') {
-				int n;
-				float xo, yo;
+		if (*p == '@') {
+			int n;
+			float xo, yo;
 
-				x = s->x;
-				if (sscanf(p, "@%f,%f%n", &xo, &yo, &n) != 2) {
-					error(1, s,
-					      "Error in annotation \"@\"");
-					y = s->yav;
-				} else {
-					x += xo;
-					y = s->yav + yo;
-					p += n;
-					if (*p == ' ')
-						p++;
-				}
-				antype = '@';
-			} else if (*p != '\0' && strchr("^_<>", *p) != 0)
-				antype = *p++;
-			else	antype = '\0';
-		}
+			x = s->x;
+			if (sscanf(p, "@%f,%f%n", &xo, &yo, &n) != 2) {
+				error(1, s,
+				      "Error in annotation \"@\"");
+				y = s->yav;
+			} else {
+				x += xo;
+				y = s->yav + yo;
+				p += n;
+				if (*p == ' ')
+					p++;
+			}
+			antype = '@';
+		} else if (*p != '\0' && strchr("^_<>", *p) != 0)
+			antype = *p++;
+		else if (sep == '\n')
+			antype = '\0';
 		for (q = p; ; q++) {
 			if (*q == '\\') {
 				q++;
@@ -1793,46 +1793,16 @@ void draw_measnb(void)
 {
 	struct SYMBOL *s;
 	char *showm;
-	int bar_time, any_nb, wmeasure;
+	int any_nb, bar_num;
 	float x, y, w;
 
 	showm = cfmt.measurebox ? "showb" : "show";
 	any_nb = 0;
 
-	/* get the current bar number */
-/*fixme: what to do if no symbol in the 1st voice?*/
-	if ((s = voice_tb[cursys->top_voice].sym) == 0
-	    || (s = s->next) == 0)
-		return;
-	for ( ; s->next != 0; s = s->next) {
-		switch (s->type) {
-		case TIMESIG:
-		case CLEF:
-		case KEYSIG:
-		case FMTCHG:
-		case STBRK:
-			continue;
-		case BAR:
-			if (s->u != 0)
-				nbar = s->u;		/* (%%setbarnb) */
-			else if (s->as.u.bar.repeat_bar
-				 && s->as.text != 0
-				 && cfmt.contbarnb == 0) {
-				if (s->as.text[0] == '1')
-					nbar_rep = nbar;
-				else	nbar = nbar_rep; /* restart bar numbering */
-			}
-			break;
-		default:
-			break;
-		}
-		break;
-	}
-	if (nbar > 1) {
-		if (s->prev->type != CLEF)
-			s = s->prev;
+	s = tsfirst;				/* clef */
+	bar_num = nbar;
+	if (bar_num > 1) {
 		if (cfmt.measurenb == 0) {
-			s = s->prev;		/* clef */
 			set_font(MEASUREFONT);
 			any_nb = 1;
 			x = 0;
@@ -1842,15 +1812,28 @@ void draw_measnb(void)
 				y = staff_tb[0].topbar + 14;
 			PUT0("0 ");
 			puty(y);
-			PUT2("y0 M(%d)%s",nbar, showm);
+			PUT2("y0 M(%d)%s",bar_num, showm);
 			y_set(s, 1, x, w, y + cfmt.font_tb[MEASUREFONT].size + 2);
-		} else if (nbar % cfmt.measurenb == 0) {
+		} else if (bar_num % cfmt.measurenb == 0) {
+			for ( ; ; s = s->ts_next) {
+				switch (s->type) {
+				case TIMESIG:
+				case CLEF:
+				case KEYSIG:
+				case FMTCHG:
+				case STBRK:
+					continue;
+				}
+				break;
+			}
+			if (s->prev->type != CLEF)
+				s = s->prev;
 			x = s->x - s->wl;
 			set_font(MEASUREFONT);
 			any_nb = 1;
 			w = cwid('0') * cfmt.font_tb[MEASUREFONT].size;
-			if (nbar >= 10) {
-				if (nbar >= 100)
+			if (bar_num >= 10) {
+				if (bar_num >= 100)
 					w *= 3;
 				else	w *= 2;
 			}
@@ -1861,58 +1844,29 @@ void draw_measnb(void)
 				y = staff_tb[0].topbar + 6;
 			y += 2;
 			putxy(x, y);
-			PUT2("y0 M(%d)%s", nbar, showm);
+			PUT2("y0 M(%d)%s", bar_num, showm);
 			y += cfmt.font_tb[MEASUREFONT].size;
 			y_set(s, 1, x, w, y);
 			s->ymx = y;
 		}
 	}
 
-/*fixme: KO when no bar at the end of the previous line */
-	wmeasure = voice_tb[cursys->top_voice].meter.wmeasure;
-	bar_time = voice_tb[cursys->top_voice].sym->time + wmeasure;
-	for (s = voice_tb[cursys->top_voice].sym->next; s != 0; s = s->next) {
-		switch (s->type) {
-		case TIMESIG:
-			wmeasure = s->as.u.meter.wmeasure;
-			bar_time = s->time + wmeasure;
+	for ( ; s != 0; s = s->ts_next) {
+		if (s->type != BAR
+		 || s->u == 0)
 			continue;
-		case MREST:
-			nbar += s->as.u.bar.len - 1;
-			continue;
-		default:
-			continue;
-		case BAR:
-			break;
-		}
-		if (s->u != 0)
-			nbar = s->u;		/* (%%setbarnb) */
-		if (s->time < bar_time)		/* incomplete measure */
-			continue;
-		if (s->u == 0) {
-			nbar++;
-			if (s->as.u.bar.repeat_bar
-			    && s->as.text != 0
-			    && cfmt.contbarnb == 0) {
-				if (s->as.text[0] == '1')
-					nbar_rep = nbar;
-				else	nbar = nbar_rep; /* restart bar numbering */
-			}
-		}
-		bar_time = s->time + wmeasure;
-		if (s->as.u.bar.repeat_bar
-		    || s->next == 0
-		    || cfmt.measurenb == 0
-		    || (nbar % cfmt.measurenb) != 0
-		    || nbar <= 1)
+		bar_num = s->u;
+		if (cfmt.measurenb == 0
+		 || (bar_num % cfmt.measurenb) != 0
+		 || s->next == 0)
 			continue;
 		if (!any_nb) {
 			any_nb = 1;
 			set_font(MEASUREFONT);
 		}
 		w = cwid('0') * cfmt.font_tb[MEASUREFONT].size;
-		if (nbar >= 10) {
-			if (nbar >= 100)
+		if (bar_num >= 10) {
+			if (bar_num >= 100)
 				w *= 3;
 			else	w *= 2;
 		}
@@ -1934,13 +1888,14 @@ void draw_measnb(void)
 		y += 2;
 		PUT0(" ");
 		putxy(x, y);
-		PUT2("y0 M(%d)%s",nbar, showm);
+		PUT2("y0 M(%d)%s",bar_num, showm);
 		y += cfmt.font_tb[MEASUREFONT].size;
 		y_set(s, 1, x, w, y);
 		s->ymx = y;
 	}
 	if (any_nb)
 		PUT0("\n");
+	nbar = bar_num;
 }
 
 /* -- get the beat from a time signature -- */
@@ -2097,7 +2052,7 @@ float draw_partempo(float top,
 		shift = 1;
 		x = 0;
 /*fixme:have tempo on other voices but the 1st?*/
-		for (s = voice_tb[cursys->top_voice].sym->next;
+		for (s = voice_tb[cursys->top_voice].sym;
 		     s != 0;
 		     s = s->next) {
 			if ((g = s->extra) == 0)
@@ -2155,7 +2110,7 @@ float draw_partempo(float top,
 	h = cfmt.font_tb[PARTSFONT].size + 2 + 2;	/* + cfmt.partsspace; */
 	str_font(PARTSFONT);
 	ymin = staff_tb[0].topbar + 14;
-	for (s = voice_tb[cursys->top_voice].sym->next; s != 0; s = s->next) {
+	for (s = voice_tb[cursys->top_voice].sym; s != 0; s = s->next) {
 		if ((g = s->extra) == 0)
 			continue;
 		for (; g != 0; g = g->next)
@@ -2172,7 +2127,7 @@ float draw_partempo(float top,
 		dy = ymin + h + ht - top;
 
 	set_font(PARTSFONT);
-	for (s = voice_tb[cursys->top_voice].sym->next; s != 0; s = s->next) {
+	for (s = voice_tb[cursys->top_voice].sym; s != 0; s = s->next) {
 		if ((g = s->extra) == 0)
 			continue;
 		for (; g != 0; g = g->next)
