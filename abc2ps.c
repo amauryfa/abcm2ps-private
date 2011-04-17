@@ -58,6 +58,7 @@ int pagenum = 1;		/* current page in output file */
 int in_page;
 
 				/* switches modified by flags: */
+int secure;			/* secure mode */
 int pagenumbers;		/* write page numbers ? */
 int epsf;			/* for EPSF postscript output */
 int showerror;		/* show the errors */
@@ -312,6 +313,9 @@ int main(int argc,
 				case 'Q':
 					cfmt.printtempo = 1;
 					lock_fmt(&cfmt.printtempo);
+					break;
+				case 'S':
+					secure = 1;
 					break;
 				case 'u':
 					cfmt.abc2pscompat = 1;

@@ -286,6 +286,7 @@ extern int defl;		/* decoration flags */
 #define DEF_STEMUP 0x04		/* stem up (1) or down (0) */
 
 		/* switches modified by flags: */
+extern int secure;		/* secure mode */
 extern int pagenumbers; 	/* write page numbers */
 extern int epsf;		/* for EPSF postscript output */
 extern int showerror;		/* show the errors */

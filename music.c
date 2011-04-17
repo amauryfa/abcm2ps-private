@@ -2940,8 +2940,9 @@ static void set_global(void)
 				int delta;
 				struct SYMBOL *g;
 
-				i = p_voice - voice_tb;
-				i = sy->voice[i].clef.type;
+//				i = p_voice - voice_tb;
+//				i = sy->voice[i].clef.type;
+				i = p_voice->clef.type;
 				if (!p_voice->forced_clef
 				    || i == PERC)
 					continue;

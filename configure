@@ -1702,8 +1702,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
-VERSION=5.9.21
-VDATE='January 31, 2011'
+VERSION=5.9.23
+VDATE='April 18, 2011'
 
 ac_aux_dir=
 for ac_dir in "$srcdir" "$srcdir/.." "$srcdir/../.."; do

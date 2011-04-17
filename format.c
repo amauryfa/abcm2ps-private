@@ -792,6 +792,8 @@ void interpret_fmt_line(char *w,		/* keyword */
 			return;
 		}
 		if (strcmp(w, "format") == 0) {
+			if (secure)
+				return;
 			if (read_fmt_file(p) < 0)
 				error(1, 0, "No such format file '%s'", p);
 			return;
@@ -1103,10 +1105,12 @@ int read_fmt_file(char *fn)
 					continue;
 				if (strcmp(p, "endps") == 0)
 					break;
-				if (!file_initialized)
-					user_ps_add(p);
-				else
-					PUT1("%s\n", p);
+				if (!secure) {
+					if (!file_initialized)
+						user_ps_add(p);
+					else
+						PUT1("%s\n", p);
+				}
 			}
 			continue;
 		}

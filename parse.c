@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2009 Jean-François Moine
+ * Copyright (C) 1998-2011 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -54,7 +54,6 @@ static int over_mxtime;			/* voice overlay max time */
 static short over_bar;			/* voice overlay in a measure */
 static short over_voice;		/* main voice in voice overlay */
 static int staves_found;		/* time of the last %%staves */
-static int abc2win;
 
 static int bar_number;			/* (for %%setbarnb) */
 
@@ -550,6 +549,15 @@ static void staves_init(void)
 		case CLEF:
 			if (s->as.u.clef.type < 0)
 				break;
+			{
+				int scale, lines;
+
+				scale = sy->voice[s->voice].clef.staffscale;
+				lines = sy->voice[s->voice].clef.stafflines;
+				sy->voice[s->voice].clef = s->as.u.clef;
+				sy->voice[s->voice].clef.staffscale = scale;
+				sy->voice[s->voice].clef.stafflines = lines;
+			}
 			continue;	/* normal clef change */
 		case KEYSIG:
 		case TIMESIG:
@@ -562,12 +570,21 @@ static void staves_init(void)
 			continue;
 		}
 
-		/* #lines or scale of staff found */
+		/* CLE with change of #lines or scale of staff */
 		voice = s->voice;
 		if (staves == 0) {
 			staves = s;	/* create a new staff system */
 			new_sy = (struct SYSTEM *) getarena(sizeof *new_sy);
 			memcpy(new_sy, sy, sizeof *new_sy);
+			for (voice = 0; voice < MAXVOICE; voice++) {
+				if (new_sy->voice[voice].range < 0
+				    || new_sy->voice[voice].second)
+					continue;
+				staff = new_sy->voice[voice].staff;
+				memcpy(&new_sy->staff[staff].clef,
+					&new_sy->voice[voice].clef,
+					sizeof (struct clef_s));
+			}
 			new_sy->next = sy->next;
 			sy->next = new_sy;
 			sy = new_sy;
@@ -1214,14 +1231,23 @@ static void get_info(struct SYMBOL *s,
 		if (s->as.state != ABC_S_HEAD)
 			break;
 		tunenum++;
+		/* information for index */
 		PUT2("%% --- %s (%s) ---\n"
 			"%% --- font ",
 			&info['X' - 'A']->as.text[2],
 			&info['T' - 'A']->as.text[2]);
 		outft = -1;
-		set_font(TITLEFONT);		/* for index */
+		set_font(TITLEFONT);		/* font in coment */
 		outft = -1;
 		PUT0("\n");
+		if (info['T' - 'A']->next != 0) {
+			PUT1("%% --- + (%s) ---\n",
+				&info['T' - 'A']->next->as.text[2]);
+			if (info['T' - 'A']->next->next != 0)
+				PUT1("%% --- + (%s) ---\n",
+					&info['T' - 'A']->next->next->as.text[2]);
+		}
+
 		if (!epsf)
 			bskip(cfmt.topspace);
 		write_heading(t);
@@ -1293,6 +1319,7 @@ static void get_info(struct SYMBOL *s,
 			goto addinfo;
 		default:
 			gen_ly(1);
+			PUT1("%% --- + (%s) ---\n", &s->as.text[2]);
 			write_title(s);
 			bskip(cfmt.musicspace + 0.2 CM);
 			voice_init();
@@ -1558,7 +1585,6 @@ void do_tune(struct abctune *t,
 	voice_tb[0].name = "1";		/* implicit voice */
 	set_tblt(first_voice);
 	micro_tb = t->micro_tb;		/* microtone values */
-	abc2win = 0;
 
 	parsys = 0;
 	system_new();			/* create the 1st staff system */
@@ -1574,10 +1600,6 @@ void do_tune(struct abctune *t,
 	if (!header_only) {
 		for (as = t->first_sym; as != 0; as = as->next) {
 			switch (as->type) {
-			case ABC_T_EOLN:
-				if (as->u.eoln.type == 2)
-					abc2win = 1;
-				break;
 			case ABC_T_NOTE:
 			case ABC_T_REST:
 				s = (struct SYMBOL *) as;
@@ -1641,9 +1663,6 @@ void do_tune(struct abctune *t,
 				continue;
 			if (cfmt.continueall || cfmt.barsperstaff
 			    || as->u.eoln.type == 1)	/* if '\' */
-				continue;
-			if (as->u.eoln.type == 0	/* if normal eoln */
-			    && abc2win)
 				continue;
 			if (curvoice->last_sym != 0)
 				curvoice->last_sym->sflags |= S_EOLN;
@@ -2303,8 +2322,10 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 				}
 				if (*p == '%')
 					continue;	/* skip comment lines */
-				s = (struct SYMBOL *) as;
-				ps_def(s, p);
+				if (!secure) {
+					s = (struct SYMBOL *) as;
+					ps_def(s, p);
+				}
 			}
 			/* not reached */
 		}
@@ -2357,7 +2378,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			char fn[BSIZE], line[BSIZE];
 
 			gen_ly(1);
-			if (cfmt.textoption == T_SKIP)
+			if (secure || cfmt.textoption == T_SKIP)
 				return as;
 			get_str(line, p, BSIZE);
 			if ((fp = open_file(line, "eps", fn)) == 0) {

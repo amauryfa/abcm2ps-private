@@ -1856,6 +1856,8 @@ void draw_measnb(void)
 		 || s->u == 0)
 			continue;
 		bar_num = s->u;
+		if (bar_num <= 0)
+			continue;
 		if (cfmt.measurenb == 0
 		 || (bar_num % cfmt.measurenb) != 0
 		 || s->next == 0)

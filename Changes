@@ -1,3 +1,18 @@
+---- Version 5.9.23 - 11/04/18 ----
+
+Add the '-S' command flag (secure mode)
+	(asked by Bart Humphries).
+Don't ignore the normal newlines when '!' found as newline
+	(asked by Hudson Flávio Meneses Lacerda).
+Add more information for tune index creation (second and third titles)
+	(asked by Paul Hardy).
+
+---- Version 5.9.22 - 11/02/08 ----
+
+Don't display negative bar numbers
+	(reported by Janus Meuris).
+Fix bad clef change again with K: or V: when stafflines or staffscale present.
+
 ---- Version 5.9.21 - 11/01/31 ----
 
 Bad tempo note duration of Q:Cxx or Q:Lxx

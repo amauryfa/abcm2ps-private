@@ -138,6 +138,11 @@ List of the options
   -s<float>
 	See: format.txt - scale <float>
 
+  -S
+	Secure mode.
+	When present, file inclusion (%%format and %%EPS) and PostScript
+	injection (%%beginps and %%postscript) are disabled.
+
   -T<int>[<voice>], +T[<int>[<voice>]]
 	Activate or deactivate tablature drawing.
 	<int> is the tablature number as defined in %%tablature.
