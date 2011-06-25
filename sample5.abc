@@ -70,25 +70,23 @@ V:2
 B_A/G/ c/[I:staff 4]C/[I:staff 3]G- G/G/=A B/cD/\
 V:3
 B,/G,/ C=A,=B, CF, _B,_A,/G,/\
-%%staves (1s 2s) 3s | {(1 2) 3}
+%%staves (1s 2) 3s | {(1 2) 3}
 V:1s
 |fB _e_d/c/ dG\
-V:2s
-|z/c/B/_A/ G=A BG\
 V:3s bass
-|=A,=D- D/C/F/E/ D/C/_D-\
+|_A,_D- D/C/F/E/ D/C/D\
 V:1
 |fB _ed/c/ dG\
 V:2
 |z/c/B/_A/ G=A BG\
 V:3
-|_A,_D- D/C/F/E/ D/C/D-\
+|=A,=D- D/C/F/E/ D/C/_D-\
 %%staves 1s 3s | {(1 2) (3 4)}
 V:1
  e2-|e/e/d- d/c/=B cg de/f/|
 V:2
  _AG/F/|G>F ED CeA2|
 V:3
- D/C/B,/A,/|B,=B,CD G,/C/B,/C/- C/B,/C-|
+ D/C/B,/_A,/|B,=B,CD G,/C/B,/C/- C/B,/C-|
 V:4
  x2|z2G,2E,2F,2|

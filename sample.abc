@@ -2,6 +2,35 @@
 
 U: M = !tenuto!		% abcm2ps: default M is lowermordent
 
+% abcm2ps >= 6.2.2 - definition of '...' (ellipsis)
+%%beginps
+/morechar[
+/ellipsis
+]def
+/morefontdef{
+    /morefont curfont findfont dup length
+	dict begin
+		{1 index/FID ne{def}{pop pop}ifelse}forall
+		/Encoding 256 array def
+		Encoding 0 morechar putinterval
+		currentdict
+	end
+    definefont}def
+/compe200def{
+    /compe200<<
+	/FontType 0
+	/FontMatrix[1 0 0 1 0 0]
+	/FMapType 6
+% ellipsis - UTF-8: E2 80 A6 - unicode \u2026
+	/SubsVector<01 80a6 0001>
+	/Encoding[0 1 0]
+	/FDepVector[
+		/Error findfont
+		morefontdef
+	]
+    >>definefont}def
+%%endps
+
 X:1
 T:Scale
 T:Second Title
@@ -52,7 +81,7 @@ L: 1/4
 
 X:7
 T:Slurs and Ties
-T: Title with funny chars like \cC\'e\~n\^o \`A\cc\"a\ss\"o \251
+T: Title with funny chars like \005 Çéñô Àçäßö © …
 M:C|
 K:Ebm
 [| (CDEF) ((3efg) ((3gag)| (C2 EF) (ef(ga)) | ((c2 (3(d)ef) e2)\

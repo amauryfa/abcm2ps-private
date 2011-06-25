@@ -90,7 +90,7 @@ List of the format parameters
 	Description:
 		Try to typeset with <int> bars on each line.
 
- breakoneoln <bool>
+  breakoneoln <bool>
 	Default: 1
 	Compilation: none
 	Command line: none
@@ -234,27 +234,12 @@ List of the format parameters
   encoding <encoding> | <int>
 	Default: 0
 	Compilation: none
-	Command line: -L<int>
+	Command line: none
 	Description:
-		Set the global font encoding to <encoding>, or to
-		'Latin<int>'.
-		The recognized encodings are:
-			us-ascii
-			iso-8859-1	(Latin1)
-			iso-8859-2	(Latin2)
-			iso-8859-3	(Latin3)
-			iso-8859-4	(Latin4)
-			iso-8859-9	(Latin5)
-			iso-8859-10	(Latin6)
-			native
-		When the encoding is 'native', the encoding vectors
-		of the fonts are not changed.
-		<encoding> may be any string. In this case, the encoding
-		vector must be defined by a sequence of 'postscript'
-		commands.
-		<int> may take values from 0 to 6. The value 0 is
-		the same as 1, but the PostScript encoding vector
-		'ISOLatin1Encoding' is not output.
+		Set the global font encoding to <encoding> which may be:
+			<int>	<encoding>
+			  0	'us-ascii' or 'utf-8'
+			  1	'native'
 
   exprabove <bool>
 	Default: 0
@@ -283,9 +268,9 @@ List of the format parameters
 	Compilation: none
 	Command line: -f
 	Description:
-		Have flat beams in bagpipe tunes.
+		Draw flat beams.
 
-  font <font> [<encoding>]
+  font <font> [[<encoding>] scale]
 	Default: none
 	Compilation: none
 	Command line: none
@@ -297,6 +282,11 @@ List of the format parameters
 		format file.
 		When absent, <encoding> defaults to the current
 		'encoding' parameter (see above).
+		<scale> is the width factor to apply to the Time-Roman
+		character width. It is needed to adjust the string width
+		in case the computation with the default scale gives
+		erroneous values (if string clash, set <scale> lower than 1.0
+		- if too much space, set it greater than 1.0).
 
   footer <text>
 	Default: none
@@ -438,8 +428,9 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Display the rhythm and origin on a same line, and also
-		display the area ('A:').
+		Display the rhythm (R:) and area (A:) on a same line
+		before the first music line:
+			Rhythm (Area)
 
   infoname <uppercase letter> <information name>
 	Default:
@@ -600,6 +591,16 @@ List of the format parameters
 	Command line: none
 	Description:
 		Set the page width to <unit>.
+
+  pango <bool>
+	Default: 1
+	Compilation: HAVE_PANGO
+	Command line: none
+	Description:
+		When abcm2ps is compiled with pango/freetype support,
+		enable or disable the text generation with pango glyphs.
+		Trick: This parameter may be set to '2' to force pango
+		generation of texts which contain only latin characters.
 
   parskipfac <float>
 	Default: 0.4
@@ -1050,6 +1051,7 @@ List of the pseudo-comments treated while parsed
 	    'center':		  center the lines
 	    'skip':		  don't print the lines (same as comments)
 	    'right':		  align the right side
+	When <option> is omitted, it defaults to the %%textoption value.
 
   center <line of text>
 	Print one line of centered text.
@@ -1057,7 +1059,7 @@ List of the pseudo-comments treated while parsed
   EPS <eps_file>
 	Include the file <eps_file>.
 	The file content is left or right aligned or centered according
-	to the current value of 'textoption'.
+	to the current value of '%%textoption'.
 
   endtext
 	See 'begintext'.
@@ -1170,7 +1172,8 @@ List of the pseudo-comments treated while parsed
 			  letter and a sharp or flat.
 		- note function:
 			- the octave (0 is 'C') letting pitch >= 0 and < 36
-			- the pitch in 12th of octave on 3 octaves (0..35)
+			- the pitch in 12th of octave on 3 octaves (0..35 -
+				not integer when microtone)
 			- the x offset
 		- the bar function is never called.
 
@@ -1185,7 +1188,7 @@ List of the pseudo-comments treated while parsed
 		abcm2ps sample.abc -e1 -f flute.fmt -T1 -T3
 
   text <line of text>
-	Print one line of text.
+	Print one line of text with the current value of '%%textoption'.
 
   vskip <h>
 	Skip vertical space of height <h>.

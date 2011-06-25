@@ -1,9 +1,13 @@
 /* -- general macros -- */
 
+#include <stdio.h>
+#include <time.h>
+
 #include "config.h"
+#include "abcparse.h"
 
 #define OUTPUTFILE	"Out.ps"	/* standard output file */
-#if defined(unix) || defined(__unix__)
+#ifndef WIN32
 #define DIRSEP '/'
 #else
 #define DIRSEP '\\'
@@ -68,7 +72,6 @@
 #define MAXSTAFF	16	/* max staves */
 #define BSIZE		512	/* buffer size for one input string */
 #define BUFFSZ		64000	/* size of output buffer */
-#define BUFFSZ1		5000	/* buffer reserved for one staff */
 
 #define BREVE		(BASE_LEN * 2)	/* double note (square note) */
 #define SEMIBREVE	BASE_LEN	/* whole note */
@@ -78,8 +81,6 @@
 #define SEMIQUAVER	(BASE_LEN / 16)	/* 1/16 note */
 
 #define MAXFONTS	30	/* max number of fonts */
-#define MAXENC		6	/* max number of ISO-Latin encodings */
-#define ENC_NATIVE	7	/* (see format.c) */
 
 #define T_LEFT		0
 #define T_JUSTIFY	1
@@ -97,9 +98,12 @@ struct FONTSPEC {
 	float size;
 	float swfac;
 };
-extern char font_enc[MAXFONTS];	/* font encoding */
+extern char font_enc[MAXFONTS];		/* font encoding */
+extern char *fontnames[MAXFONTS];	/* list of font names */
 
 /* lyrics */
+#define LY_HYPH	0x10	/* replacement character for hyphen */
+#define LY_UNDER 0x11	/* replacement character for underscore */
 #define MAXLY	16	/* max number of lyrics */
 struct lyl {
 	struct FONTSPEC *f;	/* font */
@@ -231,7 +235,11 @@ struct FORMAT { 		/* struct for page layout */
 	int encoding, exprabove, exprbelow, flatbeams, freegchord;
 	int infoline, gchordbox, graceslurs, gracespace, hyphencont;
 	int landscape, measurebox, measurefirst, measurenb, musiconly;
-	int oneperpage, partsbox, printparts, printtempo;
+	int oneperpage;
+#ifdef HAVE_PANGO
+	int pango;
+#endif
+	int partsbox, printparts, printtempo;
 	int setdefl, shiftunisson, splittune, squarebreve, staffnonote;
 	int straightflags, stretchstaff, stretchlast;
 	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
@@ -264,14 +272,13 @@ struct FORMAT { 		/* struct for page layout */
 				* guitar chords, annotations and lyrics */
 };
 
-extern struct FORMAT cfmt;	/* current local format for output */
-extern struct FORMAT dfmt;	/* current global format for output */
+extern struct FORMAT cfmt;	/* current format */
+extern struct FORMAT dfmt;	/* global format */
 
-typedef struct SYMBOL *INFO[26];	/* information fields */
-extern INFO info, default_info;
+typedef struct SYMBOL *INFO[26]; /* information fields ('A' .. 'Z') */
+extern INFO info;
 
 extern char *mbf;		/* where to PUTx() */
-extern int nbuf;		/* number of bytes buffered */
 extern int use_buffer;		/* 1 if lines are being accumulated */
 
 extern int outft;		/* last font in the output file */
@@ -286,11 +293,15 @@ extern int defl;		/* decoration flags */
 #define DEF_STEMUP 0x04		/* stem up (1) or down (0) */
 
 		/* switches modified by flags: */
+extern int quiet;		/* quiet mode */
+extern int secure;		/* secure mode */
+extern int annotate;		/* output source references */
 extern int pagenumbers; 	/* write page numbers */
-extern int epsf;		/* for EPSF postscript output */
+extern int epsf;		/* EPSF (1) / SVG (2) output */
+extern int svg;			/* SVG (1) or XML (2 - HTML + SVG) output */
 extern int showerror;		/* show the errors */
 
-extern char outfn[STRL1];	/* output file name */
+extern char outfn[FILENAME_MAX]; /* output file name */
 extern char *in_fname;		/* current input file name */
 extern char *styd;		/* format search directory */
 extern time_t mtime;		/* last modification time of the input file */
@@ -336,9 +347,9 @@ extern int nstaff;		/* (0..MAXSTAFF-1) */
 
 struct VOICE_S {
 	struct SYMBOL *sym;	/* associated symbols */
-	struct SYMBOL *last_sym;	/* last symbol while scanning */
+	struct SYMBOL *last_sym; /* last symbol while scanning */
 	struct VOICE_S *next;	/* link */
-	char *name;		/* voice id */
+	char *id;		/* voice id */
 	char *nm;		/* voice name */
 	char *snm;		/* voice subname */
 	char *bar_text;		/* bar text at start of staff when bar_start */
@@ -389,7 +400,19 @@ struct SYSTEM {			/* staff system */
 	short top_voice;	/* first voice in the staff system */
 	short nstaff;
 	struct {
-		short flags;	/* brace and bracket flags (from %%staves) */
+		short flags;
+#define OPEN_BRACE 0x01
+#define CLOSE_BRACE 0x02
+#define OPEN_BRACKET 0x04
+#define CLOSE_BRACKET 0x08
+#define OPEN_PARENTH 0x10
+#define CLOSE_PARENTH 0x20
+#define STOP_BAR 0x40
+#define FL_VOICE 0x80
+#define OPEN_BRACE2 0x0100
+#define CLOSE_BRACE2 0x0200
+#define OPEN_BRACKET2 0x0400
+#define CLOSE_BRACKET2 0x0800
 		char empty;
 		char dum;
 		struct clef_s clef;
@@ -406,24 +429,27 @@ struct SYSTEM {			/* staff system */
 };
 struct SYSTEM *cursys;		/* current staff system */
 
-/* PUTn: add to buffer with n arguments */
-#define PUT0(f) do {sprintf(mbf,f); a2b(); } while (0)
-#define PUT1(f,a) do {sprintf(mbf,f,a); a2b(); } while (0)
-#define PUT2(f,a,b) do {sprintf(mbf,f,a,b); a2b(); } while (0)
-#define PUT3(f,a,b,c) do {sprintf(mbf,f,a,b,c); a2b(); } while (0)
-#define PUT4(f,a,b,c,d) do {sprintf(mbf,f,a,b,c,d); a2b(); } while (0)
-#define PUT5(f,a,b,c,d,e) do {sprintf(mbf,f,a,b,c,d,e); a2b(); } while (0)
-
 /* -- external routines -- */
 /* abc2ps.c */
 void clrarena(int level);
 int lvlarena(int level);
-char *getarena(int len);
+void *getarena(int len);
 void strext(char *fid, char *ext);
 /* buffer.c */
-void a2b(void);
+#define PUT0(f) a2b(f)
+#define PUT1(f,a) a2b(f,a)
+#define PUT2(f,a,b) a2b(f,a,b)
+#define PUT3(f,a,b,c) a2b(f,a,b,c)
+#define PUT4(f,a,b,c,d) a2b(f,a,b,c,d)
+#define PUT5(f,a,b,c,d,e) a2b(f,a,b,c,d,e)
+void a2b(char *fmt, ...)
+#ifdef __GNUC__
+	__attribute__ ((format (printf, 1, 2)))
+#endif
+	;
 void abskip(float h);
 void buffer_eob(void);
+void marg_init(void);
 void bskip(float h);
 void check_buffer(void);
 void clear_buffer(void);
@@ -432,6 +458,11 @@ void close_page(void);
 float get_bposy(void);
 void write_buffer(void);
 void open_output_file(void);
+int (*output)(FILE *out, const char *fmt, ...)
+#ifdef __GNUC__
+	__attribute__ ((format (printf, 2, 3)))
+#endif
+	;
 void write_eps(void);
 /* deco.c */
 void deco_add(char *text);
@@ -469,7 +500,7 @@ void y_set(struct SYMBOL *s,
 void draw_sym_near(void);
 void draw_all_symb(void);
 float draw_systems(float indent);
-void set_scale(int staff);
+void set_scale(struct SYMBOL *s);
 void output_ps(struct SYMBOL *s, int state);
 void putf(float f);
 void putx(float x);
@@ -477,7 +508,6 @@ void puty(float y);
 void putxy(float x, float y);
 /* format.c */
 void define_fonts(void);
-void define_encodings(void);
 int get_textopt(char *p);
 void interpret_fmt_line(char *w, char *p, int lock);
 void lock_fmt(void *fmt);
@@ -487,6 +517,7 @@ FILE *open_file(char *fn,
 		char *rfn);
 void print_format(void);
 int read_fmt_file(char *filename);
+void set_font(int ft);
 void set_format(void);
 struct tblt_s *tblt_parse(char *p);
 /* music.c */
@@ -507,16 +538,28 @@ struct SYMBOL *sym_add(struct VOICE_S *p_voice,
 void bug(char *msg, int fatal);
 void error(int sev, struct SYMBOL *s, char *fmt, ...);
 float scan_u(char *str);
+#ifdef HAVE_PANGO
+void add_to_text_block(char *s, int job, int do_pango);
+#else
 void add_to_text_block(char *s, int job);
-float cwid(unsigned char c);
-int get_str_font(void);
+#endif
+float cwid(unsigned short c);
+void get_str_font(int *cft, int *dft);
+void set_str_font(int cft, int dft);
+#ifdef HAVE_PANGO
+void pg_init(void);
+void pg_reset_font(void);
+#endif
 void put_history(void);
 void put_words(struct SYMBOL *words);
-void set_font(int ft);
 void str_font(int ft);
-#define A_LEFT -1
-#define A_CENTER 0
-#define A_RIGHT 1
+#define A_LEFT 0
+#define A_CENTER 1
+#define A_RIGHT 2
+#define A_LYRIC 3
+#define A_GCHORD 4
+#define A_ANNOT 5
+#define A_GCHEXP 6
 void str_out(char *p, int action);
 void put_str(char *str, int action);
 float tex_str(char *s);
@@ -528,7 +571,16 @@ void write_title(struct SYMBOL *s);
 void write_heading(struct abctune *t);
 void write_user_ps(void);
 void write_text_block(int job, int abc_state);
+/* svg.c */
+void define_svg_symbols(char *title, float w, float h);
+int svg_output(FILE *out, const char *fmt, ...)
+#ifdef __GNUC__
+	__attribute__ ((format (printf, 2, 3)))
+#endif
+	;
+void svg_write(char *buf, int len);
+void svg_close();
 /* syms.c */
-void define_encoding(int enc, char *ename);
+void define_cmap(void);
 void define_font(char *name, int num, int enc);
 void define_symbols(void);

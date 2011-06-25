@@ -1,5 +1,5 @@
-	Features of abcm2ps 5.9.0 (J.F. Moine, September 2008)
-	======================================================
+	Features of abcm2ps 6.3.3 (J.F. Moine, May 2011)
+	================================================
 
 abcm2ps tries to follow the ABC standard version 2.0:
 
@@ -22,8 +22,6 @@ Tune body.
 		+dacoda+, +dacapo+
 
 	- 'U' fields cannot contain guitar chord nor annotations.
-
-	- +none+ and +nil+ in 'U' fields do not work.
 
 	- The values assigned by the 'U' field are always global (they
 	  are not restored at end of tune).
@@ -82,6 +80,21 @@ Information fields.
 	  voice, alone in a line (not enclosed by '[' and ']') and when
 	  the voice is empty, it is applied to all voices.
 
+	- In 'U' fields, the character may be
+	  '\ ' (back-slash - space) to redefine the character space, or
+	  '\t' (back-slash - t) to redefine the character tabulation.
+	  The default value of these characters is +beambreak+ (see below).
+
+	- In 'U' fields, +none+ means that the character must not appear
+	  in the body.
+
+	- In 'U' fields, +nil+ means that the character is ignored.
+	  This is the default value for the character '`' (back-quote).
+
+	- In 'U' fields, +beambreak+ means that the character stops the note
+	  beaming. This is the default value for the characters '\ '
+	  (space) and '\t' (tabulation).
+
 Tune body.
 
 	- Some bar lines are drawn as defined (ex: ':|:'), some other
@@ -108,8 +121,9 @@ Tune body.
 Clefs.
 
 	- When 'clef=' is present, the clef name may be a note with its
-	  pitch. The note may be only 'G' (treble clef), 'C' (alto clef)
-	  or 'F' (bass clef). The pitch gives the note on the clef line.
+	  pitch optionnaly followed by the staff line on which it is defined.
+	  The note may be only 'G' (treble clef), 'C' (alto clef)
+	  or 'F' (bass clef).
 	  The two following definitions are equivalent:
 		K: clef=f
 		K: bass middle=d
@@ -122,11 +136,8 @@ Multiple voices.
 
 Data format.
 
-	- The special character sequences depend on the encoding.
-	  Only ISO-Latin 1 to 6 are supported. The encoding is
-	  defined by '-L' or %%encoding.
-
-	- The font change ($n in strings) does not work in all cases.
+	- The default string character set is UTF-8. Compatibility is offered
+	  to Latin-1, but may not work in all cases.
 
 ABC Stylesheet specification.
 
@@ -204,9 +215,6 @@ Tune body.
 	  (note that a '[' is needed before the string - this one may
 	   be empty).
 
-	- ']' indicates the explicit end of a repeat section.
-	  It may be used as an invisible bar.
-
 	- There may be slurs from notes to grace notes and reverse.
 
 	- Opening slurs may be followed by "'" or "," to force their
@@ -238,16 +246,31 @@ Tune body.
 
 	- Multiple lines of guitar chord / annotation may also be
 	  indicated by '\n' or ';'. In this case, the next lines are of
-	  the same type (gchord or annotation) .
+	  the same type (gchord or annotation).
+	  The 3 next notations are equivalent:
 		"_ann1" "_ann2" "G3" "4" G
 		"_ann1;ann2" "G3;4" G
 		"_ann1\nann2" "G3\n4" G
+	  (annotation on 2 lines and guitar chord on 2 lines)
+	  The two next notations are NOT equivalent:
+		"_ann1" "G"
+		"_ann1;G"
+	  (in the 1st line, 'G' is a guitar chord, in the 2nd one,
+	  it is the 2nd line of the annotation)
+	  A new annotation type may be indicated after the new line as:
+		"^above;_below"
 
-	- Annotations may contain '\#', '\b' and '\=' to display
+	- Strings may contain '\#', '\b' and '\=' to display
 	  accidentals.
 
-	- Strings with ISO latin encoding may contain '\201', '\202'
-	  and '\203' to display accidentals.
+	- Strings may contain characters from '\001' to '\005' to display
+	  accidentals. For compatibility, the values '\201' to '\205'
+	  are handled the same way.
+
+	- Strings may contain Unicode characters format:
+		\uxxxx for 16 bits characters
+		\Uxxxxxxxx for 32 bits characters
+	  ('x' is a hexadecimal digit)
 
 Clefs.
 

@@ -1,10 +1,10 @@
 /*
  * abcm2ps: a program to typeset tunes written in abc format using PostScript
  *
- * Copyright (C) 1998-2008 Jean-François Moine
- *
+ * Copyright (C) 1998-2011 Jean-FranÃ§ois Moine (http://moinejf.free.fr)
+*
  * Adapted from abc2ps-1.2.5:
- *  Copyright (C) 1996,1997  Michael Methfessel
+ *  Copyright (C) 1996,1997  Michael Methfessel (msm@ihp-ffo.de)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,17 +17,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * Original site:
- *	http://moinejf.free.fr/
- *
- * Original abc2ps:
- *	Michael Methfessel
- *	msm@ihp-ffo.de
- *	Institute for Semiconductor Physics, PO Box 409,
- *	D-15204 Frankfurt (Oder), Germany
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /* Main program abcm2ps.c */
@@ -43,26 +33,27 @@
 #include <unistd.h>
 #endif
 
-#include "abcparse.h"
 #include "abc2ps.h"
 
 /* -- global variables -- */
 
-INFO info, default_info;
+INFO info;
 unsigned char deco_glob[256], deco_tune[256];
 struct SYMBOL *sym;		/* (points to the symbols of the current voice) */
 
 int tunenum;			/* number of current tune */
 int pagenum = 1;		/* current page in output file */
 
-int in_page;
-
 				/* switches modified by flags: */
+int quiet;			/* quiet mode */
+int secure;			/* secure mode */
+int annotate;			/* output source references */
 int pagenumbers;		/* write page numbers ? */
-int epsf;			/* for EPSF postscript output */
-int showerror;		/* show the errors */
+int epsf;			/* for EPSF (1) or SVG (2) output */
+int svg;			/* SVG (1) or XML (2 - HTML + SVG) output */
+int showerror;			/* show the errors */
 
-char outfn[STRL1];		/* output file name */
+char outfn[FILENAME_MAX];	/* output file name */
 int  file_initialized;		/* for output file */
 FILE *fout;			/* output file */
 char *in_fname;			/* current input file name */
@@ -82,11 +73,12 @@ static int def_fmt_done = 0;	/* default format read */
 static struct SYMBOL notitle;
 
 /* memory arena (for clrarena, lvlarena & getarena) */
-#define MAXAREAL 2		/* max area levels:
-				 * 0; global, 1: tune */
+#define MAXAREAL 3		/* max area levels:
+				 * 0; global, 1: tune, 2: generation */
+#define MAXAREANASZ 8192
 static int str_level;		/* current arena level */
 static struct str_a {
-	char	str[4096];	/* memory area */
+	char	str[MAXAREANASZ]; /* memory area */
 	char	*p;		/* pointer in area */
 	struct str_a *n;	/* next area */
 	int	r;		/* remaining space in area */
@@ -107,7 +99,7 @@ static void usage(void);
 static void wherefmtdir(void);
 #endif
 static struct cmdtblt_s *cmdtblt_parse(char *p);
-static void write_version(void);
+static void display_version(int full);
 
 /* -- main program -- */
 int main(int argc,
@@ -116,16 +108,43 @@ int main(int argc,
 	int j;
 	char *p, *sel, c, *aaa;
 
-	fprintf(stderr, "abcm2ps-" VERSION " (" VDATE ")\n");
 	if (argc <= 1)
 		usage();
 
+	/* set the global flags */
+	s_argc = argc;
+	s_argv = argv;
+	while (--argc > 0) {
+		argv++;
+		p = *argv;
+		if (*p != '-' || p[1] == '-' || p[1] == '\0')
+			continue;
+		while ((c = *++p) != '\0') {
+			switch (c) {
+			case 'q':
+				quiet = 1;
+				break;
+			case 'S':
+				secure = 1;
+				break;
+			case 'h':
+				usage();	/* no return */
+			case 'V':
+				display_version(1);
+				return EXIT_SUCCESS;
+			}
+		}
+	}
+	if (!quiet)
+		display_version(0);
+
 	/* initialize */
 	outfn[0] = '\0';
-	clrarena(0);			/* global */
-	clrarena(1);			/* tune */
+	clrarena(0);				/* global */
+	clrarena(1);				/* tunes */
+	clrarena(2);				/* generation */
 	clear_buffer();
-	abc_init((void *(*)(int size)) getarena, /* alloc */
+	abc_init(getarena,			/* alloc */
 		0,				/* free */
 		(void (*)(int level)) lvlarena, /* new level */
 		sizeof(struct SYMBOL) - sizeof(struct abcsym),
@@ -134,17 +153,19 @@ int main(int argc,
 	info['T' - 'A'] = &notitle;
 	notitle.as.text = "T:";
 	set_format();
-	memcpy(&default_info, &info, sizeof default_info);
-	s_argc = argc;
-	s_argv = argv;
 
 #ifdef linux
 	/* if not set, try to find where is the default format directory */
 	if (styd[0] == '\0')
 		wherefmtdir();
 #endif
+#ifdef HAVE_PANGO
+	pg_init();
+#endif
 
 	/* parse the arguments - finding a new file, treat the previous one */
+	argc = s_argc;
+	argv = s_argv;
 	sel = 0;
 	while (--argc > 0) {
 		argv++;
@@ -160,7 +181,8 @@ int main(int argc,
 				in_fname = "";		/* read from stdin */
 				continue;
 			}
-			if (p[1] != '-' && p[strlen(p) - 1] == '-')
+			if (p[1] != '-' && p[1] != 'e'
+			 && p[strlen(p) - 1] == '-')
 				c = '+'; /* switch off flags with '-x-' */
 		}
 		if (c == '+') {		/* switch off flags with '+' */
@@ -176,7 +198,8 @@ int main(int argc,
 					cfmt.continueall = 0;
 					lock_fmt(&cfmt.continueall);
 					break;
-				case 'E': epsf = 0; break;
+				case 'E':
+				case 'g': epsf = 0; break;
 				case 'F': def_fmt_done = 1; break;
 				case 'G':
 					cfmt.graceslurs = 1;
@@ -214,6 +237,7 @@ int main(int argc,
 					break;
 				case 'T': {
 					struct cmdtblt_s *cmdtblt;
+
 					aaa = p + 1;
 					if (*aaa == '\0') {
 						if (argc > 1
@@ -232,6 +256,14 @@ int main(int argc,
 						cmdtblt->active = 0;
 					break;
 				   }
+				case 'v':
+					close_output_file();
+					svg = 0;
+					break;
+				case 'X':
+					close_output_file();
+					svg = 0;
+					break;
 				case 'x':
 					cfmt.withxrefs = 0;
 					lock_fmt(&cfmt.withxrefs);
@@ -261,21 +293,28 @@ int main(int argc,
 				if (--argc <= 0) {
 					fprintf(stderr,
 						"++++ No argument for '--'\n");
-					return 2;
+					return EXIT_FAILURE;
 				}
 				argv++;
 				interpret_fmt_line(p, *argv, 1);
 				continue;
 			}
 			while ((c = *++p) != '\0') {
-				switch (*p) {
+				switch (c) {
 
 					/* simple flags */
+				case 'A':
+					annotate = 1;
+					break;
 				case 'c':
 					cfmt.continueall = 1;
 					lock_fmt(&cfmt.continueall);
 					break;
-				case 'E': epsf = 1; break;
+				case 'E':
+					close_output_file();
+					svg = 0;
+					epsf = 1;	/* eps */
+					break;
 				case 'f':
 					cfmt.flatbeams = 1;
 					lock_fmt(&cfmt.flatbeams);
@@ -284,12 +323,20 @@ int main(int argc,
 					cfmt.graceslurs = 0;
 					lock_fmt(&cfmt.graceslurs);
 					break;
-				case 'H': 
+				case 'g':
+					close_output_file();
+					svg = 0;
+					epsf = 2;	/* svg */
+#ifdef HAVE_PANGO
+					cfmt.pango = 0;
+					lock_fmt(&cfmt.pango);
+#endif
+					break;
+				case 'H':
 					if (fout == 0)
 						set_page_format();
 					print_format();
-					return 0;
-				case 'h': usage(); break;
+					return EXIT_SUCCESS;
 				case 'i':
 					showerror = 1;
 					break;
@@ -309,13 +356,23 @@ int main(int argc,
 					cfmt.printtempo = 1;
 					lock_fmt(&cfmt.printtempo);
 					break;
+				case 'q':
+				case 'S':
+					break;
 				case 'u':
 					cfmt.abc2pscompat = 1;
 					lock_fmt(&cfmt.abc2pscompat);
 					break;
-				case 'V':
-					write_version();
-					return 0;
+				case 'v':
+				case 'X':
+					close_output_file();
+					epsf = 0;
+					svg = c == 'v' ? 1 : 2;
+#ifdef HAVE_PANGO
+					cfmt.pango = 0;
+					lock_fmt(&cfmt.pango);
+#endif
+					break;
 				case 'x':
 					cfmt.withxrefs = 1;
 					lock_fmt(&cfmt.withxrefs);
@@ -332,14 +389,14 @@ int main(int argc,
 					if (sel != 0) {
 						fprintf(stderr,
 							"++++ Too many '-e'\n");
-						return 2;
+						return EXIT_FAILURE;
 					}
 					sel = p + 1;
 					if (sel[0] == '\0') {
 						if (--argc <= 0) {
 							fprintf(stderr,
 								"++++ No filter in '-e'\n");
-							return 2;
+							return EXIT_FAILURE;
 						}
 						argv++;
 						sel = *argv;
@@ -382,14 +439,14 @@ int main(int argc,
 							fprintf(stderr,
 								"++++ Missing parameter after flag -%c\n",
 								c);
-							return 2;
+							return EXIT_FAILURE;
 						}
 					} else {
 						while (p[1] != '\0')	/* stop */
 							p++;
 					}
 
-					if (strchr("BbfjkLNsv", c)) {	    /* check num args */
+					if (strchr("BbfjkNsv", c)) {	    /* check num args */
 						for (j = 0; j < strlen(aaa); j++)
 							if (!strchr("0123456789.",
 								    aaa[j])) {
@@ -401,7 +458,7 @@ int main(int argc,
 								fprintf(stderr,
 									"++++ Invalid parameter <%s> for flag -%c\n",
 									aaa, c);
-								return 2;
+								return EXIT_FAILURE;
 							}
 					}
 
@@ -447,10 +504,6 @@ int main(int argc,
 						else	cfmt.measurebox = 0;
 						lock_fmt(&cfmt.measurebox);
 						break;
-					case 'L':
-						interpret_fmt_line("encoding",
-								aaa, 1);
-						break;
 					case 'm':
 						interpret_fmt_line("leftmargin",
 								aaa, 1);
@@ -465,6 +518,11 @@ int main(int argc,
 						}
 						break;
 					case 'O':
+						if (strlen(aaa) >= sizeof outfn) {
+							fprintf(stderr,
+								"++++ '-O' too large\n");
+							exit(EXIT_FAILURE);
+						}
 						strcpy(outfn, aaa);
 						break;
 					case 's':
@@ -517,10 +575,10 @@ int main(int argc,
 		output_file(sel);
 	if (!epsf && fout == 0) {
 		fprintf(stderr, "No input file specified\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	close_output_file();
-	return severity;
+	return severity == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 /* -- generate the current ABC file -- */
@@ -543,12 +601,13 @@ static void output_file(char *sel)
 	/* initialize if not already done */
 	if (fout == 0)
 		set_page_format();
-	memcpy(&info, &default_info, sizeof info);
 	reset_deco();
 	memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
 	if (!epsf)
 		open_output_file();
-	fprintf(stderr, "File %s\n", in_fname);
+	if (!quiet)
+		fprintf(stderr, "File %s\n", in_fname);
+	clrarena(1);				/* clear previous tunes */
 	t = abc_parse(file);
 	free(file);
 
@@ -594,10 +653,15 @@ static void do_select(struct abctune *t,
 	while (t != 0) {
 		i = first_tune - 1;
 		for (s = t->first_sym; s != 0; s = s->next) {
-			if (s->type == ABC_T_INFO
-			    && s->text[0] == 'X') {
+			if (s->type != ABC_T_INFO)
+				continue;
+			if (s->text[0] == 'X') {
 				if (sscanf(s->text, "X:%d", &i) != 1)
 					i = 0;
+				break;
+			}
+			if (s->text[0] == 'K') {
+				i = 0;		/* T: without X: */
 				break;
 			}
 		}
@@ -696,7 +760,7 @@ void strext(char *fid, char *ext)
 
 	if ((p = strrchr(fid, DIRSEP)) == 0)
 		p = fid;
-	if ((q = strrchr(p, '.')) == 0)
+	if ((q = strchr(p, '.')) == 0)
 		strcat(p, ".");
 	else	q[1] = '\0';
 	strcat(p, ext);
@@ -705,6 +769,7 @@ void strext(char *fid, char *ext)
 /* -- display usage and exit -- */
 static void usage(void)
 {
+	display_version(0);
 	printf(	"ABC to Postscript translator.\n"
 		"Usage: abcm2ps [options] file [file_options] ..\n"
 		"where:\n"
@@ -712,6 +777,9 @@ static void usage(void)
 		" options and file_options:\n"
 		"  .output file options:\n"
 		"     -E      produce EPSF output, one tune per file\n"
+		"     -g      produce SVG output, one tune per file\n"
+		"     -v      produce SVG output, one page per file\n"
+		"     -X      produce SVG output in one XML file\n"
 		"     -O fff  set outfile name to fff\n"
 		"     -O =    make outfile name from infile/title\n"
 		"     -i      indicate where are the errors\n"
@@ -737,7 +805,7 @@ static void usage(void)
 		"             if 'b', display in a box\n"
 		"     -k n[b] same as '-j' (abc2ps compatibility)\n"
 		"     -b n    set the first measure number to n\n"
-		"     -f      have flat beams when bagpipe tunes\n"
+		"     -f      have flat beams\n"
 		"     -T n[v]   output the tablature 'n' for voice 'v' / all voices\n"
 		"  .line breaks:\n"
 		"     -c      auto line break\n"
@@ -746,12 +814,13 @@ static void usage(void)
 		"     -e pattern\n"
 		"             xref list of tunes to select\n"
 		"     -u      abc2ps behaviour\n"
-		"     -L n    set char encoding to Latin number n\n"
 		"  .help/configuration:\n"
 		"     -V      show program version\n"
 		"     -h      show this command summary\n"
-		"     -H      show the format parameters\n");
-	exit(0);
+		"     -H      show the format parameters\n"
+		"     -S      secure mode\n"
+		"     -q      quiet mode\n");
+	exit(EXIT_SUCCESS);
 }
 
 #ifdef linux
@@ -810,9 +879,12 @@ static struct cmdtblt_s *cmdtblt_parse(char *p)
 }
 
 /* -- write the program version -- */
-static void write_version(void)
+static void display_version(int full)
 {
-	fprintf(stderr, "Compiled: " __DATE__ "\n"
+	fputs("abcm2ps-" VERSION " (" VDATE ")\n", stderr);
+	if (!full)
+		return;
+	fputs("Compiled: " __DATE__ "\n"
 	       "Options:"
 #ifdef A4_FORMAT
 		" A4_FORMAT"
@@ -820,10 +892,13 @@ static void write_version(void)
 #ifdef DECO_IS_ROLL
 		" DECO_IS_ROLL"
 #endif
-#if !defined(A4_FORMAT) && !defined(DECO_IS_ROLL)
+#ifdef HAVE_PANGO
+		" PANGO"
+#endif
+#if !defined(A4_FORMAT) && !defined(DECO_IS_ROLL) && !defined(HAVE_PANGO)
 		" NONE"
 #endif
-		"\n");
+		"\n", stderr);
 	if (strlen(styd) > 0)
 		fprintf(stderr, "Default format directory: %s\n", styd);
 }
@@ -853,14 +928,20 @@ int lvlarena(int level)
 
 /* The area is 8 bytes aligned to handle correctly int and pointers access
  * on some machines as Sun Sparc. */
-char *getarena(int len)
+void *getarena(int len)
 {
 	char *p;
 	struct str_a *a_p;
 
 	a_p = str_c[str_level];
 	len = (len + 7) & ~7;		/* align at 64 bits boundary */
-	if (a_p->r < len) {
+	if (len > a_p->r) {
+		if (len > MAXAREANASZ) {
+			fprintf(stderr,
+				"++++ getarena - data too wide %d - aborting\n",
+				len);
+			exit(EXIT_FAILURE);
+		}
 		if (a_p->n == 0) {
 			a_p->n = malloc(sizeof *str_r[0]);
 			a_p->n->n = 0;

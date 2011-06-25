@@ -75,12 +75,12 @@ w: used to be, | There's a shad-_ow hang-ing |
 
 X:4
 T:Fantaisie
-C:Camille Saint-Saëns
+C:Camille Saint-SaÃ«ns
 M:C
 L:1/8
 %%staves [recit GO pos ped]
 K:Eb
-V:recit name=Récit
+V:recit name=RÃ©cit
 z8|z8|z8|
 V:GO treble name="Grand\nOrgue"
 z2[G,B,E][I:staff 3][G,B,E] \

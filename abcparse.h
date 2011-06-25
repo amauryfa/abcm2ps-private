@@ -91,7 +91,7 @@ struct abcsym {
 #define ABC_F_GRACE	0x0020		/* grace note */
 #define ABC_F_GR_END	0x0040		/* end of grace note sequence */
 #define ABC_F_SAPPO	0x0080		/* short appoggiatura */
-	unsigned short free;
+	unsigned short dum;	/* (align on 64bits boundary) */
 	int linenum;		/* ABC source line number */
 	char *text;		/* main text (INFO, PSCOM),
 				 * guitar chord (NOTE, REST, BAR) */
@@ -103,9 +103,10 @@ struct abcsym {
 			char minor;		/* major (0) / minor (1) */
 			char empty;		/* clef alone if 1, 'none' if 2 */
 			char exp;		/* exp (1) or mod (0) */
-			signed char nacc;	/* explicit accidentals */
-			char pits[8];
-			char accs[8];
+			signed char nacc;	/* number  of explicit accidentals */
+						/* (-1) if no accidental */
+			signed char pits[8];
+			unsigned char accs[8];
 		} key;
 		struct {		/* L: info */
 			int base_length;	/* basic note length */
@@ -127,7 +128,7 @@ struct abcsym {
 			char *str2;		/* string after */
 		} tempo;
 		struct {		/* V: info */
-			char *name;		/* name */
+			char *id;		/* voice ID */
 			char *fname;		/* full name */
 			char *nname;		/* nick name */
 			float scale;		/* != 0 when change */
@@ -170,22 +171,6 @@ struct abcsym {
 					 * 1: continuation ('\')
 					 * 2: line break ('!') */
 		} eoln;
-		struct staff_s {	/* %%staves */
-			short voice;
-			short flags;
-#define OPEN_BRACE 0x01
-#define CLOSE_BRACE 0x02
-#define OPEN_BRACKET 0x04
-#define CLOSE_BRACKET 0x08
-#define OPEN_PARENTH 0x10
-#define CLOSE_PARENTH 0x20
-#define STOP_BAR 0x40
-#define FL_VOICE 0x80
-#define OPEN_BRACE2 0x0100
-#define CLOSE_BRACE2 0x0200
-#define OPEN_BRACKET2 0x0400
-#define CLOSE_BRACKET2 0x0800
-		} staves[MAXVOICE];
 		struct {		/* voice overlay */
 			char type;
 #define V_OVER_V 0				/* & */

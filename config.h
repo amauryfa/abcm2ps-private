@@ -11,10 +11,10 @@
 #define HAVE_MALLOC_H 1
 
 /* Define to handle the european A4 format.  */
-#define A4_FORMAT 1
+/* #undef A4_FORMAT */
 
 /* Define to have ~ as roll instead of twiddle.  */
 /* #undef DECO_IS_ROLL */
 
-#define VERSION "5.9.5"
-#define VDATE "May 25, 2009"
+#define VERSION "6.3.8"
+#define VDATE "June 26, 2011"

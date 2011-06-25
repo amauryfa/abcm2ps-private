@@ -29,7 +29,6 @@
 	grestore
 }!
 % string x y n accordn - accordion tablature
-/str ( ) def
 /accordn{
 	-18 mul add barh add 3 add M showc
 }!
@@ -39,8 +38,8 @@
 %%endps
 
 X:3
-T:Andro à Patrice Corbel
-N: validé 03/05/01 -- 04/08/02
+T:Andro Ã  Patrice Corbel
+N: validÃ© 03/05/01 -- 04/08/02
 R:Andro
 O:Bretagne
 M:4/4

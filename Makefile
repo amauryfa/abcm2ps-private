@@ -1,15 +1,15 @@
 # Makefile source for abcm2ps
 
-VERSION = 5.9.5
+VERSION = 6.3.8
 
 CC = gcc
-INSTALL = /usr/bin//install -c
+INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
-CPPFLAGS = -DHAVE_CONFIG_H -I.
-CFLAGS = -g -Wall -pipe # -O2 
-LDFLAGS =	# 
+CPPFLAGS = -DHAVE_CONFIG_H  -DHAVE_PANGO=1 -pthread -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/libdrm   -I.
+CFLAGS = -g -O2 -Wall -pipe
+LDFLAGS =  -pthread -lpangocairo-1.0 -lcairo -lpangoft2-1.0 -lpango-1.0 -lfontconfig -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lfreetype -lm
 
 prefix = /usr/local
 exec_prefix = ${prefix}
@@ -24,19 +24,19 @@ docdir = /usr/local/doc
 # unix
 OBJECTS=abc2ps.o \
 	abcparse.o buffer.o deco.o draw.o format.o music.o parse.o \
-	subs.o syms.o
+	subs.o syms.o svg.o
 abcm2ps: $(OBJECTS)
 	$(CC) $(CFLAGS) -o abcm2ps $(OBJECTS) $(LDFLAGS)
-$(OBJECTS): abcparse.h abc2ps.h config.h
+$(OBJECTS): abcparse.h abc2ps.h config.h Makefile
 
-DOCFILES=Changes License README *.abc *.eps *.txt
+DOCFILES=$(addprefix $(srcdir)/,Changes License README *.abc *.eps *.txt)
 
 install: abcm2ps
 	mkdir -p $(bindir); \
 	mkdir -p $(datadir)/abcm2ps; \
 	mkdir -p $(docdir)/abcm2ps; \
 	$(INSTALL_PROGRAM) abcm2ps $(bindir)
-	for f in *.fmt; do \
+	for f in $(srcdir)/*.fmt; do \
 		$(INSTALL_DATA) $$f $(datadir)/abcm2ps; \
 	done
 	for f in $(DOCFILES); do \
@@ -54,7 +54,6 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/INSTALL \
 	abcm2ps-$(VERSION)/License \
 	abcm2ps-$(VERSION)/Makefile \
-	abcm2ps-$(VERSION)/Makefile.w32 \
 	abcm2ps-$(VERSION)/Makefile.in \
 	abcm2ps-$(VERSION)/README \
 	abcm2ps-$(VERSION)/abc2ps.c \
@@ -63,6 +62,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/abcparse.h \
 	abcm2ps-$(VERSION)/accordion.abc \
 	abcm2ps-$(VERSION)/buffer.c \
+	abcm2ps-$(VERSION)/chinese.abc \
 	abcm2ps-$(VERSION)/configure \
 	abcm2ps-$(VERSION)/configure.in \
 	abcm2ps-$(VERSION)/config.h \
@@ -83,7 +83,6 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/landscape.fmt \
 	abcm2ps-$(VERSION)/mtunes1.abc \
 	abcm2ps-$(VERSION)/mtunes2.abc \
-	abcm2ps-$(VERSION)/multilang.abc \
 	abcm2ps-$(VERSION)/music.c \
 	abcm2ps-$(VERSION)/newfeatures.abc \
 	abcm2ps-$(VERSION)/options.txt \
@@ -96,12 +95,13 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample5.abc \
 	abcm2ps-$(VERSION)/subs.c \
 	abcm2ps-$(VERSION)/syms.c \
+	abcm2ps-$(VERSION)/svg.c \
 	abcm2ps-$(VERSION)/tight.fmt \
 	abcm2ps-$(VERSION)/voices.abc
 
 dist:
 	ln -s . abcm2ps-$(VERSION); \
-	tar -zcvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES); \
+	tar -zchvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES); \
 	rm abcm2ps-$(VERSION)
 
 zip-dist:
