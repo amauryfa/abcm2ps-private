@@ -444,26 +444,10 @@ static void d_pf(struct deco_elt *de)
 static void d_slide(struct deco_elt *de)
 {
 	struct SYMBOL *s;
-	struct deco_def_s *dd;
 	int m, yc;
 	float xc, dx;
 
 	s = de->s;
-	dd = &deco_def_tb[de->t];
-#if 0
-	if (de->t >= 22 && de->t <= 24) {	/* tremolo */
-		if (s->nflags == 0		-> 0 noire
-						< 0 blanche..
-						> 0 croches
---fixme: a continuer
-  <= -2 (ronde..) -> barre centree sur note
-  -1, 0 (blanche noire) -> barre centree sur hampe
-  > 0, voir si barre
-	oui< barre suivant barre
-	non, comme noire
-		return;
-	}
-#endif
 	yc = s->pits[0];
 	xc = 5;
 	for (m = 0; m <= s->nhd; m++) {

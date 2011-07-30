@@ -54,6 +54,7 @@ static int over_mxtime;			/* voice overlay max time */
 static short over_bar;			/* voice overlay in a measure */
 static short over_voice;		/* main voice in voice overlay */
 static int staves_found;		/* time of the last %%staves */
+static int abc2win;
 
 static int bar_number;			/* (for %%setbarnb) */
 
@@ -1585,6 +1586,7 @@ void do_tune(struct abctune *t,
 	voice_tb[0].name = "1";		/* implicit voice */
 	set_tblt(first_voice);
 	micro_tb = t->micro_tb;		/* microtone values */
+	abc2win = 0;
 
 	parsys = 0;
 	system_new();			/* create the 1st staff system */
@@ -1600,6 +1602,10 @@ void do_tune(struct abctune *t,
 	if (!header_only) {
 		for (as = t->first_sym; as != 0; as = as->next) {
 			switch (as->type) {
+			case ABC_T_EOLN:
+				if (as->u.eoln.type == 2)
+					abc2win = 1;
+				break;
 			case ABC_T_NOTE:
 			case ABC_T_REST:
 				s = (struct SYMBOL *) as;
@@ -1663,6 +1669,10 @@ void do_tune(struct abctune *t,
 				continue;
 			if (cfmt.continueall || cfmt.barsperstaff
 			    || as->u.eoln.type == 1)	/* if '\' */
+				continue;
+			if (as->u.eoln.type == 0	/* if normal eoln */
+			 && abc2win
+			 && t->abc_vers < 2)
 				continue;
 			if (curvoice->last_sym != 0)
 				curvoice->last_sym->sflags |= S_EOLN;
@@ -1950,27 +1960,13 @@ static void get_key(struct SYMBOL *s)
 		if (curvoice->last_sym == 0
 		    && curvoice->time == 0) {
 
-			/* if first symbol of the first voice, apply to all voices */
-			if (curvoice == &voice_tb[parsys->top_voice]
-			    && s->as.state == ABC_S_TUNE) {	/* (not embedded) */
-				for (i = MAXVOICE, p_voice = voice_tb;
-				     --i >= 0;
-				     p_voice++) {
-					memcpy(&p_voice->key, &s->as.u.key,
-					       sizeof p_voice->key);
-					p_voice->sfp = s->as.u.key.sf;
-					if (p_voice->key.bagpipe
-					    && p_voice->stem == 0)
-						p_voice->stem = -1;
-				}
-			} else {
-				memcpy(&curvoice->key, &s->as.u.key,
-				       sizeof curvoice->key);
-				curvoice->sfp = s->as.u.key.sf;
-				if (curvoice->key.bagpipe
-				    && curvoice->stem == 0)
-					curvoice->stem = -1;
-			}
+			/* define the starting clef */
+			memcpy(&curvoice->key, &s->as.u.key,
+			       sizeof curvoice->key);
+			curvoice->sfp = s->as.u.key.sf;
+			if (curvoice->key.bagpipe
+			    && curvoice->stem == 0)
+				curvoice->stem = -1;
 			break;
 		}
 		if (curvoice->sfp == s->as.u.key.sf	/* if same key */
