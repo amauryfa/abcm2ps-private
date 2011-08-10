@@ -406,7 +406,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		When a lyric under staff ends with a hyphen, put a
+		When a word of lyric under staff ends with a hyphen, put a
 		hyphen in the next line.
 
   indent <unit>
@@ -545,7 +545,7 @@ List of the format parameters
 	Compilation: none
 	Command line: -M
 	Description:
-		Don't output the lyrics if true.
+		If true, don't output the lyrics under staff.
 
   musicspace <unit>
 	Default: 0.2cm
@@ -1050,8 +1050,11 @@ List of the pseudo-comments treated while parsed
 	    'ragged' or 'fill':	  fill the lines
 	    'center':		  center the lines
 	    'skip':		  don't print the lines (same as comments)
-	    'right':		  align the right side
+	    'right':		  align at the right side
 	When <option> is omitted, it defaults to the %%textoption value.
+	Inside the free text, an empty line starts a new paragraph.
+	Page breaks (start of new pages) cannot occur in the middle of
+	a paragraph.
 
   center <line of text>
 	Print one line of centered text.

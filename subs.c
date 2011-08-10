@@ -554,8 +554,6 @@ static struct u_ps {
 	char text[2];
 } *user_ps;
 
-static char *trim_title(char *p, int first);
-
 /* -- print message for internal error and maybe stop -- */
 void bug(char *msg, int fatal)
 {
@@ -1870,9 +1868,9 @@ void put_history(void)
 }
 
 /* -- move trailing "The" to front, set to uppercase letters or add xref -- */
-static char *trim_title(char *p, int first)
+char *trim_title(char *p, int first)
 {
-	char *b, *q;
+	char *b, *q, *r;
 static char buf[STRL1];
 
 	q = 0;
@@ -1887,10 +1885,8 @@ static char buf[STRL1];
 	if (q == 0 && !cfmt.titlecaps && !(first && cfmt.withxrefs))
 		return p;		/* keep the title as it is */
 	b = buf;
-	if (first && cfmt.withxrefs) {
-		char *r;
-
-		r = &info['X' - 'A']->as.text[2];
+	r = &info['X' - 'A']->as.text[2];
+	if (first && cfmt.withxrefs && r[2] != '\0') {
 		if (strlen(p) + strlen(r) + 3 >= sizeof buf) {
 			error(1, 0, "Title or X: too long");
 			return p;

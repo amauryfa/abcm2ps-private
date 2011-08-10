@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2010 Jean-François Moine
+ * Copyright (C) 1998-2011 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1156,6 +1156,8 @@ static char ps_head[] =
 	/* x y showerror */
 	"/showerror{	gsave 1 0.7 0.7 setrgbcolor 2.5 SLW newpath\n"
 	"	30 0 360 arc stroke grestore}!\n"
+
+	"/pdfmark where{pop}{userdict/pdfmark/cleartomark load put}ifelse\n"
 
 	"0 setlinecap 0 setlinejoin\n";
 

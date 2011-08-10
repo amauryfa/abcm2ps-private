@@ -1720,35 +1720,66 @@ static void set_repeat(struct SYMBOL *g,
 	/* treat the sequence repeat */
 	if ((n = g->doty) < 0) {		/* number of notes / measures */
 		n = -n;
+		i = n;				/* number of notes to repeat */
+		for (s2 = s->ts_prev; s2 != 0; s2 = s2->ts_prev) {
+			if (s2->staff != staff)
+				continue;
+			if (s2->voice != voice
+			    && !(s2->as.flags & ABC_F_INVIS)) {
+				error(0, s2, "Other voice in sequence to repeat");
+				goto delrep;
+			}
+			if (s2->dur == 0) {
+				if (s2->type == BAR) {
+					error(0, s2, "Bar in sequence to repeat");
+					goto delrep;
+				}
+				continue;
+			}
+			if (--i <= 0)
+				break;
+		}
+		if (s2 == 0) {
+			error(0, s, "Not enough symbols to repeat");
+			goto delrep;
+		}
+
 		i = g->nohdix * n;		/* repeat number */
 		for (s2 = s; s2 != 0; s2 = s2->ts_next) {
 			if (s2->staff != staff)
 				continue;
 			if (s2->voice != voice
-			    && !(s2->as.flags & ABC_F_INVIS))
+			    && !(s2->as.flags & ABC_F_INVIS)) {
+				error(0, s2, "Other voice in repeat sequence");
 				goto delrep;
-			if (s2->dur == 0)
+			}
+			if (s2->dur == 0) {
+				if (s2->type == BAR) {
+					error(0, s2, "Bar in repeat sequence");
+					goto delrep;
+				}
 				continue;
-			if (--i == 0)
+			}
+			if (--i <= 0)
 				break;
 		}
 		if (s2 == 0
-		    || s2->next == 0)	/* should have a measure bar */
+		    || s2->next == 0) {	/* should have a measure bar */
+			error(0, s, "Not enough symbols after repeat sequence");
 			goto delrep;
+		}
 		s3 = s;
 		for (j = g->nohdix; --j >= 0; ) {
 			i = n;			/* number of notes/rests */
 			if (s3->dur != 0)
 				i--;
 			s2 = s3->next;
-			for (;;) {
+			while (i > 0) {
 				if (s2->dur != 0)
 					i--;
 				s2->extra = 0;
 				delsym(s2);
 				s2 = s2->next;
-				if (i == 0)
-					break;
 			}
 			s3->type = NOTEREST;
 			s3->as.type = ABC_T_REST;
@@ -1767,20 +1798,43 @@ static void set_repeat(struct SYMBOL *g,
 
 	/* first check of the measure repeat */
 	if (!xset) {
-		i = g->nohdix * n;		/* repeat number */
-		for (s2 = s; s2 != 0; s2 = s2->ts_next) {
+		i = n;				/* number of measures to repeat*/
+		for (s2 = s->ts_prev; s2 != 0; s2 = s2->ts_prev) {
 			if (s2->staff != staff)
 				continue;
 			if (s2->voice != voice) {
-				if (!(s2->as.flags & ABC_F_INVIS))
+				if (!(s2->as.flags & ABC_F_INVIS)) {
+					error(0, s2, "Other voice in measure to repeat");
 					goto delrep;
+				}
 			} else if (s2->type == BAR) {
 				if (--i <= 0)
 					break;
 			}
 		}
-		if (s2 == 0)
+		if (s2 == 0) {
+			error(0, s, "Not enough measures to repeat");
 			goto delrep;
+		}
+
+		i = g->nohdix * n;		/* repeat number */
+		for (s2 = s; s2 != 0; s2 = s2->ts_next) {
+			if (s2->staff != staff)
+				continue;
+			if (s2->voice != voice) {
+				if (!(s2->as.flags & ABC_F_INVIS)) {
+					error(0, s2, "Other voice in repeat measure");
+					goto delrep;
+				}
+			} else if (s2->type == BAR) {
+				if (--i <= 0)
+					break;
+			}
+		}
+		if (s2 == 0) {
+			error(0, s, "Not enough symbols after repeat measure");
+			goto delrep;
+		}
 		return;				/* OK, treat it later */
 	}
 
@@ -1914,7 +1968,7 @@ static struct SYMBOL *set_nl(struct SYMBOL *s)
 		/* fall thru */
 	default:
 		time = s->time + s->dur;
-		for (s = s->ts_next; s != 0; s = s->ts_next) {
+		for (s = s->ts_next; ; s = s->ts_next) {
 			if (s == 0)
 				return s;
 			if ((s->sflags & S_SEQST)
@@ -1931,6 +1985,8 @@ static struct SYMBOL *set_nl(struct SYMBOL *s)
 				break;
 			}
 		}
+		if (s2 == 0)
+			return s;
 		done = 1;
 		for ( ; s2 != s; s2 = s2->ts_prev) {
 			if (s2->as.type == ABC_T_NOTE

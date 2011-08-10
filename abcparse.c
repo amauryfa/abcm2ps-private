@@ -345,8 +345,8 @@ struct abctune *abc_parse(char *file_api)
 				t->abc_vers = abc_vers;
 			break;			/* done */
 		}
-		while (isspace((unsigned char) *p))	/* skip starting blanks */
-			p++;
+//		while (isspace((unsigned char) *p))	/* skip starting blanks */
+//			p++;
 
 		/* special treatment for X: in tune */
 		if (abc_state != ABC_S_GLOBAL
@@ -708,7 +708,7 @@ static void parse_clef(struct abcsym *s,
 			l = 12 + 4;
 			break;
 		}
-		clef_line = (l - pit + 14) % 7;
+		clef_line = (l - pit + 28) % 7;
 		if (clef_line & 1) {
 			syntax("Bad 'middle' value for the clef", middle);
 			pit++;
@@ -2038,9 +2038,10 @@ again:					/* for history */
 		return 0;
 	}
 
-	flags = (isspace((unsigned char) scratch_line[0]))
-		? ABC_F_SPACE
-		: 0;
+//	flags = (isspace((unsigned char) scratch_line[0]))
+//		? ABC_F_SPACE
+//		: 0;
+	flags = 0;
 
 	lyric_started = 0;
 	deco_start = deco_cont = 0;

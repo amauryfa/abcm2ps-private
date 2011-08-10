@@ -46,7 +46,8 @@ List of the options
 	Produce EPS output instead of simple PS.
 	In this mode, each tune goes to a different file which
 	name is '<name>nnn.eps' or <title>.eps (see option '-O'
-	- 'nnn' is a sequence number incremented at each tune).
+	- 'nnn' is a sequence number incremented at each tune
+	- output to stdout is forbidden).
 	EPS files are normally embedded into Postscript documents,
 	but they may be a way to generate graphical images. For
 	example, using GhostScript:
@@ -86,6 +87,8 @@ List of the options
 	Produce SVG output instead of EPS.
 	In this mode each tune goes to a different file which name
 	is 'Outnnn.svg' (see option '-O').
+	If the output is stdout (option '-O-'), all the SVG images
+	are output without XML header.
 
   -H
 	Display the current format values.
@@ -139,7 +142,8 @@ List of the options
 	When <name> is present, it replaces 'Out' in the file name.
 	If <name> is '=', it is replaced by the name of the ABC
 	source file.
-	If <name> is '-', the result is output on stdout (PS only).
+	If <name> is '-', the result is output to stdout (standard PS and
+	embeddable SVG - '-g' - only).
 	'+O' resets the output file directory and name to their defaults.
 
   -Q, +Q
@@ -176,7 +180,7 @@ List of the options
   -v
 	Produce SVG output instead of simple PS.
 	In this mode each page goes to a different file which name
-	is 'Outnnn.svg' (see option '-O').
+	is 'Outnnn.svg' (see option '-O' - output to stdout is forbidden).
 
   -w<unit>
 	See: format.txt - staffwidth <unit>

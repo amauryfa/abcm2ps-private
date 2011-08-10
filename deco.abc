@@ -226,18 +226,20 @@
 		{dup 69 eq {pop(Mi)}
 		  {dup 70 eq {pop(Fa)}
 		    {dup 71 eq {pop(Sol)}if
-%		      {currentfont/Encoding get exch get glyphshow
-%			{/str exch 0 put str show
 		    }ifelse
 		  }ifelse
 		}ifelse
 	      }ifelse
 	    }ifelse
 	  }ifelse
+% does not work yet with SVG output
+%	dup dup 65 ge exch 71 le and{
+%		65 sub[(La)(Si)(Do)(Re)(Mi)(Fa)(Sol)]exch get
+%	}if
+%
 	show
-	dup dup length 1 sub 1 exch getinterval
-	show
-	pop}!
+	dup length 1 sub 1 exch getinterval
+	show}!
 %
 % -- 'tr' + long trill
 /trtrill{	% usage: w x y trtrill

@@ -1166,10 +1166,12 @@ static void parse_staves(struct SYMBOL *s,
 						"Voice '%s' of %%%%staves has no symbol",
 						q);
 					err = 1;
-					break;
+//					break;
+					p_staff = staves;
+				} else {
+					p_staff = staves + voice++;
+					p_staff->voice = v;
 				}
-				p_staff = staves + voice++;
-				p_staff->voice = v;
 				*p = sep;
 			}
 			for (;;) {
@@ -1448,6 +1450,75 @@ static void voice_init(void)
 	}
 }
 
+/* output a pdf mark */
+static void put_pdfmark(char *p)
+{
+	unsigned char c, *q;
+	int u, latin;
+
+	p = trim_title(p, 0);
+
+	/* check if pure ASCII */
+	for (q = (unsigned char *) p; *q != '\0'; q++) {
+		if (*q >= 0x80 || *q == '\\')
+			break;
+	}
+	if (*q == '\0') {
+		a2b("\n[/Title(%s)/OUT pdfmark\n", p);
+		return;
+	}
+
+	/* convert latin1 to utf8 */
+	latin = 0;
+	for ( ; *q != '\0'; q++) {
+		if (*q < 0x80)
+			continue;
+		if (*q > 0xc0
+		 && (q[1] & 0xc0) == 0x80)
+			break;
+		latin = 1;
+		break;
+	}
+	a2b("\n[/Title<FEFF");
+	q = (unsigned char *) p;
+	if (latin) {
+		while (*q != '\0')
+			a2b("%04X", (int) *q++);
+	} else {
+		u = -1;
+		while (*q != '\0') {
+			c = *q++;
+			if (c < 0x80) {
+				if (u >= 0) {
+					a2b("%04X", u);
+					u = -1;
+				}
+				a2b("%04X", (int) c);
+				continue;
+			}
+			if (c < 0xc0) {
+				u = (u << 6) | (c & 0x3f);
+				continue;
+			}
+			if (u >= 0) {
+				a2b("%04X", u);
+				u = -1;
+			}
+			if (c < 0xe0)
+				u = c & 0x1f;
+			else if (c < 0xf0)
+				u = c & 0x0f;
+			else
+				u = c & 0x07;
+		}
+		if (u >= 0) {
+			a2b("%04X", u);
+			u = -1;
+		}
+	}
+	a2b(">/OUT pdfmark\n");
+}
+
 /* -- identify info line, store in proper place	-- */
 static char *state_txt[4] = {
 	"global", "header", "tune", "embedded"
@@ -1457,6 +1528,7 @@ static void get_info(struct SYMBOL *s,
 		     struct abctune *t)
 {
 	char *p;
+	struct SYMBOL *s2;
 	int old_lvl;
 
 	/* change global or tune */
@@ -1474,33 +1546,29 @@ static void get_info(struct SYMBOL *s,
 			break;
 		tunenum++;
 
-		/* information for index */
-		a2b("%% --- %s (%s) ---\n"
-			"%% --- font ",
-			&info['X' - 'A']->as.text[2],
-			&info['T' - 'A']->as.text[2]);
-		outft = -1;
-		set_font(TITLEFONT);		/* font in comment */
-		outft = -1;
-		PUT0("\n");
-		a2b("[/Title(%s)/OUT pdfmark\n",
-			&info['T' - 'A']->as.text[2]);
-		if (info['T' - 'A']->next != 0) {
-			a2b("%% --- + (%s) ---\n",
-				&info['T' - 'A']->next->as.text[2]);
-			a2b("[/Title(%s)/OUT pdfmark\n",
-				&info['T' - 'A']->next->as.text[2]);
-			if (info['T' - 'A']->next->next != 0) {
-				a2b("%% --- + (%s) ---\n",
-					&info['T' - 'A']->next->next->as.text[2]);
-				a2b("[/Title(%s)/OUT pdfmark\n",
-					&info['T' - 'A']->next->next->as.text[2]);
-			}
-		}
-
 		if (!epsf)
 			bskip(cfmt.topspace);
 		write_heading(t);
+
+		/* information for index
+		 * (pdfmark must be after title show for Adobe Distiller) */
+		s2 = info['T' - 'A'];
+		p = &s2->as.text[2];
+		if (*p != '\0') {
+			a2b("%% --- %s (%s) ---\n"
+				"%% --- font ",
+				&info['X' - 'A']->as.text[2], p);
+			outft = -1;
+			set_font(TITLEFONT);		/* font in comment */
+			outft = -1;
+			put_pdfmark(p);
+			for (s2 = s2->next; s2 != 0; s2 = s2->next) {
+				p = &s2->as.text[2];
+				a2b("%% --- + (%s) ---", p);
+				put_pdfmark(p);
+			}
+		}
+
 		if (!cfmt.printtempo)
 			info['Q' - 'A'] = 0;
 		nbar = nbar_rep = cfmt.measurefirst;	/* measure numbering */
@@ -1569,10 +1637,13 @@ static void get_info(struct SYMBOL *s,
 			goto addinfo;
 		default:
 			gen_ly(1);
-			a2b("%% --- + (%s) ---\n", &s->as.text[2]);
-			a2b("[/Title(%s)/OUT pdfmark\n", &s->as.text[2]);
-			write_title(s);
-			bskip(cfmt.musicspace + 0.2 CM);
+			p = &s->as.text[2];
+			if (*p != '\0') {
+				write_title(s);
+				a2b("%% --- + (%s) ---\n"
+					"[/Title(%s)/OUT pdfmark\n", p, p);
+			}
+//			bskip(cfmt.musicspace + 0.2 CM);
 			voice_init();
 			reset_gen();		/* (display the time signature) */
 			curvoice = &voice_tb[parsys->top_voice];
@@ -1613,10 +1684,18 @@ newtune:
 			write_buffer();	/* flush stuff left from %% lines */
 		dfmt = cfmt;		/* save format and info */
 		memcpy(&info_glob, &info, sizeof info_glob);
-		info['X' - 'A'] = s;
-		if (info_type == 'T')
-			info['T' - 'A'] = s;
 		memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
+		if (info_type == 'T') {
+			info['T' - 'A'] = s;
+			s = (struct SYMBOL *) getarena(sizeof *s);
+			memset(s, 0, sizeof *s);
+			s->as.type = ABC_T_INFO;
+			s->as.text = (char *) getarena(3);
+			s->as.text[0] = 'X';
+			s->as.text[1] = ':';
+			s->as.text[2] = '\0';
+		}
+		info['X' - 'A'] = s;
 		break;
 	default:
 addinfo:
@@ -2554,8 +2633,11 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	case 'b':
 		if (strcmp(w, "beginps") == 0) {
 			for (;;) {
-				if (as->next == 0)
+				if (as->next == 0) {
+					error(1, (struct SYMBOL *) s,
+					      "%%beginps without %%endps");
 					return as;
+				}
 				as = as->next;
 				p = as->text;
 				if (*p == '%' && p[1] == '%') {
@@ -2578,8 +2660,6 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			struct abcsym *as_start;
 			int job;
 
-			if (epsf && as->state != ABC_S_HEAD)
-				return as;
 			job = cfmt.textoption;
 			if (*p != '\0') {
 				job = get_textopt(p);
@@ -2589,11 +2669,16 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 					job = T_LEFT;
 				}
 			}
+			if (epsf && as->state == ABC_S_GLOBAL)
+				job = T_SKIP;
 			gen_ly(1);
 			as_start = as->next;
 			for (;;) {
-				if (as->next == 0)
+				if (as->next == 0) {
+					error(1, (struct SYMBOL *) s,
+					      "%%begintext without %%endtext");
 					return as;
+				}
 				as = as->next;
 				p = as->text;
 				if (*p == '%' && p[1] == '%') {

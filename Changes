@@ -1,3 +1,53 @@
+---- Version 6.4.2 - 11/08/11 ----
+
+Crash when many voices ending at different times without bars
+	(reported by Nils Liberg).
+Change the default extension of the '-X' output files to '.xhtml'.
+Fix the encoding of the titles in pdf marks
+	(reported by Nils Liberg).
+Check if the title in eps/svg files is correct UTF-8
+	(reported by Nils Liberg).
+Fix the display of the tuplet numbers with SVG output.
+
+---- Version 6.4.1 - 11/07/31 ----
+
+Check the sequences or measures to repeat in I:repeat.
+Crash or bad generation of repeat sequences
+	(reported by David Lacroix).
+Don't ignore leading spaces in ABC lines.
+Fix some problems about the pdf marks:
+    - trim the titles
+    - accept more than 3 title/subtitles
+	(reported by Chuck Boody).
+
+---- Version 6.4.0 - 11/07/28 ----
+
+Skip correctly %%begintext/%%endtext outside tunes when -E or -g.
+Fix bad width of -E and -g bounding boxes.
+Accept output to stdout with '-g'.
+Accept '-O-' for output to stdout  file.
+Output the pdfmark later in the PS output for Adobe Distiller
+	(reported by Chuck Boody).
+
+---- Version 6.3.9 - 11/07/22 ----
+
+SVG output:
+	- fix 'rotate' behaviour.
+	- fix bad scale when 'gsave' / 'scale' / 'grestore' between
+		'show's in PS sequences.
+	- add 'le', 'lt', 'and' and 'or' in the PS interpreter.
+	- accept PS 'stroke' or 'fill' with no path.
+Bad output file extension when '-O=' and many dots in filename
+	(reported by Hudson Flávio Meneses Lacerda).
+Accept 'middle=' to a high pitch (as "d'")
+	(reported by Hudson Flávio Meneses Lacerda).
+Bad title when %%withxrefs and X: absent or empty
+	(reported by Hudson Flávio Meneses Lacerda).
+Handle absence of the PS pdfmark function.
+Simplify the latin chord name translation in deco.abc.
+Change the output annotations of '-A'.
+	(asked by Nils Liberg).
+
 ---- Version 6.3.8 - 11/06/26 ----
 
 Fix a possible problem with the memory allocator.

@@ -38,7 +38,7 @@ static float ln_scale[BUFFLN];	/* scale of buffered lines */
 static signed char ln_font[BUFFLN];	/* font of buffered lines */
 static char outbuf[BUFFSZ];	/* output buffer.. should hold one tune */
 static float cur_lmarg = 0;	/* current left margin */
-static float min_lmarg, max_rmarg;	/* for eps / svg */
+static float min_lmarg, max_rmarg;	/* for eps (-E) and svg (-g) */
 static float cur_scale = 1.0;	/* current scale */
 static float maxy;		/* remaining vertical space in page */
 static float bposy;		/* current position in buffered data */
@@ -64,11 +64,11 @@ static void cnv_date(time_t *ltime)
 }
 
 /* initialize the min/max margin values */
-/* (used only with eps and svg) */
+/* (used only with eps -E and svg -g) */
 void marg_init(void)
 {
-	min_lmarg = cfmt.leftmargin;
-	max_rmarg = cfmt.rightmargin;
+	min_lmarg = cfmt.pagewidth;
+	max_rmarg = cfmt.pagewidth;
 }
 
 /* -- initialize the postscript file -- */
@@ -160,11 +160,11 @@ static void close_fout(void)
 {
 	long m;
 
-	m = ftell(fout);
-	fclose(fout);
-	fout = 0;
+	if (fout == stdout)
+		goto out2;
 	if (quiet)
-		return;
+		goto out1;
+	m = ftell(fout);
 	if (epsf || svg == 1)
 		fprintf(stderr, "Output written on %s (%ld bytes)\n",
 			outfnam, m);
@@ -175,9 +175,14 @@ static void close_fout(void)
 			nbpages, nbpages == 1 ? "" : "s",
 			tunenum, tunenum == 1 ? "" : "s",
 			m);
+out1:
+	fclose(fout);
+out2:
+	fout = 0;
 }
 
-/* -- close_output_file -- */
+/* -- close the output file -- */
+/* epsf is always null */
 void close_output_file(void)
 {
 	if (fout == 0)
@@ -189,20 +194,17 @@ void close_output_file(void)
 	if (tunenum == 0)
 		error(0, 0, "No tunes written to output file");
 	close_page();
-	if (!svg && epsf != 2) {
+	if (!svg) {
 		fprintf(fout, "%%%%Trailer\n"
 			"%%%%Pages: %d\n"
 			"%%EOF\n", nbpages);
-		if (fout != stdout)
-			close_fout();
-		fout = 0;
+		close_fout();
 	} else if (svg == 2) {
 		fputs("</body>\n"
 			"</html>\n", fout);
-		if (fout != stdout)
-			close_fout();
-		fout = 0;
-	}
+		close_fout();
+	}				/* else (svg == 1)
+					 * 'fout' is closed in close_page */
 	file_initialized = 0;
 	nbpages = tunenum = 0;
 	defl = 0;
@@ -537,10 +539,10 @@ void open_output_file(void)
 	strcpy(fnm, outfn);
 	i = strlen(fnm) - 1;
 	if (i < 0) {
-		strcpy(fnm, svg ? "Out.xml" : OUTPUTFILE);
+		strcpy(fnm, svg ? "Out.xhtml" : OUTPUTFILE);
 	} else if (i == 0 && fnm[0] == '-') {
 		if (svg == 1) {
-			fprintf(stderr, "Cannot use stdout with svg - abort\n");
+			fprintf(stderr, "Cannot use stdout with '-v' - abort\n");
 			exit(2);
 		}
 	} else {
@@ -553,7 +555,7 @@ void open_output_file(void)
 				p++;
 /*fixme: should check if there is a DIRSEP at the end of fnm*/
 			strcpy(&fnm[i], p);
-			strext(fnm, svg ? "xml" : "ps");
+			strext(fnm, svg ? "xhtml" : "ps");
 		} else if (fnm[i] == DIRSEP) {
 			strcpy(&fnm[i + 1], OUTPUTFILE);
 		}
@@ -583,8 +585,8 @@ void open_output_file(void)
 	}
 }
 
-/* -- epsf_title -- */
-static void epsf_title(char *p)
+/* -- adjust the tune title part of the output file name -- */
+static void epsf_fn_adj(char *p)
 {
 	char c;
 
@@ -597,44 +599,85 @@ static void epsf_title(char *p)
 	}
 }
 
-/* -- output the EPS file -- */
+/* -- build the title of the eps/svg file and check if correct utf-8 -- */
+static void epsf_title(char *p, int sz)
+{
+	unsigned char c;
+
+	snprintf(p, sz, "%.72s (%.4s)", in_fname, &info['X' - 'A']->as.text[2]);
+	while ((c = (unsigned char) *p) != '\0') {
+		if (c >= 0x80) {
+			if ((c & 0xf8) == 0xf0) {
+				if ((p[1] & 0xc0) != 0x80
+				 && (p[2] & 0xc0) != 0x80
+				 && (p[3] & 0xc0) != 0x80)
+					*p = ' ';
+			} else if ((c & 0xf0) == 0xe0) {
+				if ((p[1] & 0xc0) != 0x80
+				 && (p[2] & 0xc0) != 0x80)
+					*p = ' ';
+			} else if ((c & 0xe0) == 0xc0) {
+				if ((p[1] & 0xc0) != 0x80)
+					*p = ' ';
+			} else {
+				*p = ' ';
+			}
+		}
+		p++;
+	}
+}
+
+/* -- output a EPS (-E) or SVG (-g) file -- */
 void write_eps(void)
 {
 	int i;
-	char *p, finf[FILENAME_MAX];
+	char *p, title[80];
 
 	if (mbf == outbuf
 	 || info['X' - 'A'] == 0)
 		return;
+
 	p_fmt = &cfmt;				/* tune format */
+
 	strcpy(outfnam, outfn);
 	if (outfnam[0] == '\0')
 		strcpy(outfnam, OUTPUTFILE);
 	cutext(outfnam);
 	i = strlen(outfnam) - 1;
-	if (outfnam[i] == '=') {
-		p = &info['T' - 'A']->as.text[2];
-		while (isspace((unsigned char) *p))
-			p++;
-		strncpy(&outfnam[i], p, sizeof outfnam - i - 4);
-		outfnam[sizeof outfnam - 5] = '\0';
-		epsf_title(&outfnam[i]);
+	if (i == 0 && outfnam[0] == '-') {
+		if (epsf == 1) {
+			fprintf(stderr, "Cannot use stdout with '-E' - abort\n");
+			exit(EXIT_FAILURE);
+		}
+		fout = stdout;
 	} else {
-		sprintf(&outfnam[i + 1], "%03d", ++nepsf);
+		if (outfnam[i] == '=') {
+			p = &info['T' - 'A']->as.text[2];
+			while (isspace((unsigned char) *p))
+				p++;
+			strncpy(&outfnam[i], p, sizeof outfnam - i - 4);
+			outfnam[sizeof outfnam - 5] = '\0';
+			epsf_fn_adj(&outfnam[i]);
+		} else {
+			if (i >= sizeof outfnam - 4 - 3)
+				i = sizeof outfnam - 4 - 3;
+			sprintf(&outfnam[i + 1], "%03d", ++nepsf);
+		}
+		strcat(outfnam, epsf == 1 ? ".eps" : ".svg");
+		if ((fout = fopen(outfnam, "w")) == 0) {
+			fprintf(stderr, "Cannot open output file %s - abort\n",
+					outfnam);
+			exit(EXIT_FAILURE);
+		}
 	}
-	strcat(outfnam, epsf == 1 ? ".eps" : ".svg");
-	if ((fout = fopen(outfnam, "w")) == 0) {
-		fprintf(stderr, "Cannot open output file %s - abort\n", outfnam);
-		exit(2);
-	}
-	sprintf(finf, "%.72s (%.4s)", in_fname, &info['X' - 'A']->as.text[2]);
+	epsf_title(title, sizeof title);
 	if (epsf == 1) {
-		init_ps(finf);
+		init_ps(title);
 		fprintf(fout, "0 %.1f T\n", -bposy);
 		write_buffer();
 		fprintf(fout, "showpage\nrestore\n");
 	} else {
-		init_svg(finf);
+		init_svg(title);
 		write_buffer();
 		svg_close();
 	}
@@ -644,6 +687,7 @@ void write_eps(void)
 }
 
 /* -- start a new page -- */
+/* epsf is always null */
 static void newpage(void)
 {
 	close_page();

@@ -11,7 +11,7 @@ T:Subtitle one
 T:Subtitle two
 C:This is the composer field
 A:This is the Area/Author field
-N:Here are some notes
+N:Here are some notes (N:)
 N:on two lines
 M:c. C=4/4
 L:1/4

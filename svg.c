@@ -892,9 +892,11 @@ void define_svg_symbols(char *title, float w, float h)
 			"<title>%s</title>\n",
 			w, h, title);
 	} else {
-		fprintf(fout, "<?xml version=\"1.0\" standalone=\"no\"?>\n"
-			"<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
-			"\t\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n"
+		if (fout != stdout)
+			fprintf(fout, "<?xml version=\"1.0\" standalone=\"no\"?>\n"
+				"<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
+				"\t\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n");
+		fprintf(fout, 
 			"<svg xmlns=\"http://www.w3.org/2000/svg\"\n"
 			"     xmlns:xlink=\"http://www.w3.org/1999/xlink\"\n"
 			"     xml:space='preserve'\n"
@@ -999,12 +1001,26 @@ static void defg1(void)
 {
 	setg(0);
 	fputs("<g", fout);
-	if (gcur.xscale != 1 || gcur.yscale != 1) {
-		if (gcur.xscale == gcur.yscale)
-			fprintf(fout, " transform=\"scale(%.3f)\"", gcur.xscale);
-		else
-			fprintf(fout, " transform=\"scale(%.3f,%.3f)\"",
-					gcur.xscale, gcur.yscale);
+	if (gcur.xscale != 1 || gcur.yscale != 1 || gcur.rotate != 0) {
+		fprintf(fout, " transform=\"");
+		if (gcur.xscale != 1 || gcur.yscale != 1) {
+			if (gcur.xscale == gcur.yscale)
+				fprintf(fout, "scale(%.3f)", gcur.xscale);
+			else
+				fprintf(fout, "scale(%.3f,%.3f)",
+						gcur.xscale, gcur.yscale);
+			if (gcur.rotate != 0) {
+				if (xoffs != 0 || yoffs != 0) {
+					fprintf(fout, " translate(%.2f, %.2f)",
+							xoffs, yoffs);
+					xoffs = 0;
+					yoffs = 0;
+				}
+				fprintf(fout, " rotate(%.2f)",
+						gcur.rotate);
+			}
+			fputs("\"", fout);
+		}
 	}
 	if (gcur.linewidth != 1)
 		fprintf(fout, " stroke-width=\"%.2f\"", gcur.linewidth);
@@ -1063,6 +1079,7 @@ static void def_use(int def)
 {
 	int i;
 
+	setg(1);
 	if (def_tb[def].defined)
 		return;
 	def_tb[def].defined = 1;
@@ -1081,7 +1098,6 @@ static void xysym(char *op, int use)
 {
 	float x, y;
 
-	setg(1);
 	y = yoffs - pop_free_val();
 	x = xoffs + pop_free_val();
 	def_use(use);
@@ -1095,7 +1111,6 @@ static void setxysym(char *op, int use)
 	struct ps_sym_s *sym;
 	float x, y;
 
-	setg(1);
 	y = pop_free_val();
 	x = pop_free_val();
 	sym = ps_sym_lookup("x");
@@ -1147,7 +1162,6 @@ static void arp_ltr(char type)
 	float x, y, t, w;
 	int n;
 
-	setg(1);
 	y = yoffs - pop_free_val();
 	x = xoffs + pop_free_val();
 	w = pop_free_val();
@@ -1203,9 +1217,7 @@ static void show(char type)
 	int span;
 
 	span = 0;
-	if (strcmp(gcur.font_n, gold.font_n) != 0
-	 || gcur.font_s != gold.font_s
-	 || gcur.rgb != gold.rgb) {
+	if (memcmp(&gcur, &gold, sizeof gcur) != 0) {
 		if (g == 2)
 			span = 1;
 		else
@@ -1405,6 +1417,16 @@ stack_dump();
 			stack->u.v += x;
 			return;
 		}
+		if (strcmp(op, "and") == 0) {
+			x = pop_free_val();
+			if (stack == 0 || stack->type != VAL) {
+				fprintf(stderr, "svg and: Bad value\n");
+				ps_error = 1;
+				return;
+			}
+			stack->u.v = (int) x & (int) stack->u.v;
+			return;
+		}
 		if (strcmp(op, "anshow") == 0) {
 			show('s');
 			return;
@@ -1527,7 +1549,7 @@ stack_dump();
 				w = 7 * strlen(s);
 				fprintf(fout,
 					"<rect x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"12\" fill=\"white\"/>\n",
-					x - w / 2, y - 5, w);
+					x - w / 2, y - 10, w);
 			}
 			fprintf(fout,
 				"<text font-family=\"Times\" font-size=\"10\" font-style=\"italic\" font-weight=\"normal\"\n"
@@ -1569,7 +1591,6 @@ stack_dump();
 			return;
 		}
 		if (strcmp(op, "brace") == 0) {
-			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			h = pop_free_val() * 0.01;
@@ -1938,7 +1959,7 @@ stack_dump();
 		if (strcmp(op, "fill") == 0) {
 			if (!in_path) {
 				fprintf(stderr, "svg fill: No path\n");
-				ps_error = 1;
+//				ps_error = 1;
 				return;
 			}
 			in_path = 0;
@@ -2104,21 +2125,11 @@ stack_dump();
 			return;
 		}
 		if (strcmp(op, "grestore") == 0) {
+			setg(1);
 			cx = gsave.cx;
 			cy = gsave.cy;
 			xoffs = gsave.xoffs;
 			yoffs = gsave.yoffs;
-			if (gcur.rotate != gsave.gc.rotate) {
-				if (gcur.rotate != 0)
-					fprintf(fout, "</g>\n");
-#if 0
-//fixme: only when two gsave
-				if (gsave.gc.rotate != 0)
-					fprintf(fout,
-						"<g transform=\"translate(%.2f, %.2f) rotate(%.2f)\">\n",
-						xoffs, yoffs, gsave.gc.rotate);
-#endif
-			}
 			memcpy(&gcur, &gsave.gc, sizeof gcur);
 			return;
 		}
@@ -2288,6 +2299,7 @@ stack_dump();
 			cx = y;
 			return;
 		}
+	case 'l':
 		if (strcmp(op, "le") == 0) {
 			cond(C_LE);
 			return;
@@ -2296,7 +2308,6 @@ stack_dump();
 			cond(C_LE);
 			return;
 		}
-	case 'l':
 		if (strcmp(op, "length") == 0) {
 			s = pop_free_str();
 			if (s == 0 || s[0] != '(') {
@@ -2406,7 +2417,6 @@ stack_dump();
 			return;
 		}
 		if (strcmp(op, "mrest") == 0) {
-			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			s = pop_free_str();
@@ -2479,10 +2489,19 @@ stack_dump();
 			xysym(op, D_opend);
 			return;
 		}
+		if (strcmp(op, "or") == 0) {
+			x = pop_free_val();
+			if (stack == 0 || stack->type != VAL) {
+				fprintf(stderr, "svg or: Bad value\n");
+				ps_error = 1;
+				return;
+			}
+			stack->u.v = (int) x & (int) stack->u.v;
+			return;
+		}
 		break;
 	case 'p':
 		if (strcmp(op, "pclef") == 0) {
-			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			def_use(D_pclef);
@@ -2743,12 +2762,6 @@ stack_dump();
 		if (strcmp(op, "rotate") == 0) {
 			setg(0);
 			gcur.rotate = -pop_free_val();
-			fprintf(fout,
-				"<g transform=\"translate(%.2f, %.2f) rotate(%.2f)\">\n",
-				xoffs, yoffs, gcur.rotate);
-//fixme; works only between gsave - grestore
-			xoffs = 0;
-			yoffs = 0;
 			return;
 		}
 		break;
@@ -3093,7 +3106,6 @@ stack_dump();
 			return;
 		}
 		if (strcmp(op, "showerror") == 0) {
-			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			def_use(D_showerror);
@@ -3114,7 +3126,6 @@ stack_dump();
 			return;
 		}
 		if (strcmp(op, "spclef") == 0) {
-			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			def_use(D_pclef);
@@ -3156,7 +3167,7 @@ stack_dump();
 		if (strcmp(op, "stroke") == 0) {
 			if (!in_path) {
 				fprintf(stderr, "svg: 'stroke' with no path\n");
-				ps_error = 1;
+//				ps_error = 1;
 				return;
 			}
 			in_path = 0;
@@ -3472,9 +3483,25 @@ void svg_write(char *buf, int len)
 				if (c == '\n')
 					break;
 			}
-			if (*q == 'A' && q[-2] == '\n')
-				fprintf(fout, "<desc>%.*s</desc>\n",
-					(int) (p - q - 1), q);
+			if (*q != 'A' || q[1] != ' ' || q[-2] != '\n')
+				break;
+			q += 2;
+			{
+				char type;
+				int row , col;
+				float x, w;
+				int y, h;
+
+				sscanf((char *) q, "%c %d %d %f %d %f %d",
+					&type, &row, &col, &x, &y, &w, &h);
+#if 1
+				fprintf(fout, "<abc type=\"%c\" row=\"%d\" col=\"%d\" x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%d\"/>\n",
+					type, row, col, xoffs + x, yoffs - y + h, w, h);
+#else
+				fprintf(fout, "<rect abc=\"%c %d:%d\" x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%d\" fill=\"none\"/>\n",
+					type, row, col, xoffs + x, yoffs - y + h, w, h);
+#endif
+			}
 			break;
 		case '(':
 			q = p - 1;

@@ -45,6 +45,16 @@ static void draw_note(float x,
 static void set_sscale(int staff);
 static void set_tie_room(void);
 
+/* output debug annotations */
+static void anno_out(struct SYMBOL *s, char type)
+{
+	if (mbf[-1] != '\n')
+		*mbf++ = '\n';
+	a2b("%%A %c %d %d %.2f %d %.2f %d\n",
+		type, s->as.linenum, s->as.colnum,
+		s->x - s->wl, s->ymn, s->wl + s->wr, s->ymx - s->ymn);
+}
+
 /* -- up/down shift needed to get k*6 -- */
 static float rnd6(float y)
 {
@@ -954,8 +964,6 @@ static void draw_bar(struct SYMBOL *s)
 	float x, yb, h;
 	char *psf;
 
-	if (annotate)
-		a2b("%%A %d:%d bar\n", s->as.linenum, s->as.colnum);
 	staff = s->staff;
 	yb = staff_tb[staff].y;
 	h = s->ys;
@@ -1183,15 +1191,14 @@ static void draw_gracenotes(struct SYMBOL *s)
 	for (g = s->extra; ; g = g->next) {
 		if (g->type != NOTEREST)
 			continue;
-		if (s->extra->next != 0) {	/* if many notes */
-			if ((g->sflags & (S_BEAM_ST | S_BEAM_END)) == S_BEAM_ST) {
-				if (annotate)
-					a2b("%%A %d:%d beam start\n",
-						g->as.linenum, g->as.colnum);
-				if (calculate_beam(&bm, g))
-					draw_beams(&bm);
-			}
+		if ((g->sflags & (S_BEAM_ST | S_BEAM_END)) == S_BEAM_ST) {
+			if (annotate)
+				anno_out(g, 'b');
+			if (calculate_beam(&bm, g))
+				draw_beams(&bm);
 		}
+		if (annotate)
+			anno_out(s, 'g');
 		draw_note(g->x, g, bm.s2 == 0);
 		if (g == bm.s2)
 			bm.s2 = 0;		/* (draw flags again) */
@@ -1212,8 +1219,7 @@ static void draw_gracenotes(struct SYMBOL *s)
 		}
 		if (annotate
 		 && (g->sflags & (S_BEAM_ST | S_BEAM_END)) == S_BEAM_END)
-			a2b("%%A %d:%d beam end\n",
-				g->as.linenum, g->as.colnum);
+			anno_out(g, 'e');
 		if (g->next == 0)
 			break;
 	}
@@ -1327,12 +1333,6 @@ static void draw_basic_note(float x,
 	char *p;
 	char perc_hd[8];
 
-	if (annotate) {
-		if (mbf[-1] != '\n')
-			*mbf++ = '\n';
-		a2b("%%A %d:%d %s\n", s->as.linenum, s->as.colnum,
-			(s->as.flags &ABC_F_GRACE) ? "grace" : "note");
-	}
 	staffb = staff_tb[s->staff].y;		/* bottom of staff */
 	y = 3 * (s->pits[m] - 18);		/* note height on staff */
 	shhd = s->shhd[m] * cur_scale;
@@ -4190,24 +4190,28 @@ static void draw_symbols(struct VOICE_S *p_voice)
 			if (s->as.type == ABC_T_NOTE) {
 				if ((s->sflags & (S_BEAM_ST | S_BEAM_END)) == S_BEAM_ST) {
 					if (annotate)
-						a2b("%%A %d:%d beam start\n",
-							s->as.linenum, s->as.colnum);
+						anno_out(s, 'b');
 					if (calculate_beam(&bm, s))
 						draw_beams(&bm);
 				}
+				if (annotate)
+					anno_out(s, 'N');
 				draw_note(x, s, bm.s2 == 0);
 				if (s == bm.s2)
 					bm.s2 = 0;
 				if (annotate
 				 && (s->sflags & (S_BEAM_ST | S_BEAM_END))
 							== S_BEAM_END)
-					a2b("%%A %d:%d beam end\n",
-						s->as.linenum, s->as.colnum);
+					anno_out(s, 'e');
 				break;
 			}
+			if (annotate)
+				anno_out(s, 'R');
 			draw_rest(s);
 			break;
 		case BAR:
+			if (annotate)
+				anno_out(s, 'B');
 			draw_bar(s);
 			break;
 		case CLEF:

@@ -173,6 +173,8 @@ int main(int argc,
 		if ((c = *p) == '\0')
 			continue;
 		if (c == '-') {
+			int i;
+
 			if (p[1] == '\0') {		/* '-' alone */
 				if (in_fname != 0) {
 					output_file(sel);
@@ -181,8 +183,12 @@ int main(int argc,
 				in_fname = "";		/* read from stdin */
 				continue;
 			}
-			if (p[1] != '-' && p[1] != 'e'
-			 && p[strlen(p) - 1] == '-')
+			i = strlen(p) - 1;
+			if (p[i] == '-'
+			 && p[1] != '-'
+//fixme: 'e' may be preceded by other options
+			 && p[1] != 'e'
+			 && p[i -1] != 'O')
 				c = '+'; /* switch off flags with '-x-' */
 		}
 		if (c == '+') {		/* switch off flags with '+' */
@@ -257,9 +263,6 @@ int main(int argc,
 					break;
 				   }
 				case 'v':
-					close_output_file();
-					svg = 0;
-					break;
 				case 'X':
 					close_output_file();
 					svg = 0;
@@ -714,11 +717,11 @@ static char new_file[256];
 	} else {
 		struct stat sbuf;
 
-		if ((fin = fopen(in_fname, "rb")) == 0) {
+		if ((fin = fopen(in_fname, "r")) == 0) {
 			if (strlen(in_fname) >= sizeof new_file - 4)
 				return 0;
 			sprintf(new_file, "%s.abc", in_fname);
-			if ((fin = fopen(new_file, "rb")) == 0)
+			if ((fin = fopen(new_file, "r")) == 0)
 				return 0;
 			in_fname = new_file;
 		}
@@ -760,7 +763,7 @@ void strext(char *fid, char *ext)
 
 	if ((p = strrchr(fid, DIRSEP)) == 0)
 		p = fid;
-	if ((q = strchr(p, '.')) == 0)
+	if ((q = strrchr(p, '.')) == 0)
 		strcat(p, ".");
 	else	q[1] = '\0';
 	strcat(p, ext);
