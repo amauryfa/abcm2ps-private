@@ -1,3 +1,49 @@
+---- Version 6.4.6 - 11/09/27 ----
+
+Do %%linebreak work.
+Fix again compilation errors when pango is not available
+	(reported by Guido Gonzato).
+
+---- Version 6.4.5 - 11/09/24 ----
+
+Fix a ms-win file access problem raised by a previous change
+	(reported by Marc Philippe).
+Fix compilation errors when pango is not available
+	(reported by Guido Gonzato).
+Add %%linebreak (not fully compliant yet).
+Add the function 'repeat' in the PS to SVG interpreter.
+Fix bad PS when parenthesis in tablatures with w:.
+
+---- Version 6.4.4 - 11/09/19 ----
+
+Simplify the PS function rendering latin note names in deco.abc.
+Do string array indexing and character as string work
+	in the PS to SVG interpreter.
+Fix display offset after rotation in the PS to SVG interpreter.
+Fix inversion of condition code in the PS to SVG interpreter.
+Bad page header/footer when empty or blank %%header/%%footer
+	(reported by Marc Philippe).
+Do '%%pango 2' work again.
+
+---- Version 6.4.3 - 11/08/26 ----
+
+Add more functions and fix some bugs in the PS to SVG interpreter.
+Remove the command options '-n' (%%writehistory), '-k' (same as '-j')
+	and '-Q' (%%writefields Q).
+Remove %%freechord.
+Set %%exprabove, %%exprbelow, %%vovalabove, %%printparts, %%printtempo
+	%%musiconly, %%withxrefs and %%writehistory as obsolete.
+Add %%dynamic, %%gchord, %%ornament, %%vocal, %%volume and %%writefields
+	(from requests by Nils Liberg)
+	(%%ornament does not work yet).
+Add "%%pdfmark" as pdfmarks output condition.
+	(asked by Nils Liberg).
+Convert some latin1 octal escape sequences to utf-8.
+Delay PS code generation when staves not defined.
+Crash when %%staves/%%score error and complex staff system.
+Ignore the spaces after the ':' of information fields and after '%%'.
+	(asked by Nils Liberg).
+
 ---- Version 6.4.2 - 11/08/11 ----
 
 Crash when many voices ending at different times without bars

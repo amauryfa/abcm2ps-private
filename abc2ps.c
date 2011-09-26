@@ -2,7 +2,7 @@
  * abcm2ps: a program to typeset tunes written in abc format using PostScript
  *
  * Copyright (C) 1998-2011 Jean-François Moine (http://moinejf.free.fr)
-*
+ *
  * Adapted from abc2ps-1.2.5:
  *  Copyright (C) 1996,1997  Michael Methfessel (msm@ihp-ffo.de)
  *
@@ -102,10 +102,9 @@ static struct cmdtblt_s *cmdtblt_parse(char *p);
 static void display_version(int full);
 
 /* -- main program -- */
-int main(int argc,
-	 char **argv)
+int main(int argc, char **argv)
 {
-	int j;
+	unsigned j;
 	char *p, *sel, c, *aaa;
 
 	if (argc <= 1)
@@ -215,7 +214,6 @@ int main(int argc,
 					showerror = 0;
 					break;
 				case 'j':
-				case 'k':
 					cfmt.measurenb = -1;
 					lock_fmt(&cfmt.measurenb);
 					break;
@@ -224,22 +222,14 @@ int main(int argc,
 					lock_fmt(&cfmt.landscape);
 					break;
 				case 'M':
-					cfmt.musiconly = 0;
-					lock_fmt(&cfmt.musiconly);
+					cfmt.fields[1] = 1 << ('w' - 'a');
+					lock_fmt(&cfmt.fields);
 					break;
 				case 'N':
 					pagenumbers = 0;
 					break;
-				case 'n':
-					cfmt.writehistory = 0;
-					lock_fmt(&cfmt.writehistory);
-					break;
 				case 'O':
 					outfn[0] = '\0';
-					break;
-				case 'Q':
-					cfmt.printtempo = 0;
-					lock_fmt(&cfmt.printtempo);
 					break;
 				case 'T': {
 					struct cmdtblt_s *cmdtblt;
@@ -268,8 +258,8 @@ int main(int argc,
 					svg = 0;
 					break;
 				case 'x':
-					cfmt.withxrefs = 0;
-					lock_fmt(&cfmt.withxrefs);
+					cfmt.fields[0] &= ~(1 << ('X' - 'A'));
+					lock_fmt(&cfmt.fields);
 					break;
 				case '0':
 					cfmt.splittune = 0;
@@ -348,16 +338,8 @@ int main(int argc,
 					lock_fmt(&cfmt.landscape);
 					break;
 				case 'M':
-					cfmt.musiconly = 1;
-					lock_fmt(&cfmt.musiconly);
-					break;
-				case 'n':
-					cfmt.writehistory = 1;
-					lock_fmt(&cfmt.writehistory);
-					break;
-				case 'Q':
-					cfmt.printtempo = 1;
-					lock_fmt(&cfmt.printtempo);
+					cfmt.fields[1] &= ~(1 << ('w' - 'a'));
+					lock_fmt(&cfmt.fields);
 					break;
 				case 'q':
 				case 'S':
@@ -377,8 +359,8 @@ int main(int argc,
 #endif
 					break;
 				case 'x':
-					cfmt.withxrefs = 1;
-					lock_fmt(&cfmt.withxrefs);
+					cfmt.fields[0] |= 1 << ('X' - 'A');
+					lock_fmt(&cfmt.fields);
 					break;
 				case '0':
 					cfmt.splittune = 1;
@@ -427,7 +409,6 @@ int main(int argc,
 				case 'F':
 				case 'I':
 				case 'j':
-				case 'k':
 				case 'L':
 				case 'm':
 				case 'O':
@@ -449,20 +430,20 @@ int main(int argc,
 							p++;
 					}
 
-					if (strchr("BbfjkNsv", c)) {	    /* check num args */
-						for (j = 0; j < strlen(aaa); j++)
+					if (strchr("BbfjNsv", c)) {    /* check num args */
+						for (j = 0; j < strlen(aaa); j++) {
 							if (!strchr("0123456789.",
 								    aaa[j])) {
 								if (aaa[j] == 'b'
-								    && aaa[j+1] == '\0'
-								    && (c == 'j'
-									|| c == 'k'))
+								    && aaa[j + 1] == '\0'
+								    && c == 'j')
 									break;
 								fprintf(stderr,
 									"++++ Invalid parameter <%s> for flag -%c\n",
 									aaa, c);
 								return EXIT_FAILURE;
 							}
+						}
 					}
 
 					switch (c) {
@@ -499,7 +480,6 @@ int main(int argc,
 								aaa, 1);
 						break;
 					case 'j':
-					case 'k':
 						sscanf(aaa, "%d", &cfmt.measurenb);
 						lock_fmt(&cfmt.measurenb);
 						if (aaa[strlen(aaa) - 1] == 'b')
@@ -690,7 +670,7 @@ static void read_def_format(void)
 /* -- read an input file -- */
 static char *read_file(void)
 {
-	int fsize;
+	size_t fsize;
 	FILE *fin;
 	char *file;
 static char new_file[256];
@@ -717,11 +697,11 @@ static char new_file[256];
 	} else {
 		struct stat sbuf;
 
-		if ((fin = fopen(in_fname, "r")) == 0) {
+		if ((fin = fopen(in_fname, "rb")) == 0) {
 			if (strlen(in_fname) >= sizeof new_file - 4)
 				return 0;
 			sprintf(new_file, "%s.abc", in_fname);
-			if ((fin = fopen(new_file, "r")) == 0)
+			if ((fin = fopen(new_file, "rb")) == 0)
 				return 0;
 			in_fname = new_file;
 		}
@@ -799,14 +779,12 @@ static void usage(void)
 		"     -I xx   indent 1st line (cm/in/pt)\n"
 		"     -x      add xref numbers in titles\n"
 		"     -M      don't output the lyrics\n"
-		"     -n      include notes and history in output\n"
 		"     -N n    set page numbering mode to n=\n"
 		"             0=off 1=left 2=right 3=even left,odd right 4=even right,odd left\n"
 		"     -1      write one tune per page\n"
 		"     -G      no slur in grace notes\n"
 		"     -j n[b] number the measures every n bars (or on the left if n=0)\n"
 		"             if 'b', display in a box\n"
-		"     -k n[b] same as '-j' (abc2ps compatibility)\n"
 		"     -b n    set the first measure number to n\n"
 		"     -f      have flat beams\n"
 		"     -T n[v]   output the tablature 'n' for voice 'v' / all voices\n"

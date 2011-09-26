@@ -259,20 +259,23 @@ i = 0;
 }
 
 /* -- get the staff position of the dynamic marks -- */
-static int dyn_p(struct SYMBOL *s)
+static int dyn_p(struct SYMBOL *s, int pos_idx)
 {
-	if (s->sflags & S_DYNUP)
+	switch ((s->posit >> pos_idx) & 3) {
+	case SL_ABOVE:
 		return 1;
-	if (s->sflags & S_DYNDN)
+	case SL_BELOW:
 		return 0;
+	}
 	if (s->multi != 0)
 		return s->multi > 0 ? 1 : 0;
-	if (cfmt.exprabove
-	    || (!cfmt.exprbelow
-/*fixme: only if the lyrics are below the staff*/
-		&& voice_tb[s->voice].have_ly))
-		return 1;
-	return 0;
+	if (!voice_tb[s->voice].have_ly)
+		return 0;
+
+	/* above if the lyrics are below the staff */
+	if ((s->posit >> POS_VOC) == SL_ABOVE)
+		return 0;
+	return 1;
 }
 
 /* -- drawing functions -- */
@@ -336,7 +339,7 @@ static void d_cresc(struct deco_elt *de)
 	de->staff = s2->staff;
 	de->flags &= ~DE_LDEN;		/* old behaviour */
 	de->flags |= DE_VAL;
-	up = dyn_p(s2);
+	up = dyn_p(s2, POS_DYN);
 	if (up)
 		de->flags |= DE_UP;
 
@@ -420,7 +423,7 @@ static void d_pf(struct deco_elt *de)
 	s = de->s;
 	dd = &deco_def_tb[de->t];
 
-	up = dyn_p(s);
+	up = dyn_p(s, POS_VOL);
 	if (up)
 		de->flags |= DE_UP;
 
@@ -641,7 +644,8 @@ void deco_add(char *s)
 static unsigned char deco_build(char *text)
 {
 	struct deco_def_s *dd;
-	int c_func, deco, h, o, l, wl, wr, n, ps_x, str_x;
+	int c_func, deco, h, o, wl, wr, n;
+	unsigned l, ps_x, str_x;
 	char name[32];
 	char ps_func[16];
 
@@ -651,7 +655,7 @@ static unsigned char deco_build(char *text)
 		error(1, 0, "Invalid deco %s", text);
 		return 128;
 	}
-	if ((c_func < 0 || c_func >= sizeof func_tb / sizeof func_tb[0])
+	if ((unsigned) c_func >= sizeof func_tb / sizeof func_tb[0]
 	    && (c_func < 32 || c_func > 38)) {
 		error(1, 0, "%%%%deco: bad C function index (%s)", text);
 		return 128;
@@ -728,8 +732,11 @@ static unsigned char deco_build(char *text)
 	dd->str = str_x;
 
 	/* link the start and end of long decorations */
-	l = strlen(name) - 1;
-	if (l > 0 && (name[l] == '(' || name[l] == ')')) {
+	l = strlen(name);
+	if (l == 0)
+		return deco;
+	l--;
+	if (name[l] == '(' || name[l] == ')') {
 		struct deco_def_s *ddo;
 
 		for (o = 1, ddo = &deco_def_tb[1]; o < 128; o++, ddo++) {
@@ -761,7 +768,6 @@ void deco_cnv(struct deco *dc,
 	int i, j;
 	struct deco_def_s *dd;
 	unsigned char deco;
-	struct VOICE_S *p_voice;
 	static char must_note_fmt[] = "Deco +%s+ must be on a note";
 
 	for (i = dc->n; --i >= 0; ) {
@@ -836,9 +842,6 @@ void deco_cnv(struct deco *dc,
 		}
 		dc->t[i] = 0;
 	}
-	p_voice = &voice_tb[s->voice];
-	if (p_voice->dyn != 0)
-		s->sflags |= p_voice->dyn > 0 ? S_DYNUP : S_DYNDN;
 }
 
 /* -- define a user decoration -- */
@@ -1581,7 +1584,8 @@ static void draw_gchord(struct SYMBOL *s,
 	float expdx;
 
 	p = s->as.text;
-	gch_place = voice_tb[s->voice].gchord;
+	gch_place = ((voice_tb[s->voice].posit >> POS_GCH) & 3) == SL_BELOW
+			? -1 : 1;
 	yspcc = cfmt.font_tb[s->gcf].size;
 	yspca = cfmt.font_tb[s->anf].size;
 	gchya = gchyb = gchyc = 0;
@@ -2023,7 +2027,7 @@ static void draw_notempo(struct SYMBOL *s, int len, float sc)
 /* -- return the tempo width -- */
 float tempo_width(struct SYMBOL *s)
 {
-	int i;
+	unsigned i;
 	float w;
 
 	w = 0;
@@ -2050,11 +2054,12 @@ void write_tempo(struct SYMBOL *s,
 		 int beat,
 		 float sc)
 {
+	int top, bot;
+	unsigned j;
+
 	if (s->as.u.tempo.str1 != 0)
 		put_str(s->as.u.tempo.str1, A_LEFT);
 	if (s->as.u.tempo.value != 0) {
-		int j, top, bot;
-
 		sc *= 0.7 * cfmt.font_tb[TEMPOFONT].size / 15.0;	/*fixme: 15.0 = initial tempofont*/
 		if (s->as.u.tempo.length[0] == 0) {
 			if (beat == 0)

@@ -712,7 +712,7 @@ static void draw_staff(int staff,
 static void draw_timesig(float x,
 			 struct SYMBOL *s)
 {
-	int i, staff, l;
+	unsigned i, staff, l, l2;
 	char *f, meter[64];
 	float dx;
 
@@ -725,8 +725,6 @@ static void draw_timesig(float x,
 		if (l > sizeof s->as.u.meter.meter[i].top)
 			l = sizeof s->as.u.meter.meter[i].top;
 		if (s->as.u.meter.meter[i].bot[0] != '\0') {
-			int l2;
-
 			sprintf(meter, "(%.8s)(%.2s)",
 				s->as.u.meter.meter[i].top,
 				s->as.u.meter.meter[i].bot);
@@ -3067,6 +3065,28 @@ static void setmap(int sf,	/* number of sharps/flats in key sig (-7 to +7) */
 	}
 }
 
+/* output a tablature string escaping the parenthesis */
+static void tbl_out(char *s, float x, int j, char *f)
+{
+	char *p;
+
+	a2b("(");
+	p = s;
+	for (;;) {
+		while (*p != '\0' && *p != '(' && *p != ')' )
+			p++;
+		if (p != s) {
+			a2b("%.*s", (int) (p - s), s);
+			s = p;
+		}
+		if (*p == '\0')
+			break;
+		a2b("\\");
+		p++;
+	}
+	a2b(")%.1f y %d %s ", x, j, f);
+}
+
 /* -- draw the tablature with w: -- */
 static void draw_tblt_w(struct VOICE_S *p_voice,
 			int nly,
@@ -3097,14 +3117,11 @@ static void draw_tblt_w(struct VOICE_S *p_voice,
 						l >>= 4;
 					}
 					p++;
-					PUT4("(%s)%.1f y %d %s ",
-						p, s->x, j,
-						tblt->bar);
+					tbl_out(p, s->x, j, tblt->bar);
 				}
 				continue;
 			}
-			PUT4("(%s)%.1f y %d %s ",
-				lyl->t, s->x, j, tblt->note);
+			tbl_out(lyl->t, s->x, j, tblt->note);
 		}
 		PUT0("\n");
 	}
@@ -3443,13 +3460,12 @@ static void draw_all_lyrics(void)
 		if (nly == 0)
 			continue;
 		nly_tb[voice] = nly;
-		if (p_voice->ly_pos != 0)
-			above_tb[voice] = p_voice->ly_pos > 0;
-		else if (cfmt.vocalabove
-/*fixme:%%staves:KO - find an other way*/
-			 || (p_voice->next != 0
-			     && p_voice->next->staff == staff
-			     && p_voice->next->have_ly))
+		if (((p_voice->posit >> POS_VOC) & 3) != 0)
+			above_tb[voice] = ((p_voice->posit >> POS_VOC) & 3) == SL_ABOVE;
+		else if (p_voice->next != 0
+/*fixme:%%staves:KO - find an other way..*/
+			    && p_voice->next->staff == staff
+			    && p_voice->next->have_ly)
 			above_tb[voice] = 1;
 		if (above_tb[voice])
 			lyst_tb[staff].a = 1;

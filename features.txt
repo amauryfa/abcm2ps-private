@@ -1,5 +1,5 @@
-	Features of abcm2ps 6.3.3 (J.F. Moine, May 2011)
-	================================================
+	Features of abcm2ps 6.4.3 (J.F. Moine, August 2011)
+	===================================================
 
 abcm2ps tries to follow the ABC standard version 2.0:
 
@@ -269,8 +269,8 @@ Tune body.
 
 	- Strings may contain Unicode characters format:
 		\uxxxx for 16 bits characters
-		\Uxxxxxxxx for 32 bits characters
 	  ('x' is a hexadecimal digit)
+	  (use surrogates for the 20 bits unicode values)
 
 Clefs.
 

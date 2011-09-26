@@ -113,7 +113,7 @@ struct abcsym {
 		} length;
 		struct meter_s {	/* M: info */
 			short wmeasure;		/* duration of a measure */
-			char nmeter;		/* number of meter elements */
+			unsigned char nmeter;	/* number of meter elements */
 			char expdur;		/* explicit measure duration */
 #define MAX_MEASURE 6
 			struct {
@@ -190,7 +190,7 @@ struct abctune {
 	struct abctune *prev;	/* previous tune */
 	struct abcsym *first_sym; /* first symbol */
 	struct abcsym *last_sym; /* last symbol */
-	int abc_vers;		/* ABC version */
+	int abc_vers;		/* ABC version = (H << 16) + (M << 8) + L */
 	void *client_data;	/* client data */
 	unsigned short micro_tb[MAXMICRO]; /* microtone values [ (n-1) | (d-1) ] */
 };

@@ -2181,7 +2181,7 @@ static void set_bar_num(void)
 	}
 
 	/* set the measure number on the top bars */
-	bar_time = s->time + wmeasure;
+	bar_time = s->time + wmeasure;	/* for incomplete measure at start of tune */
 	bar_num = nbar;
 	for ( ; s != 0; s = s->ts_next) {
 		switch (s->type) {
@@ -3098,13 +3098,15 @@ static void init_music_line(void)
 
 	/* add tempo if any (only one) */
 	if ((s = info['Q' - 'A']) != 0) {
-		p_voice = &voice_tb[cursys->top_voice];
-		s->type = TEMPO;
-		s->voice = p_voice - voice_tb;
-		s->staff = p_voice->staff;
-		s->time = last_s->time;
-		s->next = last_s->extra;
-		last_s->extra = s;
+		if (cfmt.fields[0] & (1 << ('Q' - 'A'))) {
+			p_voice = &voice_tb[cursys->top_voice];
+			s->type = TEMPO;
+			s->voice = p_voice - voice_tb;
+			s->staff = p_voice->staff;
+			s->time = last_s->time;
+			s->next = last_s->extra;
+			last_s->extra = s;
+		}
 		info['Q' - 'A'] = 0;
 	}
 
@@ -4442,6 +4444,26 @@ static void error_show(void)
 	}
 }
 
+/* -- buffer information until the staves are defined -- */
+static float delayed_output(float indent)
+{
+	float line_height;
+	char *outbuf_sav, *mbf_sav, tmpbuf[BUFFSZ];
+
+	outbuf_sav = outbuf;
+	mbf_sav = mbf;
+	mbf = outbuf = tmpbuf;
+	*outbuf = '\0';
+	outft = -1;
+	draw_sym_near();
+	outbuf = outbuf_sav;
+	mbf = mbf_sav;
+	outft = -1;
+	line_height = draw_systems(indent);
+	a2b("%s", tmpbuf);
+	return line_height;
+}
+
 /* -- generate the music -- */
 void output_music(void)
 {
@@ -4486,13 +4508,7 @@ void output_music(void)
 		set_sym_glue(lwidth - indent);
 		if (indent != 0)
 			PUT1("%.2f 0 T\n", indent); /* do indentation */
-		PUT0("/dlsym{\n");
-		outft = -1;
-		draw_sym_near();
-		PUT0("}def\n");
-		outft = -1;
-		line_height = draw_systems(indent);
-		PUT0("dlsym\n");
+		line_height = delayed_output(indent);
 		draw_all_symb();
 		draw_all_deco();
 		if (showerror > 1) {

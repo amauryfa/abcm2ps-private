@@ -219,27 +219,10 @@
 % -- latin guitar chords
 /gcshow{
 	dup 0 get
-	dup 65 eq {pop(La)}
-	  {dup 66 eq {pop(Si)}
-	    {dup 67 eq {pop(Do)}
-	      {dup 68 eq {pop(Re)}
-		{dup 69 eq {pop(Mi)}
-		  {dup 70 eq {pop(Fa)}
-		    {dup 71 eq {pop(Sol)}if
-		    }ifelse
-		  }ifelse
-		}ifelse
-	      }ifelse
-	    }ifelse
-	  }ifelse
-% does not work yet with SVG output
-%	dup dup 65 ge exch 71 le and{
-%		65 sub[(La)(Si)(Do)(Re)(Mi)(Fa)(Sol)]exch get
-%	}if
-%
-	show
-	dup length 1 sub 1 exch getinterval
-	show}!
+	dup dup 65 ge exch 71 le and{
+		65 sub[(La)(Si)(Do)(Ré)(Mi)(Fa)(Sol)]exch get
+	}if show
+	dup length 1 sub 1 exch getinterval show}!
 %
 % -- 'tr' + long trill
 /trtrill{	% usage: w x y trtrill

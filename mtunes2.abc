@@ -1,5 +1,3 @@
-
-
 X:1
 T: Fairfield Fancy    % -----
 C: Trad.   %haha
@@ -38,7 +36,6 @@ P: B
 "Am"A2 AB cBAG | "G"EADA GABG | "Am"A2 AB cBAG | "G"EADA BAGB |
 "Am"A2 AB cBAG | "G"EADA GABc | "D"dBcA BGAF | "Em"GE (DG) "Am"EAAA ||
 
-
 X:3
 T: Tzadik Katamar  % -----
 C: from Israel
@@ -51,10 +48,6 @@ C | "C"E<GG>A | "Am"E<DC>E | "Dm7"FFF<G | "G"D4 | "C"E<GG>A | "Em"B<EE>E |
  "F"AAA<B | "C"G2 "Am"E2 | "F"FFFG | "C"E<D "Am"C>E | "Dm"FFFD | "G"G<A B>G |
  "C"c3 c | "E7"B3 B | "F"AAAB | "C"G2 "Am"E2 | "Dm7"FFFG | "C"E<D "Am"C>E |\
       "Dm"DF "G"A<B | "C"c4 ||
-
-
-
-E: one
 
 X:4
 T: Erev Ba
@@ -77,7 +70,6 @@ g g/a/ g2 | "Dm7"f/g/a/g/ f/e/d/c/ | "G7"B/c/d/c/ B/A/ G| "E"^G>B e/d/c/B/|\
 GcBc/e/ | "Dm7"d3z | "G7"def/g/e| "C"e3z | GcBc/e/ | "Dm7"d3z |
 "G7"def/g/e| "E"e3z | "F"FAc>c| B/c/B/A/ A2| "Dm"DFA>A| "G"G>F E/D/C/E/ |
 "Am"c2A2 | "Dm"d2 "G7"d/e/c | ("C"c4|"Dm"c2) "G7"d/e/c| ("C"c4| c2) z2  |] 
-
 
 X:5
 T: Erev Ba

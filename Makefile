@@ -1,6 +1,6 @@
 # Makefile source for abcm2ps
 
-VERSION = 6.4.2
+VERSION = 6.4.6
 
 CC = gcc
 INSTALL = /usr/bin/install -c
@@ -8,7 +8,7 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
 CPPFLAGS = -DHAVE_CONFIG_H  -DHAVE_PANGO=1 -pthread -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/libdrm   -I.
-CFLAGS = -g -O2 -Wall -pipe
+CFLAGS = -g -O2 -Wall -pipe -Wsign-compare
 LDFLAGS =  -pthread -lpangocairo-1.0 -lcairo -lpangoft2-1.0 -lpango-1.0 -lfontconfig -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lfreetype -lm
 
 prefix = /usr/local

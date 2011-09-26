@@ -231,6 +231,24 @@ List of the format parameters
 	Description:
 		When true, horizontally align the dynamic marks.
 
+  dynamic <int>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		Set the position from the staff of the dynamic informations
+		(crescendo, diminuendo..).
+		<int> may be
+			0 or 'auto' for automatic position (it depends on
+				the presence and position of lyrics)
+			1 or 'above' above the staff
+			2 or 'below' below the staff
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
+		This parameter may also be set by the parameter 'dyn='
+		of the V: information field.
+
   encoding <encoding> | <int>
 	Default: 0
 	Compilation: none
@@ -240,28 +258,6 @@ List of the format parameters
 			<int>	<encoding>
 			  0	'us-ascii' or 'utf-8'
 			  1	'native'
-
-  exprabove <bool>
-	Default: 0
-	Compilation: none
-	Command line: none
-	Description:
-		Draw the expression decorations above the staff.
-		If neither 'exprabove' nor 'exprbelow' are true, the
-		expression decorations are drawn above the staff if
-		there are lyrics on the staff, and below otherwise.
-		'exprabove' takes precedence over 'exprbelow'.
-
-  exprbelow <bool>
-	Default: 0
-	Compilation: none
-	Command line: none
-	Description:
-		Draw the expression decorations below the staff.
-		If neither 'exprabove' nor 'exprbelow' are true, the
-		expression decorations are drawn above the staff if
-		there are lyrics on the staff, and below otherwise.
-		'exprabove' takes precedence over 'exprbelow'.
 
   flatbeams <bool>
 	Default: 0
@@ -338,15 +334,22 @@ List of the format parameters
 		When found in the command line, this parameter is the
 		same as '-F'.
 
-  freegchord <bool>
+  gchord <int>
 	Default: 0
 	Compilation: none
 	Command line: none
 	Description:
-		Prevent the characters '#', 'b' and '=' to be displayed
-		as sharp, flat and natural sign in guitar chords.
-		When this flag is set, displaying accidental may be forced
-		escaping the characters ('\#', '\b' and '\=').
+		Set the position from the staff of the guitar chords.
+		<int> may be
+			0 or 'auto' for automatic position (usually
+				above the staff)
+			1 or 'above' above the staff
+			2 or 'below' below the staff
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
+		This parameter may also be set by the parameter 'gchord='
+		of the V: information field.
 
   gchordbox <bool>
 	Default: 0
@@ -445,7 +448,9 @@ List of the format parameters
 	Command line: none
 	Description:
 		Define the information types and names to be printed
-		after the tunes when 'writehistory' (or -n) is set.
+		after the tunes.
+		Note: each information to be displayed may be adjusted by
+		%%writefields.
 
   infospace <unit>
 	Default: 0
@@ -578,6 +583,22 @@ List of the format parameters
 	Description:
 		Output one tune per page.
 
+  ornament <int>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		Set the position from the staff of the ornaments (mordent,
+		trill..).
+		<int> may be
+			0 or 'auto' for automatic position (usually above
+				the staff)
+			1 or 'above' above the staff
+			2 or 'below' below the staff
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
+
   pageheight <unit>
 	Default: PAGEHEIGHT
 	Compilation: PAGEHEIGHT= (A4: 29.7cm - US: 11in)
@@ -600,7 +621,8 @@ List of the format parameters
 		When abcm2ps is compiled with pango/freetype support,
 		enable or disable the text generation with pango glyphs.
 		Trick: This parameter may be set to '2' to force pango
-		generation of texts which contain only latin characters.
+		generation of texts which contain only ASCII and latin1
+		characters.
 
   parskipfac <float>
 	Default: 0.4
@@ -633,6 +655,17 @@ List of the format parameters
 	Description:
 		Set the vertical space before a new part to <unit>.
 
+  pdfmark <int>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		If different from 0, output PostScript marks to generate
+		a PDF index (after PS translation to PDF).
+		If <int> greater than 1, generate pdfmarks for titled and
+		subtitles, otherwise, if <int> is 1, generate pdfmarks
+		for main titles only.
+
   postscript <text>
 	Default: none
 	Compilation: none
@@ -643,20 +676,6 @@ List of the format parameters
 		This parameter may be used to override any PostScript
 		function or to define new functions for use in a 'deco'
 		format.
-
-  printparts <bool>
-	Default: 1
-	Compilation: none
-	Command line: none
-	Description:
-		Print the part indications (P:).
-
-  printtempo <bool>
-	Default: 1
-	Compilation: none
-	Command line: -Q (on) / +Q (off)
-	Description:
-		Print the tempo indications (Q:).
 
   repeatfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 13
@@ -728,7 +747,7 @@ List of the format parameters
 	Description:
 		If false, a tune starts on a new page if it does not
 		fit in the current one. If true, there is no page
-		checking, and the tune may be splitted.
+		check, and the tune may be splitted.
 
   squarebreve <bool>
 	Default: 0
@@ -976,6 +995,21 @@ List of the format parameters
 			1: no value
 			2: a ratio ('p':'q')
 
+  vocal <int>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		Set the position from the staff of the lyrics.
+		<int> may be
+			0 or 'auto' for automatic position (usually above
+				the staff)
+			1 or 'above' above the staff
+			2 or 'below' below the staff
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
+
   vocalabove <bool>
 	Default: 0
 	Compilation: none
@@ -1007,11 +1041,21 @@ List of the format parameters
 		Set the font of the voice names to <font> with
 		a size <size>.
 
-  withxrefs <bool>
+  volume <int>
 	Default: 0
 	Compilation: none
-	Command line: -x
-		Print the X: number in the title.
+	Command line: none
+	Description:
+		Set the position from the staff of the volume decorations
+			(!p!, !fff!...).
+		<int> may be
+			0 or 'auto' for automatic position (usually below
+				the staff)
+			1 or 'above' above the staff
+			2 or 'below' below the staff
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
 
   wordsfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 16
@@ -1029,12 +1073,15 @@ List of the format parameters
 		Set the vertical space before the lyrics at end of
 		tune to <unit>.
 
-  writehistory <bool>
-	Default: 0
+  writefields <list> <bool>
+	Default: COPQTWw 1
 	Compilation: none
-	Command line: -n
+	Command line: -M, -x
 	Description:
-		Output the information defined by 'infoname'.
+		<list> is a list of letters, each being the type of
+		an information field.
+		<bool> tells if the information field may be displayed
+		or not.
 
 
 List of the pseudo-comments treated while parsed
@@ -1107,8 +1154,9 @@ List of the pseudo-comments treated while parsed
 	See the ABC standard version 2.0 for description.
 
   sep [<h1> <h2> <len>]
-	Print a separator of length <len> with space <h1> above and
-	space <h2> below (defaults: h1 = h2 = 0.5cm, len = 3.0cm).
+	Print a separator (centered line) of length <len> with
+	space <h1> above and space <h2> below (defaults: h1 = h2 = 0.5cm,
+	len = 3.0cm).
 
   setbarnb <int>
 	Set the number of the next measure to <int>.

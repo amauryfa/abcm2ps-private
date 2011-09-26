@@ -68,13 +68,12 @@ static struct format {
 	{"continueall", &cfmt.continueall, FORMAT_B, 0},
 	{"dateformat", &cfmt.dateformat, FORMAT_S, 0},
 	{"dynalign", &cfmt.dynalign, FORMAT_B, 0},
+	{"dynamic", &cfmt.dynamic, FORMAT_I, 6},
 	{"encoding", &cfmt.encoding, FORMAT_I, 1},
-	{"exprabove", &cfmt.exprabove, FORMAT_B, 0},
-	{"exprbelow", &cfmt.exprbelow, FORMAT_B, 0},
 	{"footer", &cfmt.footer, FORMAT_S, 0},
 	{"footerfont", &cfmt.font_tb[FOOTERFONT], FORMAT_F, 0},
-	{"freegchord", &cfmt.freegchord, FORMAT_B, 0},
 	{"flatbeams", &cfmt.flatbeams, FORMAT_B, 0},
+	{"gchord", &cfmt.gchord, FORMAT_I, 6},
 	{"gchordbox", &cfmt.gchordbox, FORMAT_B, 0},
 	{"gchordfont", &cfmt.font_tb[GCHORDFONT], FORMAT_F, 3},
 	{"graceslurs", &cfmt.graceslurs, FORMAT_B, 0},
@@ -97,21 +96,20 @@ static struct format {
 	{"measurefirst", &cfmt.measurefirst, FORMAT_I, 2},
 	{"measurefont", &cfmt.font_tb[MEASUREFONT], FORMAT_F, 2},
 	{"measurenb", &cfmt.measurenb, FORMAT_I, 0},
-	{"musiconly", &cfmt.musiconly, FORMAT_B, 0},
 	{"musicspace", &cfmt.musicspace, FORMAT_U, 0},
 	{"notespacingfactor", &cfmt.notespacingfactor, FORMAT_R, 1},
 	{"oneperpage", &cfmt.oneperpage, FORMAT_B, 0},
+	{"ornament", &cfmt.ornament, FORMAT_I, 6},
 	{"pageheight", &cfmt.pageheight, FORMAT_U, 0},
 	{"pagewidth", &cfmt.pagewidth, FORMAT_U, 0},
 #ifdef HAVE_PANGO
-	{"pango", &cfmt.pango, FORMAT_B, 0},
+	{"pango", &cfmt.pango, FORMAT_B, 2},
 #endif
 	{"parskipfac", &cfmt.parskipfac, FORMAT_R, 0},
 	{"partsbox", &cfmt.partsbox, FORMAT_B, 0},
 	{"partsfont", &cfmt.font_tb[PARTSFONT], FORMAT_F, 1},
 	{"partsspace", &cfmt.partsspace, FORMAT_U, 0},
-	{"printparts", &cfmt.printparts, FORMAT_B, 0},
-	{"printtempo", &cfmt.printtempo, FORMAT_B, 0},
+	{"pdfmark", &cfmt.pdfmark, FORMAT_I, 0},
 	{"repeatfont", &cfmt.font_tb[REPEATFONT], FORMAT_F, 0},
 	{"rightmargin", &cfmt.rightmargin, FORMAT_U, 0},
 	{"scale", &cfmt.scale, FORMAT_R, 0},
@@ -152,14 +150,14 @@ static struct format {
 	{"topmargin", &cfmt.topmargin, FORMAT_U, 0},
 	{"topspace", &cfmt.topspace, FORMAT_U, 0},
 	{"tuplets", &cfmt.tuplets, FORMAT_I, 3},
-	{"vocalabove", &cfmt.vocalabove, FORMAT_B, 0},
+	{"vocal", &cfmt.vocal, FORMAT_I, 6},
 	{"vocalfont", &cfmt.font_tb[VOCALFONT], FORMAT_F, 0},
 	{"vocalspace", &cfmt.vocalspace, FORMAT_U, 0},
 	{"voicefont", &cfmt.font_tb[VOICEFONT], FORMAT_F, 0},
-	{"withxrefs", &cfmt.withxrefs, FORMAT_B, 0},
+	{"volume", &cfmt.volume, FORMAT_I, 6},
 	{"wordsfont", &cfmt.font_tb[WORDSFONT], FORMAT_F, 0},
 	{"wordsspace", &cfmt.wordsspace, FORMAT_U, 0},
-	{"writehistory", &cfmt.writehistory, FORMAT_B, 0},
+	{"writefields", &cfmt.fields, FORMAT_B, 1},
 	{0, 0, 0, 0}		/* end of table */
 };
 
@@ -369,8 +367,6 @@ void set_format(void)
 #ifdef HAVE_PANGO
 	f->pango = 1;
 #endif
-	f->printparts = 1;
-	f->printtempo = 1;
 	f->staffnonote = 1;
 	f->titletrim = 1;
 	f->aligncomposer = A_RIGHT;
@@ -401,6 +397,13 @@ void set_format(void)
 	fontspec(&f->font_tb[VOCALFONT], "Times-Bold", 0, 13.0);
 	fontspec(&f->font_tb[VOICEFONT], "Times-Bold", 0, 13.0);
 	fontspec(&f->font_tb[WORDSFONT], "Times-Roman", 0, 16.0);
+	f->fields[0] = (1 << ('C' - 'A'))
+		| (1 << ('O' - 'A'))
+		| (1 << ('P' - 'A'))
+		| (1 << ('Q' - 'A'))
+		| (1 << ('T' - 'A'))
+		| (1 << ('W' - 'A'));
+	f->fields[1] = (1 << ('w' - 'a'));
 	set_infoname("R \"Rhythm: \"");
 	set_infoname("B \"Book: \"");
 	set_infoname("S \"Source: \"");
@@ -414,11 +417,39 @@ void set_format(void)
 void print_format(void)
 {
 	struct format *fd;
-static char yn[2][5]={"no","yes"};
+static char yn[2][5] = {"no","yes"};
+static char posit[3][8] = {"auto", "above", "below"};
 
 	for (fd = format_tb; fd->name; fd++) {
 		printf("%-15s ", fd->name);
 		switch (fd->type) {
+		case FORMAT_B:
+			switch (fd->subtype) {
+#ifdef HAVE_PANGO
+			case 2:				/* pango = 0, 1 or 2 */
+				if (cfmt.pango == 2) {
+					printf("2\n");
+					break;
+				}
+				/* fall thru */
+#endif
+			case 0:
+				printf("%s\n", yn[*((int *) fd->v)]);
+				break;
+			case 1: {			/* writefields */
+				int i;
+
+				for (i = 0; i < 32; i++) {
+					if (cfmt.fields[0] & (1 << i))
+						printf("%c", (char) ('A' + i));
+					if (cfmt.fields[1] & (1 << i))
+						printf("%c", (char) ('a' + i));
+				}
+				printf("\n");
+				break;
+			    }
+			}
+			break;
 		case FORMAT_I:
 			switch (fd->subtype) {
 			default:
@@ -442,6 +473,9 @@ static char yn[2][5]={"no","yes"};
 					((cfmt.gracespace >> 8) & 0xff) % 10,
 					(cfmt.gracespace & 0xff) / 10,
 					(cfmt.gracespace & 0xff) % 10);
+				break;
+			case 6:			/* position */
+				printf("%s\n", posit[*((int *) fd->v)]);
 				break;
 			}
 			break;
@@ -473,9 +507,6 @@ static char yn[2][5]={"no","yes"};
 						- cfmt.rightmargin)
 					/ (1 CM));
 			break;
-		case FORMAT_B:
-			printf("%s\n", yn[*((int *) fd->v)]);
-			break;
 		case FORMAT_S:
 			printf("\"%s\"\n", *((char **) fd->v) != 0 ? *((char **) fd->v) : "");
 			break;
@@ -503,36 +534,44 @@ static int get_encoding(char *p)
 	return 0;
 }
 
+/* -- get a position -- */
+static int get_posit(char *p)
+{
+	if (strcmp(p, "up") == 0
+	 || strcmp(p, "above") == 0)
+		return SL_ABOVE;
+	if (strcmp(p, "down") == 0
+	 || strcmp(p, "below") == 0)
+		return SL_BELOW;
+	return 0;			/* auto */
+}
+
 /* -- get the option for text -- */
 int get_textopt(char *p)
 {
-	int option;
-
-	option = T_LEFT;
 	if (*p == '\0'
-	    || strncmp(p, "obeylines", 9) == 0)
-		;
-	else if (strncmp(p, "align", 5) == 0
-		 || strncmp(p, "justify", 7) == 0)
-		option = T_JUSTIFY;
-	else if (strncmp(p, "ragged", 6) == 0
-		 || strncmp(p, "fill", 4) == 0)
-		option = T_FILL;
-	else if (strncmp(p, "center", 6) == 0)
-		option = T_CENTER;
-	else if (strncmp(p, "skip", 4) == 0)
-		option = T_SKIP;
-	else if (strncmp(p, "right", 5) == 0)
-		option = T_RIGHT;
-	else	option = -1;
-	return option;
+	 || strncmp(p, "obeylines", 9) == 0)
+		return T_LEFT;
+	if (strncmp(p, "align", 5) == 0
+	 || strncmp(p, "justify", 7) == 0)
+		return T_JUSTIFY;
+	if (strncmp(p, "ragged", 6) == 0
+	 || strncmp(p, "fill", 4) == 0)
+		return T_FILL;
+	if (strncmp(p, "center", 6) == 0)
+		return T_CENTER;
+	if (strncmp(p, "skip", 4) == 0)
+		return T_SKIP;
+	if (strncmp(p, "right", 5) == 0)
+		return T_RIGHT;
+	return -1;
 }
 
 /* -- get a boolean value -- */
 static int g_logv(char *p)
 {
 	switch (*p) {
-	case 0:
+	case '\0':
 	case '1':
 	case 'y':
 	case 'Y':
@@ -748,6 +787,20 @@ void interpret_fmt_line(char *w,		/* keyword */
 			return;
 		}
 		break;
+	case 'e':
+		if (strcmp(w, "exprabove") == 0) {	/* compatibility */
+			cfmt.posit &= ~((1 << POS_DYN) | (1 << POS_VOL));
+			if (g_logv(p))
+				cfmt.posit |= (1 << POS_DYN) | (1 << POS_VOL);
+			return;
+		}
+		if (strcmp(w, "exprbelow") == 0) {	/* compatibility */
+			cfmt.posit &= ~((1 << POS_DYN) | (1 << POS_VOL));
+			if (g_logv(p))
+				cfmt.posit |= (2 << POS_DYN) | (2 << POS_VOL);
+			return;
+		}
+		break;
 	case 'f':
 		if (strcmp(w, "font") == 0) {
 			int fnum, encoding;
@@ -798,6 +851,15 @@ void interpret_fmt_line(char *w,		/* keyword */
 			return;
 		}
 		break;
+	case 'm':
+		if (strcmp(w, "musiconly") == 0) {	/* compatibility */
+			if (g_logv(p))
+				cfmt.fields[1] &= ~(1 << ('w' - 'a'));
+			else
+				cfmt.fields[1] |= (1 << ('w' - 'a'));
+			return;
+		}
+		break;
 	case 'p':
 		if (strcmp(w, "postscript") == 0) {
 			if (!file_initialized)
@@ -806,10 +868,56 @@ void interpret_fmt_line(char *w,		/* keyword */
 				PUT1("%s\n", p);
 			return;
 		}
+		if (strcmp(w, "printparts") == 0) {	/* compatibility */
+			if (g_logv(p))
+				cfmt.fields[0] |= (1 << ('P' - 'A'));
+			else
+				cfmt.fields[0] &= ~(1 << ('P' - 'A'));
+			return;
+		}
+		if (strcmp(w, "printtempo") == 0) {	/* compatibility */
+			if (g_logv(p))
+				cfmt.fields[0] |= (1 << ('Q' - 'A'));
+			else
+				cfmt.fields[0] &= ~(1 << ('Q' - 'A'));
+			return;
+		}
 		break;
 	case 't':
 		if (strcmp(w, "tablature") == 0) {
 			tblt_parse(p);
+			return;
+		}
+		break;
+	case 'v':
+		if (strcmp(w, "vocalabove") == 0) {	/* compatibility */
+			cfmt.posit &= ~(1 << POS_VOC);
+			if (g_logv(p))
+				cfmt.posit |= (1 << POS_VOC);
+			return;
+		}
+		break;
+	case 'w':
+		if (strcmp(w, "withxrefs") == 0) {	/* compatibility */
+			if (g_logv(p))
+				cfmt.fields[0] |= (1 << ('X' - 'A'));
+			else
+				cfmt.fields[0] &= ~(1 << ('X' - 'A'));
+			return;
+		}
+		if (strcmp(w, "writehistory") == 0) {	/* compatibility */
+			struct SYMBOL *s;
+			int bool;
+			unsigned u;
+
+			bool = g_logv(p);
+			for (s = info['I' - 'A']; s != 0; s = s->next) {
+				u = s->as.text[0] - 'A';
+				if (bool)
+					cfmt.fields[0] |= (1 << u);
+				else
+					cfmt.fields[0] &= ~(1 << u);
+			}
 			return;
 		}
 		break;
@@ -823,6 +931,51 @@ void interpret_fmt_line(char *w,		/* keyword */
 		return;
 	fd->lock |= lock;
 	switch (fd->type) {
+	case FORMAT_B:
+		switch (fd->subtype) {
+#ifdef HAVE_PANGO
+		case 2:				/* %%pango = 0, 1 or 2 */
+			if (*p == '2') {
+				cfmt.pango = 2;
+				break;
+			}
+			/* fall thru */
+#endif
+		case 0:
+			*((int *) fd->v) = g_logv(p);
+			break;
+		case 1:	{			/* %%writefields */
+			char *q;
+			int bool, i;
+			unsigned u;
+
+			q = p;
+			while (*p != '\0' && !isspace((unsigned char) *p))
+				p++;
+			while (isspace((unsigned char) *p))
+				p++;
+			bool = g_logv(p);
+			while (*q != '\0' && !isspace((unsigned char) *q)) {
+				u = *q - 'A';
+				if (u < 26) {
+					i = 0;
+				} else {
+					u = *q - 'a';
+					if (u < 26)
+						i = 1;
+					else
+						break;	/*fixme: error */
+				}
+				if (bool)
+					cfmt.fields[i] |= (1 << u);
+				else
+					cfmt.fields[i] &= ~(1 << u);
+				q++;
+			}
+			break;
+		    }
+		}
+		break;
 	case FORMAT_I:
 		if (fd->subtype == 3) {		/* tuplets */
 			unsigned i1, i2, i3;
@@ -858,11 +1011,13 @@ void interpret_fmt_line(char *w,		/* keyword */
 			cfmt.encoding = get_encoding(p);
 		else if (fd->subtype == 4 && !isdigit(*p)) /* 'textoption' */
 			cfmt.textoption = get_textopt(p);
-		else	sscanf(p, "%d", (int *) fd->v);
+		else if (fd->subtype == 6 && !isdigit(*p)) /* position */
+			*((int *) fd->v) = get_posit(p);
+		else
+			sscanf(p, "%d", (int *) fd->v);
 		switch (fd->subtype) {
 		case 1:					/* 'encoding' */
-			if (isdigit(*p)
-			    && (unsigned) cfmt.encoding > 1) {
+			if ((unsigned) cfmt.encoding > 1) {
 				error(1, 0,
 				      "Bad encoding value %d - reset to utf-8",
 				      cfmt.encoding);
@@ -887,6 +1042,19 @@ void interpret_fmt_line(char *w,		/* keyword */
 				      p);
 				cfmt.textoption = T_LEFT;
 			}
+			break;
+		case 6:				/* position */
+			if ((unsigned) *((int *) fd->v) > 2) {
+				error(1, 0,
+				      "Bad position - set to 'auto'",
+				      *((int *) fd->v));
+				*((int *) fd->v) = SL_AUTO;
+			}
+			cfmt.posit = (cfmt.dynamic << POS_DYN)
+				| (cfmt.gchord << POS_GCH)
+				| (cfmt.ornament << POS_ORN)
+				| (cfmt.vocal << POS_VOC)
+				| (cfmt.volume << POS_VOL);
 			break;
 		}
 		break;
@@ -940,17 +1108,11 @@ void interpret_fmt_line(char *w,		/* keyword */
 			float rmargin;
 
 			rmargin = (cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
-				- staffwidth - cfmt.leftmargin;
+					- staffwidth - cfmt.leftmargin;
 			if (rmargin < 0)
 				fprintf(stderr, "'staffwidth' too big\n");
 			cfmt.rightmargin = rmargin;
 		}
-		break;
-	case FORMAT_B:
-		if (isdigit((unsigned char) *p))
-			*((int *) fd->v) = *p - '0';
-		else
-			*((int *) fd->v) = g_logv(p);
 		break;
 	case FORMAT_S: {
 		int l;

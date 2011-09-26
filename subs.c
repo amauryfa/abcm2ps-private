@@ -652,7 +652,7 @@ float tex_str(char *s)
 {
 	char *d, c2;
 	signed char c1;
-	int maxlen, i, v;
+	unsigned maxlen, i, j, v;
 	float w, swfac;
 
 	w = 0;
@@ -679,6 +679,13 @@ float tex_str(char *s)
 			case 'U':		/* unicode 32 bits */
 				i = 8;
 		hexuni:
+
+				/* check if hexadecimal digits */
+				for (j = 0; j < i; j++)
+					if (!isxdigit((unsigned char) s[j]))
+						break;
+				if (j != i)
+					break;
 				v = 0;		/* get the unicode value */
 				while (--i >= 0
 				    && isxdigit((unsigned char) *s)) {
@@ -690,6 +697,29 @@ float tex_str(char *s)
 					else
 						v += *s - 'a' + 10;
 					s++;
+				}
+				if ((v & 0xd800) == 0xd800) {	/* surrogates */
+					if (*s != '\\' || s[1] != 'u')
+						break;
+					s += 2;
+					for (j = 0; j < i; j++)
+						if (!isxdigit((unsigned char) s[j]))
+							break;
+					if (j != i)
+						break;
+					v = (v - 0xd7c0) << (10 - 4);
+					while (--i >= 0
+					    && isxdigit((unsigned char) *s)) {
+						v <<= 4;
+						if (*s <= '9')
+							v += *s - '0';
+						else if (*s <= 'F')
+							v += *s - 'A' + 10;
+						else
+							v += *s - 'a' + 10;
+						s++;
+					}
+					v -= 0xdc00;
 				}
 				if (v < 0x80) {	/* convert to UTF-8 */
 					c1 = v;
@@ -719,10 +749,8 @@ float tex_str(char *s)
 					c1 = 0x80 | (v & 0x3f);
 				}
 				goto addchar;
-			default:
-				c2 = *s;
-				break;
 			}
+			c2 = *s;
 
 			/* treat escape with octal value */
 			if ((unsigned) (c1 - '0') <= 3
@@ -740,6 +768,8 @@ float tex_str(char *s)
 				case '\205':
 					c1 &= 0x07;
 					break;
+				default:
+					goto compat;
 				}
 				break;
 			}
@@ -795,7 +825,7 @@ float tex_str(char *s)
 			}
 			break;
 		default:
-
+compat:
 			/* latin1 compatibility */
 			if (c1 >= 0)
 				break;		/* ascii */
@@ -803,6 +833,8 @@ float tex_str(char *s)
 //				break;
 			if ((c1 & 0xff) > 0xc0) {
 				if ((*s & 0xc0) == 0x80)
+					break;
+				if (*s == '\\' && s[1] == '2')
 					break;
 			} else {
 				if (d[-1] < 0)
@@ -1489,12 +1521,8 @@ static void put_inf2r(struct SYMBOL *s1,
 		s1 = s2;
 		s2 = 0;
 	}
-	p = s1->as.text;
-	if (p[1] == ':')
-		p += 2;
-	while (isspace((unsigned char) *p))
-		p++;
-	if (s1->as.text[0] == 'T' && s1->as.text[1] == ':')
+	p = &s1->as.text[2];
+	if (s1->as.text[0] == 'T')
 		p = trim_title(p, s1 == info['T' - 'A']);
 	if (s2 != 0) {
 		buf[sizeof buf - 1] = '\0';
@@ -1503,11 +1531,7 @@ static void put_inf2r(struct SYMBOL *s1,
 		if (q < buf + sizeof buf - 4) {
 			*q++ = ' ';
 			*q++ = '(';
-			p = s2->as.text;
-			if (p[1] == ':')
-				p += 2;
-			while (isspace((unsigned char) *p))
-				p++;
+			p = &s2->as.text[2];
 			strncpy(q, p, buf + sizeof buf - 2 - q);
 			q += strlen(q);
 			*q++ = ')';
@@ -1772,10 +1796,8 @@ void put_words(struct SYMBOL *words)
 	have_text = 0;
 	for (s = words; s != 0; s = s->next) {
 		p = &s->as.text[2];
-		while (isspace((unsigned char) *p))
-			p++;
 /*fixme:utf8*/
-		if (strlen(p) > max2col) {
+		if ((int) strlen(p) > max2col) {
 			n = 0;
 			break;
 		}
@@ -1842,14 +1864,23 @@ void put_words(struct SYMBOL *words)
 void put_history(void)
 {
 	struct SYMBOL *s, *s2;
+	int font;
+	unsigned u;
 	float w, h;
 	char tmp[265];
 
-	bskip(cfmt.textspace);
-	str_font(HISTORYFONT);
+	font = 0;
 	for (s = info['I' - 'A']; s != 0; s = s->next) {
-		if ((s2 = info[s->as.text[0] - 'A']) == 0)
+		u = s->as.text[0] - 'A';
+		if (!(cfmt.fields[0] & (1 << u)))
 			continue;
+		if ((s2 = info[u]) == 0)
+			continue;
+		if (!font) {
+			bskip(cfmt.textspace);
+			str_font(HISTORYFONT);
+			font = 1;
+		}
 		get_str(tmp, &s->as.text[1], sizeof tmp);
 		w = tex_str(tmp);
 		h = cfmt.font_tb[HISTORYFONT].size * cfmt.lineskipfac;
@@ -1882,11 +1913,15 @@ static char buf[STRL1];
 				q = 0;
 		}
 	}
-	if (q == 0 && !cfmt.titlecaps && !(first && cfmt.withxrefs))
+	if (q == 0
+	 && !cfmt.titlecaps
+	 && !(first && (cfmt.fields[0] & (1 << ('X' - 'A')))))
 		return p;		/* keep the title as it is */
 	b = buf;
 	r = &info['X' - 'A']->as.text[2];
-	if (first && cfmt.withxrefs && r[2] != '\0') {
+	if (first
+	 && (cfmt.fields[0] & (1 << ('X' - 'A')))
+	 && r[2] != '\0') {
 		if (strlen(p) + strlen(r) + 3 >= sizeof buf) {
 			error(1, 0, "Title or X: too long");
 			return p;
@@ -1912,9 +1947,9 @@ void write_title(struct SYMBOL *s)
 {
 	char *p;
 
+	if (!(cfmt.fields[0] & (1 << ('T' - 'A'))))
+		return;
 	p = &s->as.text[2];
-	while (isspace((unsigned char) *p))
-		p++;
 	if (*p == '\0')
 		return;
 	p = trim_title(p, s == info['T' - 'A']);
@@ -1939,7 +1974,8 @@ static void write_headform(float lwidth)
 	char *p, *q;
 	struct SYMBOL *s;
 	struct FONTSPEC *f;
-	int align, i, j;
+	int align, i;
+	unsigned j;
 	float x, y, xa[3], ya[3], sz, yb[3];	/* !! see action A_xxx */
 	char inf_nb[26];
 	INFO inf_s;
@@ -2040,6 +2076,8 @@ static void write_headform(float lwidth)
 			if (i >= 126)		/* if newline */
 				break;
 			align = *p++;
+			if (!(cfmt.fields[0] & (1 << (unsigned) i)))
+				continue;
 			s = inf_s[i];
 			if (s == 0 || inf_nb[i] == 0)
 				continue;
@@ -2097,7 +2135,9 @@ static void write_headform(float lwidth)
 					else	PUT1("-%.1f 0 RM ", w);
 				}
 				write_tempo(s, 0, 0.75);
-			} else	put_inf2r(s, 0, align);
+			} else {
+				put_inf2r(s, 0, align);
+			}
 			if (inf_s[i] == info['T' - 'A']) {
 				inf_ft[i] = SUBTITLEFONT;
 				str_font(SUBTITLEFONT);
@@ -2133,7 +2173,7 @@ static void write_headform(float lwidth)
 /* -- output the tune heading -- */
 void write_heading(struct abctune *t)
 {
-	struct SYMBOL *s, *rhythm, *area, *author;
+	struct SYMBOL *s, *rhythm, *area, *author, *composer, *origin;
 	float lwidth, down1, down2;
 
 	lwidth = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
@@ -2152,6 +2192,8 @@ void write_heading(struct abctune *t)
 	/* rhythm, composer, origin */
 	down1 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
 	rhythm = (first_voice->key.bagpipe && !cfmt.infoline) ? info['R' - 'A'] : 0;
+	if (!(cfmt.fields[0] & (1 << ('R' - 'A'))))
+		rhythm = 0;
 	if (rhythm) {
 		str_font(COMPOSERFONT);
 		PUT1("0 %.1f M ",
@@ -2160,10 +2202,19 @@ void write_heading(struct abctune *t)
 		down1 -= cfmt.font_tb[COMPOSERFONT].size;
 	}
 	area = author = 0;
-	if (t->abc_vers < 2)
+	if (t->abc_vers != (2 << 16))
 		area = info['A' - 'A'];
-	else	author = info['A' - 'A'];
-	if ((s = info['C' - 'A']) != 0 || info['O' - 'A'] || author != 0) {
+	else
+		author = info['A' - 'A'];
+	if (!(cfmt.fields[0] & (1 << ('A' - 'A'))))
+		area = author = 0;
+	composer = info['C' - 'A'];
+	if (!(cfmt.fields[0] & (1 << ('C' - 'A'))))
+		composer = 0;
+	origin = info['O' - 'A'];
+	if (!(cfmt.fields[0] & (1 << ('O' - 'A'))))
+		origin = 0;
+	if (composer != 0 || origin != 0 || author != 0) {
 		float xcomp;
 		int align;
 
@@ -2190,15 +2241,16 @@ void write_heading(struct abctune *t)
 					break;
 			}
 		}
-		if ((s = info['C' - 'A']) != 0 || info['O' - 'A']) {
+		if (composer != 0 || origin != 0) {
 			if (cfmt.aligncomposer >= 0
 			    && down1 != down2)
 				bskip(down1 - down2);
+			s = composer;
 			for (;;) {
 				bskip(cfmt.font_tb[COMPOSERFONT].size);
 				PUT1("%.1f 0 M ", xcomp);
 				put_inf2r(s,
-					  (s == 0 || s->next == 0) ? info['O' - 'A'] : 0,
+					  (s == 0 || s->next == 0) ? origin : 0,
 					  align);
 				if (s == 0)
 					break;
@@ -2211,6 +2263,8 @@ void write_heading(struct abctune *t)
 		}
 
 		rhythm = rhythm ? 0 : info['R' - 'A'];
+		if (!(cfmt.fields[0] & (1 << ('R' - 'A'))))
+			rhythm = 0;
 		if ((rhythm || area) && cfmt.infoline) {
 
 			/* if only one of rhythm or area then do not use ()'s
@@ -2222,10 +2276,13 @@ void write_heading(struct abctune *t)
 			down1 += cfmt.font_tb[INFOFONT].size + cfmt.infospace;
 		}
 		down2 = 0;
-	} else	down2 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
+	} else {
+		down2 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
+	}
 
 	/* parts */
-	if (info['P' - 'A']) {
+	if (info['P' - 'A']
+	 && (cfmt.fields[0] & (1 << ('P' - 'A')))) {
 		down1 = cfmt.partsspace + cfmt.font_tb[PARTSFONT].size - down1;
 		if (down1 > 0)
 			down2 += down1;

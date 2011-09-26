@@ -106,14 +106,11 @@ List of the options
   -j<int>[b], +j
 	See: format.txt - measurenb <int>
 
-  -k<int>[b], +k
-	See: format.txt - measurenb <int>
-
   -l, +l
 	See: format.txt - landscape <bool>
 
   -M, +M
-	See: format.txt - musiconly <bool>
+	See: format.txt - writefields w <bool>
 
   -m<unit>
 	See: format.txt - leftmargin <unit>
@@ -138,16 +135,13 @@ List of the options
 	By default, the output file goes to the current directory
 	with a name 'Out.ps' for PS, 'Outnnn.eps' for EPS (see
 	option '-E'), 'Outnnn.svg' for SVG (see options '-g' and '-v')
-	or 'Out.xml' for XML + SVG (see option '-X').
+	or 'Out.xhtml' for XHTML + SVG (see option '-X').
 	When <name> is present, it replaces 'Out' in the file name.
 	If <name> is '=', it is replaced by the name of the ABC
 	source file.
 	If <name> is '-', the result is output to stdout (standard PS and
 	embeddable SVG - '-g' - only).
 	'+O' resets the output file directory and name to their defaults.
-
-  -Q, +Q
-	See: format.txt - printtempo <bool>
 
   -q
 	Quiet mode.
@@ -187,10 +181,10 @@ List of the options
 
   -X
 	Produce XML + SVG output instead of simple PS.
-	The default file name is 'Out.xml' (see option '-O').
+	The default file name is 'Out.xhtml' (see option '-O').
 
   -x, +x
-	See: format.txt - withxrefs <bool>
+	See: format.txt - writefields X <bool>
 
   -0, +0
 	See: format.txt - splittune <bool>

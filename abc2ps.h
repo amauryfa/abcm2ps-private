@@ -146,27 +146,32 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_EOLN		0x0001		/* end of line */
 #define S_BEAM_ST	0x0002		/* beam starts here */
 #define S_BEAM_BR1	0x0004		/* 2nd beam must restart here */
-#define S_OTHER_HEAD	0x0008		/* don't draw any note head */
-#define S_IN_TUPLET	0x0010		/* in a tuplet */
-#define S_TREM2		0x0020		/* tremolo on 2 notes */
-#define S_RRBAR		0x0040		/* right repeat bar (when bar) */
-#define S_XSTEM		0x0080		/* cross-staff stem (when note) */
-#define S_BEAM_ON	0x0200		/* continue beaming */
-#define S_SL1		0x0400		/* some chord slur start */
-#define S_SL2		0x0800		/* some chord slur end */
-#define S_TI1		0x1000		/* some chord tie start */
-#define S_DYNUP		0x2000		/* dynamic marks above the staff */
-#define S_DYNDN		0x4000		/* dynamic marks below the staff */
+#define S_BEAM_BR2	0x0008		/* 3rd beam must restart here */
+#define S_BEAM_END	0x0010		/* beam ends here */
+#define S_OTHER_HEAD	0x0020		/* don't draw any note head */
+#define S_IN_TUPLET	0x0040		/* in a tuplet */
+#define S_TREM2		0x0080		/* tremolo on 2 notes */
+#define S_RRBAR		0x0100		/* right repeat bar (when bar) */
+#define S_XSTEM		0x0200		/* cross-staff stem (when note) */
+#define S_BEAM_ON	0x0400		/* continue beaming */
+#define S_SL1		0x0800		/* some chord slur start */
+#define S_SL2		0x1000		/* some chord slur end */
+#define S_TI1		0x2000		/* some chord tie start */
 #define S_RBSTOP	0x8000		/* repeat bracket stop */
-#define S_BEAM_BR2	0x00010000	/* 3rd beam must restart here */
 #define S_REPEAT	0x00020000	/* sequence / measure repeat */
 #define S_NL		0x00040000	/* start of new music line */
 #define S_SEQST		0x00080000	/* start of vertical sequence */
 #define S_SECOND	0x00100000	/* symbol on a secondary voice */
 #define S_FLOATING	0x00200000	/* symbol on a floating voice */
 #define S_NOREPBRA	0x00400000	/* don't print the repeat bracket */
-#define S_BEAM_END	0x00800000	/* beam ends here */
-#define S_TREM1		0x01000000	/* tremolo on 1 note */
+#define S_TREM1		0x00800000	/* tremolo on 1 note */
+	unsigned short posit;		/* indication position / staff (2 bits) */
+					/* 0: auto, 1: above, 2: below */
+#define POS_DYN 0			/* shifts */
+#define POS_GCH 2
+#define POS_ORN 4
+#define POS_VOC 6
+#define POS_VOL 8
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
 	char dots;		/* number of dots */
@@ -176,7 +181,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define H_OVAL		2
 #define H_SQUARE	3
 	signed char multi;	/* multi voice in the staff (+1, 0, -1) */
-	signed char nohdix;	/* no head index */
+	signed char nohdix;	/* no head index (for unison) */
 	unsigned char gcf;	/* font for guitar chords */
 	unsigned char anf;	/* font for annotations */
 	short u;		/* auxillary information:
@@ -231,19 +236,19 @@ struct FORMAT { 		/* struct for page layout */
 	float maxstaffsep, maxsysstaffsep, stemheight;
 	int abc2pscompat, alignbars, aligncomposer, autoclef;
 	int barsperstaff, breakoneoln, bstemdown, comball;
-	int combinevoices, contbarnb, continueall, dynalign;
-	int encoding, exprabove, exprbelow, flatbeams, freegchord;
-	int infoline, gchordbox, graceslurs, gracespace, hyphencont;
-	int landscape, measurebox, measurefirst, measurenb, musiconly;
-	int oneperpage;
+	int combinevoices, contbarnb, continueall, dynalign, dynamic;
+	int encoding, flatbeams;
+	int infoline, gchord, gchordbox, graceslurs, gracespace, hyphencont;
+	int landscape, measurebox, measurefirst, measurenb;
+	int oneperpage, ornament;
 #ifdef HAVE_PANGO
 	int pango;
 #endif
-	int partsbox, printparts, printtempo;
+	int partsbox, pdfmark;
 	int setdefl, shiftunisson, splittune, squarebreve, staffnonote;
 	int straightflags, stretchstaff, stretchlast;
 	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
-	int vocalabove, withxrefs, writehistory;
+	int vocal, volume;
 	char *dateformat, *header, *footer, *titleformat;
 #define FONT_UMAX 5		/* max number of user fonts */
 #define ANNOTATIONFONT 5
@@ -269,7 +274,10 @@ struct FORMAT { 		/* struct for page layout */
 	struct FONTSPEC font_tb[FONT_MAX];
 	char ndfont;		/* current index of dynamic fonts */
 	unsigned char gcf, anf, vof;	/* fonts for
-				* guitar chords, annotations and lyrics */
+				 * guitar chords, annotations and lyrics */
+	unsigned short posit;	/* position of indications / staff */
+	unsigned int fields[2];	/* info fields to print
+				 *[0] is 'A'..'Z', [1] is 'a'..'z' */
 };
 
 extern struct FORMAT cfmt;	/* current format */
@@ -278,6 +286,7 @@ extern struct FORMAT dfmt;	/* global format */
 typedef struct SYMBOL *INFO[26]; /* information fields ('A' .. 'Z') */
 extern INFO info;
 
+extern char *outbuf;		/* output buffer.. should hold one tune */
 extern char *mbf;		/* where to PUTx() */
 extern int use_buffer;		/* 1 if lines are being accumulated */
 
@@ -373,15 +382,13 @@ struct VOICE_S {
 	unsigned space:1;	/* have a space before the next note (parsing) */
 	short wmeasure;		/* measure duration while parsing */
 	short bar_start;	/* bar type at start of staff / 0 */
+	unsigned short posit;	/* position of indications / staff */
 	signed char clone;	/* duplicate from this voice number */
 	unsigned char staff;	/* staff (0..n-1) */
 	unsigned char cstaff;	/* staff while parsing */
 	signed char sfp;	/* key signature while parsing */
 	signed char stem;	/* stem direction while parsing */
 	signed char gstem;	/* grace stem direction while parsing */
-	signed char dyn;	/* place of dynamic marks while parsing */
-	signed char ly_pos;	/* place of lyrics (above / below) */
-	signed char gchord;	/* place of guitar chords (above / below) */
 	unsigned char slur_st;	/* slurs at start of staff */
 };
 extern struct VOICE_S voice_tb[MAXVOICE]; /* voice table */

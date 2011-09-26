@@ -36,7 +36,6 @@ static char *ln_buf[BUFFLN];	/* buffer location of buffered lines */
 static float ln_lmarg[BUFFLN];	/* left margin of buffered lines */
 static float ln_scale[BUFFLN];	/* scale of buffered lines */
 static signed char ln_font[BUFFLN];	/* font of buffered lines */
-static char outbuf[BUFFSZ];	/* output buffer.. should hold one tune */
 static float cur_lmarg = 0;	/* current left margin */
 static float min_lmarg, max_rmarg;	/* for eps (-E) and svg (-g) */
 static float cur_scale = 1.0;	/* current scale */
@@ -50,6 +49,7 @@ static struct FORMAT *p_fmt;	/* current format while treating a new page */
 int (*output)(FILE *out, const char *fmt, ...);
 
 int in_page;			/* filling a PostScript page */
+char *outbuf;			/* output buffer.. should hold one tune */
 char *mbf;			/* where to PUTx() */
 int use_buffer;			/* 1 if lines are being accumulated */
 
@@ -75,7 +75,7 @@ void marg_init(void)
 static void init_ps(char *str)
 {
 	time_t ltime;
-	int i;
+	unsigned i;
 	char version[32];
 
 	if (epsf) {
@@ -106,7 +106,7 @@ static void init_ps(char *str)
 	fprintf(fout, "%%%%LanguageLevel: 3\n"
 		"%%%%EndComments\n"
 		"%%CommandLine:");
-	for (i = 1; i < s_argc; i++) {
+	for (i = 1; i < (unsigned) s_argc; i++) {
 		fprintf(fout,
 			strchr(s_argv[i], ' ') != 0 ? " \'%s\'" : " %s",
 			s_argv[i]);
@@ -296,8 +296,6 @@ static void format_hf(char *d, char *p)
 			break;
 		case 'T':		/* tune title */
 			q = &info['T' - 'A']->as.text[2];
-			while (isspace((unsigned char) *q))
-				q++;
 			tex_str(q);
 			d += sprintf(d, "%s", tex_buf);
 			break;
@@ -309,6 +307,7 @@ static void format_hf(char *d, char *p)
 		}
 		p++;
 	}
+	*d = '\0';		/* in case of empty string */
 }
 
 /* -- output the header or footer -- */
@@ -630,7 +629,7 @@ static void epsf_title(char *p, int sz)
 /* -- output a EPS (-E) or SVG (-g) file -- */
 void write_eps(void)
 {
-	int i;
+	unsigned i;
 	char *p, title[80];
 
 	if (mbf == outbuf
@@ -735,6 +734,8 @@ void clear_buffer(void)
 {
 	bposy = 0;
 	ln_num = 0;
+	if (outbuf == 0)
+		outbuf = malloc(BUFFSZ);
 	mbf = outbuf;
 }
 
