@@ -1061,7 +1061,7 @@ static void setg(int newg)
 	if (in_path) {
 		fputs("\"/>\n", fout);
 		fprintf(stderr, "svg setg: No stroke nor fill\n");
-		ps_error = 1;
+//		ps_error = 1;
 		in_path = 0;
 	}
 	if (g == 2) {

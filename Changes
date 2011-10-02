@@ -1,3 +1,15 @@
+---- Version 6.4.7 - 11/10/03 ----
+
+Add %%decoration.
+Remove the pseudo-decorations 'linebreak' and 'decosep'.
+Fix the lack of tablature of the first tune after %%tablature.
+Ignore empty 'newpath' in the PS to SVG interpreter
+	(for galoubet in flute.fmt - reported by Jon Freeman).
+Do '-x' work again
+	(reported by Daniel Branning).
+Fix bad tremolo on crotchet after beamed notes without space
+	(reported by Jean-Luc Zins).
+
 ---- Version 6.4.6 - 11/09/27 ----
 
 Do %%linebreak work.

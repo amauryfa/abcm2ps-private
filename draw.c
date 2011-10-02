@@ -527,13 +527,13 @@ static void draw_beams(struct BEAM *bm)
 			float x1;
 
 			if (s->as.type != ABC_T_NOTE
-			    || s->nflags < i) {
+			 || s->nflags < i) {
 				if (s == s2)
 					break;
 				continue;
 			}
 			if ((s->sflags & S_TREM1)
-			    && i > s->nflags - s->u) {
+			 && i > s->nflags - s->u) {
 				if (s->head >= H_OVAL)
 					x1 = s->x;
 				else
@@ -1223,11 +1223,11 @@ static void draw_gracenotes(struct SYMBOL *s)
 	}
 
 	/* slur */
-	if (voice_tb[s->voice].key.bagpipe	/* no slur when bagpipe */
-	    || !cfmt.graceslurs
-	    || s->as.u.note.slur_st		/* explicit slur */
-	    || s->next == 0
-	    || s->next->as.type != ABC_T_NOTE)
+	if (voice_tb[s->voice].key.mode >= BAGPIPE /* no slur when bagpipe */
+	 || !cfmt.graceslurs
+	 || s->as.u.note.slur_st		/* explicit slur */
+	 || s->next == 0
+	 || s->next->as.type != ABC_T_NOTE)
 		return;
 	last = g;
 	yy = 127;

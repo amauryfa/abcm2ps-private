@@ -1921,7 +1921,7 @@ static char buf[STRL1];
 	r = &info['X' - 'A']->as.text[2];
 	if (first
 	 && (cfmt.fields[0] & (1 << ('X' - 'A')))
-	 && r[2] != '\0') {
+	 && *r != '\0') {
 		if (strlen(p) + strlen(r) + 3 >= sizeof buf) {
 			error(1, 0, "Title or X: too long");
 			return p;
@@ -2191,7 +2191,8 @@ void write_heading(struct abctune *t)
 
 	/* rhythm, composer, origin */
 	down1 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
-	rhythm = (first_voice->key.bagpipe && !cfmt.infoline) ? info['R' - 'A'] : 0;
+	rhythm = (first_voice->key.mode >= BAGPIPE
+			&& !cfmt.infoline) ? info['R' - 'A'] : 0;
 	if (!(cfmt.fields[0] & (1 << ('R' - 'A'))))
 		rhythm = 0;
 	if (rhythm) {

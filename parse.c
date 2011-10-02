@@ -67,6 +67,7 @@ static void get_meter(struct SYMBOL *s);
 static void get_voice(struct SYMBOL *s);
 static void get_note(struct SYMBOL *s);
 static struct abcsym *process_pscomment(struct abcsym *as);
+static void set_tblt(struct VOICE_S *p_voice);
 static void set_tuplet(struct SYMBOL *s);
 static void sym_link(struct SYMBOL *s, int type);
 
@@ -1581,6 +1582,10 @@ static void get_info(struct SYMBOL *s,
 
 		/* switch to the 1st voice */
 		curvoice = &voice_tb[parsys->top_voice];
+
+		/* activate the default tablature if not yet done */
+		if (first_voice->tblts[0] == 0)
+			set_tblt(first_voice);
 		break;
 	case 'L':
 		break;
@@ -1870,19 +1875,20 @@ static void set_tblt(struct VOICE_S *p_voice)
 			continue;
 		if (cmdtblts[i].vn[0] != '\0') {
 			if (strcmp(cmdtblts[i].vn, p_voice->id) != 0
-			    && (p_voice->nm == 0
-				|| strcmp(cmdtblts[i].vn, p_voice->nm) != 0)
-			    && (p_voice->snm == 0
-				|| strcmp(cmdtblts[i].vn, p_voice->snm) != 0))
+			 && (p_voice->nm == 0
+			  || strcmp(cmdtblts[i].vn, p_voice->nm) != 0)
+			 && (p_voice->snm == 0
+			  || strcmp(cmdtblts[i].vn, p_voice->snm) != 0))
 				continue;
 		}
 		tblt = tblts[cmdtblts[i].index];
 		if (p_voice->tblts[0] == tblt
-		    || p_voice->tblts[1] == tblt)
+		 || p_voice->tblts[1] == tblt)
 			continue;
 		if (p_voice->tblts[0] == 0)
 			p_voice->tblts[0] = tblt;
-		else	p_voice->tblts[1] = tblt;
+		else
+			p_voice->tblts[1] = tblt;
 	}
 }
 
@@ -1914,7 +1920,6 @@ void do_tune(struct abctune *t,
 	}
 	curvoice = first_voice = voice_tb;
 	voice_tb[0].id = "1";		/* implicit voice */
-	set_tblt(first_voice);
 	micro_tb = t->micro_tb;		/* microtone values */
 	abc2win = 0;
 
@@ -2289,7 +2294,7 @@ static void get_key(struct SYMBOL *s)
 		     p_voice++) {
 			memcpy(&p_voice->key, &s->as.u.key, sizeof p_voice->key);
 			p_voice->sfp = s->as.u.key.sf;
-			if (p_voice->key.bagpipe
+			if (p_voice->key.mode >= BAGPIPE
 			    && p_voice->stem == 0)
 				p_voice->stem = -1;
 			p_voice->posit = cfmt.posit;
@@ -2304,7 +2309,7 @@ static void get_key(struct SYMBOL *s)
 			memcpy(&curvoice->key, &s->as.u.key,
 			       sizeof curvoice->key);
 			curvoice->sfp = s->as.u.key.sf;
-			if (curvoice->key.bagpipe
+			if (curvoice->key.mode >= BAGPIPE
 			    && curvoice->stem == 0)
 				curvoice->stem = -1;
 			break;
@@ -2499,7 +2504,7 @@ static void get_note(struct SYMBOL *s)
 		int div;
 
 		s->stem = curvoice->gstem;
-		if (!curvoice->key.bagpipe) {
+		if (curvoice->key.mode < BAGPIPE) {
 			div = 4;
 			if (curvoice->last_sym == 0
 			    || !(curvoice->last_sym->as.flags & ABC_F_GRACE)) {
@@ -2600,7 +2605,6 @@ static void get_note(struct SYMBOL *s)
 			prev->as.flags |= (s->as.flags & ABC_F_STEMLESS);
 		}
 	}
-
 
 	for (i = 0; i <= m; i++) {
 		if (s->as.u.note.sl1[i] != 0)

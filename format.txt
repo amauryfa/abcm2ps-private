@@ -174,6 +174,7 @@ List of the format parameters
 	Command line: -c
 	Description:
 		If true, ignore the line breaks in tune.
+		This parameter is deprecated in favour of '%%linebreak <none>'.
 
   dateformat <text>
 	Default: "\%b \%e, \%Y \%H:\%M"
@@ -223,6 +224,16 @@ List of the format parameters
 			- see code).
 		Decorations which names begin with 'head-' prevent the
 		note head(s) to be drawn.
+
+  decoration <character>
+	Default: !
+	Compilation: none
+	Command line: none
+	Description:
+		Define the decoration separator.
+		It may be set only to '!' (default) or '+' (for compatibility
+		with the ABC standard 2.0).
+
 
   dynalign <bool>
 	Default: 1
@@ -472,6 +483,26 @@ List of the format parameters
 	Command line: -m<unit>
 	Description:
 		Set the left margin to <unit>.
+
+  linebreak <list of linebreak separators>
+	Default: <EOL>
+	Compilation: none
+	Command line: none
+	Description:
+		Define the character(s) which break(s) the music lines.
+		The <list of linebreak separators> is a blank separated
+		list of none, one or more of:
+			<EOL> (system End Of Line)
+			$
+			!
+			<none>
+		For compatibility, when <EOL> is in the list, the character
+		'!' may do a linebreak is it does not seem to introduce a
+		decoration.
+		The value '<none>' must be alone in the list. In this case
+		the program computes itself the linebreaks. This behaviour is
+		the same when the list is empty. Tjis replaces the previous
+		'%%continueall 1'.
 
   lineskipfac <float>
 	Default: 1.1

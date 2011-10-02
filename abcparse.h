@@ -99,10 +99,13 @@ struct abcsym {
 	union {			/* type dependent part */
 		struct key_s {		/* K: info */
 			signed char sf;		/* sharp (> 0) flats (< 0) */
-			char bagpipe;		/* HP or Hp */
-			char minor;		/* major (0) / minor (1) */
 			char empty;		/* clef alone if 1, 'none' if 2 */
 			char exp;		/* exp (1) or mod (0) */
+			char mode;		/* mode */
+/* 0: Ionian, 1: Dorian, 2: Phrygian, 3: Lydian, 4: Mixolydian
+ * 5: Aeolian, 6: Locrian, 7: minor, 8: HP, 9: Hp */
+#define MINOR 7
+#define BAGPIPE 8				/* bagpipe when >= 8 */
 			signed char nacc;	/* number  of explicit accidentals */
 						/* (-1) if no accidental */
 			signed char pits[8];
