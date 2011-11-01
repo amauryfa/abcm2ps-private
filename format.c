@@ -1060,7 +1060,12 @@ int read_fmt_file(char *fn)
 {
 	FILE *fp;
 	char line[BSIZE], *p, *q;
+	static int nbfiles;
 
+	if (nbfiles > 3) {
+		error(1, 0, "Too many simultaneous files");
+		return 0;
+	}
 	line[0] = '\001';
 	if ((fp = open_file(fn, "fmt", &line[1])) == 0)
 		return -1;
@@ -1072,6 +1077,7 @@ int read_fmt_file(char *fn)
 		fclose(fp);
 		return 0;
 	}
+	nbfiles++;
 	for (;;) {
 		p = line;
 		if (!fgets(p, sizeof line, fp))
@@ -1127,6 +1133,7 @@ int read_fmt_file(char *fn)
 		interpret_fmt_line(q, p, 0);
 	}
 	fclose(fp);
+	nbfiles--;
 	return 0;
 }
 

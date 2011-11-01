@@ -3746,7 +3746,7 @@ static float set_staff(void)
 	struct SYSTEM *sy;
 	struct SYMBOL *s, *g;
 	int staff, any_part, any_tempo;
-	float y, staffsep, dy, maxsep, mbot, scale;
+	float y, staffsep, dy, maxsep, mbot;
 	struct {
 		float mtop;
 		int not_empty;
@@ -3826,42 +3826,43 @@ static float set_staff(void)
 				delta_tb[i++].not_empty = 1;
 		}
 	}
-	mbot = 0;
 	{
-		int i;
+		int i, prev_staff;
 		float v;
 
-		if (delta_tb[0].not_empty) {
-			p_delta = &delta_tb[0];
-			for (i = 0; i < YSTEP; i++) {
-				v = staff_tb[0].top[i];
-				if (p_delta->mtop < v)
-					p_delta->mtop = v;
-			}
-		} else	staff_tb[0].empty = 1;
-		for (staff = 1; staff <= nstaff; staff++) {
-			if (!delta_tb[staff].not_empty) {
+		prev_staff = -1;
+		for (staff = 0, p_delta = delta_tb;
+		     staff <= nstaff;
+		     staff++, p_delta++) {
+			if (!p_delta->not_empty) {
 				staff_tb[staff].empty = 1;
 				continue;
 			}
-			p_delta = &delta_tb[staff];
-			for (i = 0; i < YSTEP; i++) {
-				v = staff_tb[staff].top[i]
-					- staff_tb[staff - 1].bot[i];
-				if (p_delta->mtop < v)
-					p_delta->mtop = v;
-			}
-		}
-		for (staff = nstaff; staff >= 0; staff--) {
-			if (!staff_tb[staff].empty) {
-				p_delta = &delta_tb[staff];
+			if (prev_staff >= 0) {
 				for (i = 0; i < YSTEP; i++) {
-					v = staff_tb[staff].bot[i];
-					if (mbot > v)
-						mbot = v;
+					v = staff_tb[staff].top[i]
+						* staff_tb[staff].clef.staffscale
+					  - staff_tb[prev_staff].bot[i]
+						* staff_tb[prev_staff].clef.staffscale;
+					if (p_delta->mtop < v)
+						p_delta->mtop = v;
 				}
-				break;
+			} else {
+				for (i = 0; i < YSTEP; i++) {
+					v = staff_tb[staff].top[i]
+						* staff_tb[staff].clef.staffscale;
+					if (p_delta->mtop < v)
+						p_delta->mtop = v;
+				}
 			}
+			prev_staff = staff;
+		}
+		mbot = 0;
+		for (i = 0; i < YSTEP; i++) {
+			v = staff_tb[prev_staff].bot[i]
+				* staff_tb[prev_staff].clef.staffscale;
+			if (mbot > v)
+				mbot = v;
 		}
 	}
 
@@ -3884,8 +3885,10 @@ static float set_staff(void)
 			for (i = 0; i < 2; i++) {
 				if (p_voice->tblts[i] != 0
 				    && p_voice->tblts[i]->pitch == 0) {
-					ha += p_voice->tblts[i]->ha;
-					hu += p_voice->tblts[i]->hu;
+					ha += p_voice->tblts[i]->ha
+						* staff_tb[staff].clef.staffscale;
+					hu += p_voice->tblts[i]->hu
+						* staff_tb[staff].clef.staffscale;
 				}
 			}
 			if (ha == 0 && hu == 0) {
@@ -3921,7 +3924,7 @@ static float set_staff(void)
 
 	/* draw the parts and tempo indications if any */
 	if (any_part || any_tempo) {
-		dy = delta_tb[0].mtop * staff_tb[0].clef.staffscale;
+		dy = delta_tb[0].mtop;
 		if (dy == 0)		/* first staff not displayed */
 			dy = 24 + 14;
 		dy = draw_partempo(dy, any_part, any_tempo);
@@ -3934,8 +3937,7 @@ static float set_staff(void)
 	for (staff = 0, p_delta = delta_tb;
 	     staff <= nstaff;
 	     staff++, p_delta++) {
-		scale = staff_tb[staff].clef.staffscale;
-		dy += p_delta->mtop * scale;
+		dy += p_delta->mtop;
 		if (!staff_tb[staff].empty) {
 			staffsep += staff_tb[staff].topbar;
 			if (dy < staffsep)
@@ -3948,9 +3950,10 @@ static float set_staff(void)
 		staff_tb[staff].y = -y;
 /*fixme: handle tablature?*/
 		PUT2("/y%d{%.1f add}def\n", staff, -y);
-		if (scale != 1) {
+		if (staff_tb[staff].clef.staffscale != 1
+		 && staff_tb[staff].clef.staffscale != 0) {
 			PUT3("/scst%d{gsave 0 %.2f translate %.2f dup scale}def\n",
-			     staff, -y, scale);
+			     staff, -y, staff_tb[staff].clef.staffscale);
 		}
 		if (sy->staff[staff].sep != 0)
 			staffsep = sy->staff[staff].sep;
@@ -3968,7 +3971,7 @@ static float set_staff(void)
 		if (staff < 0)		/* no symbol in this system */
 			return y;
 	}
-	dy = -(mbot * staff_tb[nstaff].clef.staffscale);
+	dy = -mbot;
 	staffsep = cfmt.staffsep * 0.5;
 	if (dy < staffsep)
 		dy = staffsep;

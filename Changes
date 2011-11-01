@@ -1,3 +1,12 @@
+---- Version 5.9.25 - 11/11/02 ----
+
+Fix clash of lyrics when more staves added later
+	(reported by Atte André Jensen).
+Limit the number of simultaneous format files.
+Fix bad tremolo on crotchet after beamed notes without space
+	(reported by Jean-Luc Zins).
+Don't count the upbeat measure when %%measurenb.
+
 ---- Version 5.9.24 - 11/07/31 ----
 
 Check the sequences or measures to repeat in I:repeat.

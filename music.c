@@ -2126,7 +2126,7 @@ static void set_bar_num(void)
 	}
 
 	/* set the measure number on the top bars */
-	bar_time = s->time + 1;	/* for incomplete measure at start of tune */
+	bar_time = s->time + wmeasure;	/* for incomplete measure at start of tune */
 	bar_num = nbar;
 	for ( ; s != 0; s = s->ts_next) {
 		switch (s->type) {
@@ -3075,12 +3075,12 @@ static void set_global(void)
 				if (s->as.flags & ABC_F_SPACE)
 					start_flag = 1;
 				if (start_flag
-				    || s->nflags <= 0) {
+				    || s->nflags - s->u <= 0) {
 					if (lastnote != 0) {
 						lastnote->sflags |= S_BEAM_END;
 						lastnote = 0;
 					}
-					if (s->nflags <= 0) {
+					if (s->nflags - s->u <= 0) {
 						s->sflags |= (S_BEAM_ST | S_BEAM_END);
 						start_flag = 1;
 					} else if (s->as.type == ABC_T_NOTE) {
