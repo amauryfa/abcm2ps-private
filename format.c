@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2011 Jean-François Moine
+ * Copyright (C) 1998-2012 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA  02110-1335  USA
  */
 
 #include <stdlib.h>
@@ -29,8 +29,8 @@
 
 struct FORMAT cfmt;		/* current format for output */
 
-char font_enc[MAXFONTS];		/* font encoding */
 char *fontnames[MAXFONTS];		/* list of font names */
+static char font_enc[MAXFONTS];		/* font encoding */
 static char def_font_enc[MAXFONTS];	/* default font encoding */
 static char used_font[MAXFONTS];	/* used fonts */
 static float swfac_font[MAXFONTS];	/* width scale */
@@ -57,6 +57,7 @@ static struct format {
 	{"autoclef", &cfmt.autoclef, FORMAT_B, 0},
 	{"annotationfont", &cfmt.font_tb[ANNOTATIONFONT], FORMAT_F, 0},
 	{"barsperstaff", &cfmt.barsperstaff, FORMAT_I, 0},
+	{"bgcolor", &cfmt.bgcolor, FORMAT_S, 0},
 	{"botmargin", &cfmt.botmargin, FORMAT_U, 0},
 	{"breakoneoln", &cfmt.breakoneoln, FORMAT_B, 0},
 	{"bstemdown", &cfmt.bstemdown, FORMAT_B, 0},
@@ -66,10 +67,10 @@ static struct format {
 	{"composerspace", &cfmt.composerspace, FORMAT_U, 0},
 	{"contbarnb", &cfmt.contbarnb, FORMAT_B, 0},
 	{"continueall", &cfmt.continueall, FORMAT_B, 0},
+	{"custos", &cfmt.custos, FORMAT_B, 0},
 	{"dateformat", &cfmt.dateformat, FORMAT_S, 0},
 	{"dynalign", &cfmt.dynalign, FORMAT_B, 0},
 	{"dynamic", &cfmt.dynamic, FORMAT_I, 6},
-	{"encoding", &cfmt.encoding, FORMAT_I, 1},
 	{"footer", &cfmt.footer, FORMAT_S, 0},
 	{"footerfont", &cfmt.font_tb[FOOTERFONT], FORMAT_F, 0},
 	{"flatbeams", &cfmt.flatbeams, FORMAT_B, 0},
@@ -89,11 +90,12 @@ static struct format {
 	{"landscape", &cfmt.landscape, FORMAT_B, 0},
 	{"leftmargin", &cfmt.leftmargin, FORMAT_U, 0},
 	{"lineskipfac", &cfmt.lineskipfac, FORMAT_R, 0},
+	{"linewarn", &cfmt.linewarn, FORMAT_B, 0},
 	{"maxshrink", &cfmt.maxshrink, FORMAT_R, 0},
 	{"maxstaffsep", &cfmt.maxstaffsep, FORMAT_U, 0},
 	{"maxsysstaffsep", &cfmt.maxsysstaffsep, FORMAT_U, 0},
 	{"measurebox", &cfmt.measurebox, FORMAT_B, 0},
-	{"measurefirst", &cfmt.measurefirst, FORMAT_I, 2},
+	{"measurefirst", &cfmt.measurefirst, FORMAT_I, 0},
 	{"measurefont", &cfmt.font_tb[MEASUREFONT], FORMAT_F, 2},
 	{"measurenb", &cfmt.measurenb, FORMAT_I, 0},
 	{"musicspace", &cfmt.musicspace, FORMAT_U, 0},
@@ -149,6 +151,7 @@ static struct format {
 	{"timewarn", &cfmt.timewarn, FORMAT_B, 0},
 	{"topmargin", &cfmt.topmargin, FORMAT_U, 0},
 	{"topspace", &cfmt.topspace, FORMAT_U, 0},
+	{"transpose", &cfmt.transpose, FORMAT_I, 1},
 	{"tuplets", &cfmt.tuplets, FORMAT_I, 3},
 	{"vocal", &cfmt.vocal, FORMAT_I, 6},
 	{"vocalfont", &cfmt.font_tb[VOCALFONT], FORMAT_F, 0},
@@ -177,7 +180,7 @@ static int get_font(char *fname, int encoding)
 		}
 	while (--fnum >= 0) {
 		if (strcmp(fname, fontnames[fnum]) == 0
-		    && encoding == font_enc[fnum])
+		 && encoding == font_enc[fnum])
 			return fnum;
 	}
 
@@ -193,7 +196,7 @@ static int get_font(char *fname, int encoding)
 	fnum = nfontnames++;
 	fontnames[fnum] = strdup(fname);
 	if (encoding < 0)
-		encoding = cfmt.encoding;
+		encoding = 0;
 	font_enc[fnum] = encoding;
 	return fnum;
 }
@@ -228,19 +231,21 @@ static void fontspec(struct FONTSPEC *f,
 	else	name = fontnames[f->fnum];
 	f->size = size;
 	f->swfac = size;
-	if (swfac_font[f->fnum] != 0)
+	if (swfac_font[f->fnum] != 0) {
 		f->swfac *= swfac_font[f->fnum];
-	else if (strncmp(name, "Times", 5) == 0) {
+	} else if (strncmp(name, "Times", 5) == 0) {
 		if (strcmp(name, "Times-Bold") == 0)
 			f->swfac *= 1.05;
-	} else if (strcmp(name, "Helvetica-Bold") == 0)
+	} else if (strcmp(name, "Helvetica-Bold") == 0) {
 		f->swfac *= 1.15;
-	else if (strncmp(name, "Helvetica", 9) == 0
-		 || strncmp(name, "Palatino", 8) == 0)
+	} else if (strncmp(name, "Helvetica", 9) == 0
+		|| strncmp(name, "Palatino", 8) == 0) {
 		f->swfac *= 1.10;
-	else if (strncmp(name, "Courier", 7) == 0)
+	} else if (strncmp(name, "Courier", 7) == 0) {
 		f->swfac *= 1.35;
-	else	f->swfac *= 1.2;		/* unknown font */
+	} else {
+		f->swfac *= 1.2;		/* unknown font */
+	}
 	if (f == &cfmt.font_tb[GCHORDFONT])
 		cfmt.gcf = dfont_set(f);
 	else if (f == &cfmt.font_tb[ANNOTATIONFONT])
@@ -328,6 +333,7 @@ static void set_infoname(char *p)
 }
 
 /* -- set the default format -- */
+/* this function is called only once, at abcm2ps startup time */
 void set_format(void)
 {
 	struct FORMAT *f;
@@ -364,8 +370,12 @@ void set_format(void)
 	f->autoclef = 1;
 	f->breakoneoln = 1;
 	f->dynalign = 1;
+	f->linewarn = 1;
 #ifdef HAVE_PANGO
-	f->pango = 1;
+	if (!svg && epsf != 2)
+		f->pango = 1;
+	else
+		lock_fmt(&cfmt.pango);	/* SVG output does not use panga */
 #endif
 	f->staffnonote = 1;
 	f->titletrim = 1;
@@ -373,9 +383,9 @@ void set_format(void)
 	f->notespacingfactor = 1.414;
 	f->stemheight = STEM;
 #ifndef WIN32
-	f->dateformat = strdup("\\%b \\%e, \\%Y \\%H:\\%M");
+	f->dateformat = strdup("%b %e, %Y %H:%M");
 #else
-	f->dateformat = strdup("\\%b \\%#d, \\%Y \\%H:\\%M");
+	f->dateformat = strdup("%b %#d, %Y %H:%M");
 #endif
 	f->gracespace = (65 << 16) | (80 << 8) | 120;	/* left-inside-right - unit 1/10 pt */
 	f->textoption = T_LEFT;
@@ -455,10 +465,24 @@ static char posit[3][8] = {"auto", "above", "below"};
 			default:
 				printf("%d\n", *((int *) fd->v));
 				break;
-			case 1:			/* encoding */
-				printf("%s\n", *((int *) fd->v) ?
-						"native" : "utf-8");
+			case 1: {		/* transpose */
+				int t;
+
+				t = *((int *) fd->v);
+				if (t >= 0)
+					putchar('+');
+				printf("%d", t / 3);
+				switch ((t + 240) % 3) {
+				case 1:
+					putchar('#');
+					break;
+				case 2:
+					putchar('b');
+					break;
+				}
+				putchar('\n');
 				break;
+			    }
 			case 3:			/* tuplets */
 				printf("%d %d %d\n",
 					cfmt.tuplets >> 8,
@@ -487,13 +511,13 @@ static char posit[3][8] = {"auto", "above", "below"};
 
 			s = (struct FONTSPEC *) fd->v;
 			printf("%s", fontnames[s->fnum]);
-			if (font_enc[s->fnum] != cfmt.encoding)
+//			if (font_enc[s->fnum] != cfmt.encoding)
 				printf(" %s", font_enc[s->fnum] ?
 						"native" : "utf-8");
 			printf(" %.1f", s->size);
 			if ((fd->subtype == 1 && cfmt.partsbox)
-			    || (fd->subtype == 2 && cfmt.measurebox)
-			    || (fd->subtype == 3 && cfmt.gchordbox))
+			 || (fd->subtype == 2 && cfmt.measurebox)
+			 || (fd->subtype == 3 && cfmt.gchordbox))
 				printf(" box");
 			printf("\n");
 			break;
@@ -501,14 +525,16 @@ static char posit[3][8] = {"auto", "above", "below"};
 		case FORMAT_U:
 			if (fd->subtype == 0)
 				printf("%.2fcm\n", *((float *) fd->v) / (1 CM));
-			else	printf("%.2fcm\n",
+			else
+				printf("%.2fcm\n",
 					(cfmt.pagewidth
 						- cfmt.leftmargin
 						- cfmt.rightmargin)
 					/ (1 CM));
 			break;
 		case FORMAT_S:
-			printf("\"%s\"\n", *((char **) fd->v) != 0 ? *((char **) fd->v) : "");
+			printf("\"%s\"\n",
+				*((char **) fd->v) != 0 ? *((char **) fd->v) : "");
 			break;
 		}
 	}
@@ -522,15 +548,9 @@ static int get_encoding(char *p)
 	l = 0;
 	while (p[l] != '\0' && !isspace((unsigned char) p[l]))
 		l++;
-	if (strncasecmp(p, "ASCII", l) == 0)	/* backward compatibility */
-		return 0;
-	if (strncasecmp(p, "us-ascii", l) == 0)	/* backward compatibility */
-		return 0;
-	if (strncasecmp(p, "utf-8", l) == 0)	/* backward compatibility */
-		return 0;
 	if (strncasecmp(p, "native", l) == 0)
 		return 1;
-	error(1, 0, "Encoding not treated");
+	/* no error */
 	return 0;
 }
 
@@ -585,17 +605,10 @@ static int g_logv(char *p)
 	case 'F':
 		break;
 	default:
-		fprintf(stderr,
-			"++++ Unknown logical '%s' - false assumed\n", p);
+		error(0, 0, "Unknown logical '%s' - false assumed", p);
 		break;
 	}
 	return 0;
-}
-
-/* --  get a float variable, no units -- */
-static float g_fltv(char *p)
-{
-	return atof(p);
 }
 
 /* -- get a font specifier -- */
@@ -607,16 +620,29 @@ static void g_fspc(char *p,
 	float fsize;
 
 	p = get_str(fname, p, sizeof fname);
-	if (!isdigit((unsigned char) *p)) {
+	if (isalpha((unsigned char) *p) || *p == '*') {
 		if (*p == '*')
 			encoding = font_enc[f->fnum];
-		else	encoding = get_encoding(p);
+		else
+			encoding = get_encoding(p);
 		while (*p != '\0' && !isspace((unsigned char) *p))
 			p++;
 		while (isspace((unsigned char) *p))
 			p++;
-	} else	encoding = -1;
-	fsize = *p != '\0' && *p != '*' ? g_fltv(p) : f->size;
+	} else {
+		encoding = -1;
+	}
+	fsize = f->size;
+	if (*p != '\0' && *p != '*') {
+		char *q;
+		float v;
+
+		v = strtod(p, &q);
+		if (v <= 0 || (*q != '\0' && *q != ' '))
+			error(1, 0, "Bad font size '%s'", p);
+		else
+			fsize = v;
+	}
 	fontspec(f,
 		 strcmp(fname, "*") != 0 ? fname : 0,
 		 encoding,
@@ -655,7 +681,7 @@ struct tblt_s *tblt_parse(char *p)
 		p++;
 		n = *p++ - '0' - 1;
 		if ((unsigned) n >= MAXTBLT
-		    || (*p != '\0' && *p != ' ')) {
+		 || (*p != '\0' && *p != ' ')) {
 			error(1, 0, "Invalid number in %%%%tablature");
 			return 0;
 		}
@@ -689,18 +715,21 @@ struct tblt_s *tblt_parse(char *p)
 		while (*p == '\'' || *p == ',') {
 			if (*p++ == '\'')
 				tblt->pitch += 12;
-			else	tblt->pitch -= 12;
+			else
+				tblt->pitch -= 12;
 		}
 		if (*p == '#' || *p == 'b') {
 			if (*p == '#')
 				tblt->pitch++;
-			else	tblt->pitch--;
+			else
+				tblt->pitch--;
 			tblt->instr[1] = *p++;
 		}
 		while (*p == '\'' || *p == ',') {
 			if (*p++ == '\'')
 				tblt->pitch += 12;
-			else	tblt->pitch -= 12;
+			else
+				tblt->pitch -= 12;
 		}
 		while (isspace((unsigned char) *p))
 			p++;
@@ -807,11 +836,16 @@ void interpret_fmt_line(char *w,		/* keyword */
 			float swfac;
 			char fname[80];
 
+			if (file_initialized) {
+				error(1, 0,
+				      "Cannot define a font when the output file is opened");
+				return;
+			}
 			p = get_str(fname, p, sizeof fname);
-			swfac = 0;
-			encoding = cfmt.encoding;
+			swfac = 0;			/* defaults to 1.2 */
+			encoding = 0;
 			if (*p != '\0') {
-				if (!isdigit((unsigned char) *p)) {
+				if (isalpha((unsigned char) *p)) {
 					encoding = get_encoding(p);
 					while (*p != '\0'
 					    && !isspace((unsigned char) *p))
@@ -819,24 +853,22 @@ void interpret_fmt_line(char *w,		/* keyword */
 					while (isspace((unsigned char) *p))
 						p++;
 				}
-				if (isdigit((unsigned char) *p))
-					swfac = atof(p);
+				if (isdigit((unsigned char) *p)) {
+					char *q;
+					float v;
+
+					v = strtod(p, &q);
+					if (v > 2 || (*q != '\0' && *q != '\0')) {
+						error(1, 0, "Bad value '%s' for '%s'", p, w);
+						break;
+					}
+					swfac = v;
+				}
 			}
 			fnum = get_font(fname, encoding);
 			def_font_enc[fnum] = encoding;
 			swfac_font[fnum] = swfac;
-			if (file_initialized)
-				error(1, 0,
-				      "Cannot define a font when the output file is opened");
-			else
-				used_font[fnum] = 1;
-			return;
-		}
-		if (strcmp(w, "format") == 0) {
-			if (secure)
-				return;
-			if (read_fmt_file(p) < 0)
-				error(1, 0, "No such format file '%s'", p);
+			used_font[fnum] = 1;
 			return;
 		}
 		break;
@@ -862,10 +894,10 @@ void interpret_fmt_line(char *w,		/* keyword */
 		break;
 	case 'p':
 		if (strcmp(w, "postscript") == 0) {
-			if (!file_initialized)
-				user_ps_add(p);
-			else
-				PUT1("%s\n", p);
+			if (!file_initialized && mbf == outbuf)
+				user_ps_add(p, 'b');
+			else if (svg || epsf == 2 || !secure)
+				a2b("%s\n", p);
 			return;
 		}
 		if (strcmp(w, "printparts") == 0) {	/* compatibility */
@@ -880,12 +912,6 @@ void interpret_fmt_line(char *w,		/* keyword */
 				cfmt.fields[0] |= (1 << ('Q' - 'A'));
 			else
 				cfmt.fields[0] &= ~(1 << ('Q' - 'A'));
-			return;
-		}
-		break;
-	case 't':
-		if (strcmp(w, "tablature") == 0) {
-			tblt_parse(p);
 			return;
 		}
 		break;
@@ -927,9 +953,21 @@ void interpret_fmt_line(char *w,		/* keyword */
 			break;
 	if (fd->name == 0)
 		return;
-	if (fd->lock && !lock)
+
+	{
+		int l;
+
+		l = strlen(p);
+		if (strcmp(p + l - 5, " lock") == 0) {
+			p[l - 5] = '\0';
+			lock = 1;
+		}
+	}
+	if (lock)
+		fd->lock = 1;
+	else if (fd->lock)
 		return;
-	fd->lock |= lock;
+
 	switch (fd->type) {
 	case FORMAT_B:
 		switch (fd->subtype) {
@@ -981,7 +1019,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 			unsigned i1, i2, i3;
 
 			if (sscanf(p, "%d %d %d", &i1, &i2, &i3) != 3
-			    || i1 > 2 || i2 > 2 || i3 > 2) {
+			 || i1 > 2 || i2 > 2 || i3 > 2) {
 				error(1, 0,
 				      "Bad 'tuplets' values '%s' - ignored",
 				      p);
@@ -995,7 +1033,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 			float f1, f2, f3;
 
 			if (sscanf(p, "%f %f %f", &f1, &f2, &f3) != 3
-			    || f1 > 256 || f2 > 256 || f3 > 256) {
+			 || f1 > 256 || f2 > 256 || f3 > 256) {
 				error(1, 0,
 				      "Bad 'gracespace' values '%s' - ignored",
 				      p);
@@ -1007,35 +1045,30 @@ void interpret_fmt_line(char *w,		/* keyword */
 			cfmt.gracespace = (i1 << 16) | (i2 << 8) | i3;
 			break;
 		}
-		if (fd->subtype == 1 && !isdigit(*p))	/* 'encoding' */
-			cfmt.encoding = get_encoding(p);
-		else if (fd->subtype == 4 && !isdigit(*p)) /* 'textoption' */
+		if (fd->subtype == 4 && !isdigit(*p)) /* 'textoption' */
 			cfmt.textoption = get_textopt(p);
 		else if (fd->subtype == 6 && !isdigit(*p)) /* position */
 			*((int *) fd->v) = get_posit(p);
 		else
 			sscanf(p, "%d", (int *) fd->v);
 		switch (fd->subtype) {
-		case 1:					/* 'encoding' */
-			if ((unsigned) cfmt.encoding > 1) {
-				error(1, 0,
-				      "Bad encoding value %d - reset to utf-8",
-				      cfmt.encoding);
-				cfmt.encoding = 0;
-			} else {
-				int i;
-
-				for (i = 0; i < nfontnames; i++) {
-					if (font_enc[i] == 0)
-						def_font_enc[i] = font_enc[i]
-							= cfmt.encoding;
-				}
+		case 1:					/* transpose */
+			cfmt.transpose *= 3;
+			if (p[strlen(p) - 1] == '#') {
+				if (cfmt.transpose > 0)
+					cfmt.transpose++;
+				else
+					cfmt.transpose -= 2;
+			} else if (p[strlen(p) - 1] == 'b') {
+				if (cfmt.transpose > 0)
+					cfmt.transpose += 2;
+				else
+					cfmt.transpose--;
 			}
 			break;
-		case 2:
-			nbar = nbar_rep = cfmt.measurefirst;
-			break;
-		case 4:				/* 'textoption' */
+//		case 2:				/* (free) */
+//			break;
+		case 4:				/* textoption */
 			if (cfmt.textoption < 0) {
 				error(1, 0,
 				      "Bad 'textoption' value '%s'",
@@ -1059,28 +1092,38 @@ void interpret_fmt_line(char *w,		/* keyword */
 		}
 		break;
 	case FORMAT_R:
-		*((float *) fd->v) = g_fltv(p);
-		if (fd->subtype == 1) {	/* note spacing factor */
+		{
+			char *q;
+			float v;
+
+			v = strtod(p, &q);
+			if (v <= 0 || (*q != '\0' && *q != ' ')) {
+				error(1, 0, "Bad value '%s' for '%s'", p, w);
+				break;
+			}
+			*((float *) fd->v) = v;
+		}
+		if (fd->subtype == 1) {		/* note spacing factor */
 			int i;
-			float w;
+			float v;
 
 			if (cfmt.notespacingfactor <= 0) {
-				fprintf(stderr,
-					"Bad value for 'notespacingfactor'\n");
+				error(1, 0,
+					"Bad value for 'notespacingfactor'");
 				cfmt.notespacingfactor = 1;
 				break;
 			}
 			i = C_XFLAGS;		/* crotchet index */
-			w = space_tb[i];
+			v = space_tb[i];
 			for ( ; --i >= 0; ) {
-				w /= cfmt.notespacingfactor;
-				space_tb[i] = w;
+				v /= cfmt.notespacingfactor;
+				space_tb[i] = v;
 			}
 			i = C_XFLAGS;
-			w = space_tb[i];
+			v = space_tb[i];
 			for ( ; ++i < NFLAGS_SZ; ) {
-				w *= cfmt.notespacingfactor;
-				space_tb[i] = w;
+				v *= cfmt.notespacingfactor;
+				space_tb[i] = v;
 			}
 		}
 		break;
@@ -1110,7 +1153,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 			rmargin = (cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 					- staffwidth - cfmt.leftmargin;
 			if (rmargin < 0)
-				fprintf(stderr, "'staffwidth' too big\n");
+				error(1, 0, "'staffwidth' too big\n");
 			cfmt.rightmargin = rmargin;
 		}
 		break;
@@ -1121,41 +1164,11 @@ void interpret_fmt_line(char *w,		/* keyword */
 		*((char **) fd->v) = getarena(l);
 		if (*p == '"')
 			get_str(*((char **) fd->v), p, l);
-		else	strcpy(*((char **) fd->v), p);
+		else
+			strcpy(*((char **) fd->v), p);
 		break;
 	    }
 	}
-}
-
-/* -- remove the spaces and comments of a format line -- */
-static char *clean_line(char *p)
-{
-	int i;
-	char c, *q;
-
-	while (isspace((unsigned char) *p))
-		p++;
-	q = p;
-	i = 0;
-	for (;;) {
-		if ((c = *p++) == '%') {
-			if (i > 0 && p[-2] != '\\')
-				c = '\0';
-		}
-		if (c == '\0') {
-			p--;
-			break;
-		}
-		i++;
-	}
-	while (--i > 0) {
-		c = *--p;
-		if (!isspace((unsigned char) c)) {
-			p[1] = '\0';
-			break;
-		}
-	}
-	return q;
 }
 
 /* -- lock a format -- */
@@ -1169,118 +1182,6 @@ void lock_fmt(void *fmt)
 	if (fd->name == 0)
 		return;
 	fd->lock = 1;
-}
-
-/* -- open a file for reading -- */
-FILE *open_file(char *fn,	/* file name */
-		char *ext,	/* file type */
-		char *rfn)	/* returned real file name */
-{
-	FILE *fp;
-	char *p;
-	int l;
-
-	strcpy(rfn, fn);
-	if ((fp = fopen(rfn, "r")) != 0)
-		return fp;
-	strext(rfn, ext);
-	if ((fp = fopen(rfn, "r")) != 0)
-		return fp;
-	if (in_fname != 0
-	    && (p = strrchr(in_fname, DIRSEP)) != 0) {
-		l = p - in_fname + 1;
-		strncpy(rfn, in_fname, l);
-		strcpy(&rfn[l], fn);
-		if ((fp = fopen(rfn, "r")) != 0)
-			return fp;
-		strext(&rfn[l], ext);
-		if ((fp = fopen(rfn, "r")) != 0)
-			return fp;
-	}
-	if (*styd == '\0')
-		return 0;
-	sprintf(rfn, "%s%c%s", styd, DIRSEP, fn);
-	if ((fp = fopen(rfn, "r")) != 0)
-		return fp;
-	strext(rfn, ext);
-	if ((fp = fopen(rfn, "r")) != 0)
-		return fp;
-	return 0;
-}
-
-/* -- read a format file -- */
-int read_fmt_file(char *fn)
-{
-	FILE *fp;
-	char line[BSIZE], *p, *q;
-
-	line[0] = '\001';
-	if ((fp = open_file(fn, "fmt", &line[1])) == 0)
-		return -1;
-	if (strcmp(&line[strlen(line) - 3], ".ps") == 0) {
-		if (!file_initialized)
-			user_ps_add(line);
-		else
-			error(0, 0, "Cannot include the file %s", &line[1]);
-		fclose(fp);
-		return 0;
-	}
-	for (;;) {
-		p = line;
-		if (!fgets(p, sizeof line, fp))
-			break;
-		p = clean_line(p);
-		if (*p == '\0')
-			continue;
-		if (strcmp(p, "beginps") == 0) {
-			for (;;) {
-				p = line;
-				if (!fgets(p, sizeof line, fp))
-					break;
-#if 1
-				{
-					int i;
-					char c;
-
-					i = strlen(p);
-					while (--i > 0) {
-						c = p[i];
-						if (!isspace((unsigned char) c)) {
-							p[i + 1] = '\0';
-							break;
-						}
-					}
-				}
-#else
-				p = clean_line(p);
-#endif
-				if (*p == '\0')
-					continue;
-				if (strcmp(p, "endps") == 0)
-					break;
-				if (!secure) {
-					if (!file_initialized)
-						user_ps_add(p);
-					else
-						PUT1("%s\n", p);
-				}
-			}
-			continue;
-		}
-		if (strcmp(p, "end") == 0)
-			break;
-		q = p;
-		while (*p != '\0' && !isspace((unsigned char) *p))
-			p++;
-		if (*p != '\0') {
-			*p++ = '\0';
-			while (isspace((unsigned char) *p))
-				p++;
-		}
-		interpret_fmt_line(q, p, 0);
-	}
-	fclose(fp);
-	return 0;
 }
 
 /* -- start a new font -- */
@@ -1297,14 +1198,15 @@ void set_font(int ft)
 	fnum = f->fnum;
 	if (fnum == f2->fnum && f->size == f2->size)
 		return;
-	if (!used_font[fnum]) {
+	if (!used_font[fnum]
+	 && epsf != 2 && !svg) {
 		error(1, 0,
-		      "Font \"%s\" not predefined; using first in list",
+		      "Font '%s' not predefined; using first in list",
 		      fontnames[fnum]);
 		fnum = 0;
 	}
 	if (f->size == 0) {
-		error(0, 0, "Font \"%s\" with a null size - set to 8",
+		error(0, 0, "Font '%s' with a null size - set to 8",
 		      fontnames[fnum]);
 		f->size = 8;
 	}

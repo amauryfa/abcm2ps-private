@@ -80,7 +80,7 @@ K:A
 V:S
 EEE	  |C3E	   EEFF        |(D2F3)	  FFF	 |E3C   EEDD		 |C4   z:|
 w:Ka-na a |rin, ka-na a rin be-|pred,* rag an Ao-|trou en-eus va zan-tel-|let.
-w:Eñ eo va|nerz, eñ eo i-vez va|Zad,*    eñ eo va|han, ka-na a rin e     |hloar.
+w:EÃ± eo va|nerz, eÃ± eo i-vez va|Zad,*    eÃ± eo va|han, ka-na a rin e     |hloar.
 V:A
 CCC	  |A,3A,   B,CA,A,     |(B,2A,3)  DDB,   |C3A,  B,A,A,G,	 |A,4  z:|
 V:T
@@ -99,7 +99,7 @@ Q:1/4=66
 %%staves [1 (2 3) 4]
 V:1 nm="RÃ¼ckpos"
 V:2 nm="Organo"
-K:C
+K:Am
 V:1
 %%MIDI program 53
 A3B    c2c2    |d2e2    de/f/P ^c3/d/|d8    |z8		  |

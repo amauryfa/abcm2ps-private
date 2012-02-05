@@ -40,10 +40,10 @@
 #define STEM_CH_MIN	14	/* min stem height for chords under beams */
 #define STEM_CH_MIN2	10	/* ... for notes with two beams */
 #define STEM_CH_MIN3	 9	/* ... for notes with three beams */
-#define STEM_CH_MIN4	 8	/* ... for notes with four beams */
-#define BEAM_DEPTH	3.2	/* width of a beam stroke (was 2.6) */
+#define STEM_CH_MIN4	 9	/* ... for notes with four beams */
+#define BEAM_DEPTH	3.2	/* width of a beam stroke */
 #define BEAM_OFFSET	0.25	/* pos of flat beam relative to staff line */
-#define BEAM_SHIFT	5.0	/* shift of second and third beams (was 5.3) */
+#define BEAM_SHIFT	5.0	/* shift of second and third beams */
 /*  To align the 4th beam as the 1st: shift=6-(depth-2*offset)/3  */
 #define BEAM_FLATFAC	0.6	/* factor to decrease slope of long beams */
 #define BEAM_THRESH	0.06	/* flat beam if slope below this threshold */
@@ -98,7 +98,6 @@ struct FONTSPEC {
 	float size;
 	float swfac;
 };
-extern char font_enc[MAXFONTS];		/* font encoding */
 extern char *fontnames[MAXFONTS];	/* list of font names */
 
 /* lyrics */
@@ -135,6 +134,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define FMTCHG		12
 #define TUPLET		13
 #define STBRK		14
+#define CUSTOS		15
+#define NSYMTYPES	16
 	unsigned char voice;	/* voice (0..nvoice) */
 	unsigned char staff;	/* staff (0..nstaff) */
 	unsigned char nhd;	/* number of notes in chord - 1 */
@@ -192,7 +193,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 				 *	- NOTE: tremolo number
 				 *	- FMTCHG (format change): subtype */
 #define PSSEQ 0				/* postscript sequence */
-#define REPEAT 1			/* repeat sequence or measure
+#define SVGSEQ 1			/* SVG sequence */
+#define REPEAT 2			/* repeat sequence or measure
 					 *	doty: # measures if > 0
 					 *	      # notes/rests if < 0
 					 *	nohdix: # repeat */
@@ -236,20 +238,20 @@ struct FORMAT { 		/* struct for page layout */
 	float maxstaffsep, maxsysstaffsep, stemheight;
 	int abc2pscompat, alignbars, aligncomposer, autoclef;
 	int barsperstaff, breakoneoln, bstemdown, comball;
-	int combinevoices, contbarnb, continueall, dynalign, dynamic;
-	int encoding, flatbeams;
+	int combinevoices, contbarnb, continueall, custos;
+	int dynalign, dynamic, flatbeams;
 	int infoline, gchord, gchordbox, graceslurs, gracespace, hyphencont;
-	int landscape, measurebox, measurefirst, measurenb;
+	int landscape, linewarn, measurebox, measurefirst, measurenb;
 	int oneperpage, ornament;
 #ifdef HAVE_PANGO
 	int pango;
 #endif
 	int partsbox, pdfmark;
-	int setdefl, shiftunisson, splittune, squarebreve, staffnonote;
-	int straightflags, stretchstaff, stretchlast;
-	int textoption, titlecaps, titleleft, titletrim, timewarn, tuplets;
-	int vocal, volume;
-	char *dateformat, *header, *footer, *titleformat;
+	int setdefl, shiftunisson, splittune, squarebreve;
+	int staffnonote, straightflags, stretchstaff, stretchlast;
+	int textoption, titlecaps, titleleft, titletrim;
+	int timewarn, transpose, tuplets, vocal, volume;
+	char *bgcolor, *dateformat, *header, *footer, *titleformat;
 #define FONT_UMAX 5		/* max number of user fonts */
 #define ANNOTATIONFONT 5
 #define COMPOSERFONT 6
@@ -294,7 +296,6 @@ extern int outft;		/* last font in the output file */
 extern int tunenum;		/* number of current tune */
 extern int pagenum;		/* current page number */
 extern int nbar;		/* current measure number */
-extern int nbar_rep;		/* last repeat bar number */
 extern int in_page;
 extern int defl;		/* decoration flags */
 #define DEF_NOST 0x01		/* long deco with no start */
@@ -312,7 +313,6 @@ extern int showerror;		/* show the errors */
 
 extern char outfn[FILENAME_MAX]; /* output file name */
 extern char *in_fname;		/* current input file name */
-extern char *styd;		/* format search directory */
 extern time_t mtime;		/* last modification time of the input file */
 
 extern int file_initialized;	/* for output file */
@@ -358,7 +358,7 @@ struct VOICE_S {
 	struct SYMBOL *sym;	/* associated symbols */
 	struct SYMBOL *last_sym; /* last symbol while scanning */
 	struct VOICE_S *next;	/* link */
-	char *id;		/* voice id */
+	char id[VOICE_ID_SZ];	/* voice id */
 	char *nm;		/* voice name */
 	char *snm;		/* voice subname */
 	char *bar_text;		/* bar text at start of staff when bar_start */
@@ -370,6 +370,8 @@ struct VOICE_S {
 	struct clef_s clef;	/* current clef */
 	struct key_s key;	/* current key signature */
 	struct meter_s meter;	/* current time signature */
+	struct key_s ckey;	/* key signature while parsing */
+	struct key_s okey;	/* original key signature while parsing */
 	unsigned hy_st;		/* lyrics hyphens at start of line (bit array) */
 	unsigned ignore:1;	/* ignore this voice */
 	unsigned forced_clef:1;	/* explicit clef */
@@ -381,12 +383,12 @@ struct VOICE_S {
 	unsigned new_name:1;	/* redisplay the voice name */
 	unsigned space:1;	/* have a space before the next note (parsing) */
 	short wmeasure;		/* measure duration while parsing */
+	short transpose;	/* transposition while parsing */
 	short bar_start;	/* bar type at start of staff / 0 */
 	unsigned short posit;	/* position of indications / staff */
 	signed char clone;	/* duplicate from this voice number */
 	unsigned char staff;	/* staff (0..n-1) */
 	unsigned char cstaff;	/* staff while parsing */
-	signed char sfp;	/* key signature while parsing */
 	signed char stem;	/* stem direction while parsing */
 	signed char gstem;	/* grace stem direction while parsing */
 	unsigned char slur_st;	/* slurs at start of staff */
@@ -523,7 +525,6 @@ FILE *open_file(char *fn,
 		char *ext,
 		char *rfn);
 void print_format(void);
-int read_fmt_file(char *filename);
 void set_font(int ft);
 void set_format(void);
 struct tblt_s *tblt_parse(char *p);
@@ -532,8 +533,7 @@ void output_music(void);
 void reset_gen(void);
 /* parse.c */
 extern float multicol_start;
-void do_tune(struct abctune *t,
-	     int header_only);
+void do_tune(struct abctune *t);
 void identify_note(struct SYMBOL *s,
 		   int len,
 		   int *p_head,
@@ -545,11 +545,6 @@ struct SYMBOL *sym_add(struct VOICE_S *p_voice,
 void bug(char *msg, int fatal);
 void error(int sev, struct SYMBOL *s, char *fmt, ...);
 float scan_u(char *str);
-#ifdef HAVE_PANGO
-void add_to_text_block(char *s, int job, int do_pango);
-#else
-void add_to_text_block(char *s, int job);
-#endif
 float cwid(unsigned short c);
 void get_str_font(int *cft, int *dft);
 void set_str_font(int cft, int dft);
@@ -568,17 +563,18 @@ void str_font(int ft);
 #define A_ANNOT 5
 #define A_GCHEXP 6
 void str_out(char *p, int action);
+void str_ft_out(char *p, int end);
 void put_str(char *str, int action);
 float tex_str(char *s);
 extern char tex_buf[];	/* result of tex_str() */
 #define TEX_BUF_SZ 512
 char *trim_title(char *p, int first);
-void user_ps_add(char *s);
+void user_ps_add(char *s, char use);
 void user_ps_write(void);
 void write_title(struct SYMBOL *s);
 void write_heading(struct abctune *t);
 void write_user_ps(void);
-void write_text_block(int job, int abc_state);
+void write_text(char *cmd, char *s, int job);
 /* svg.c */
 void define_svg_symbols(char *title, float w, float h);
 int svg_output(FILE *out, const char *fmt, ...)

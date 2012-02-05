@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2011 Jean-François Moine
+ * Copyright (C) 1998-2012 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA  02110-1335  USA
  */
 
 #include <stdarg.h>
@@ -147,7 +147,10 @@ static void init_svg(char *str)
 {
 	cur_lmarg = min_lmarg - 10;
 	output = svg_output;
-	file_initialized = 0;		/* force full reinit */
+#if 1 //fixme:test
+	if (file_initialized)
+		fprintf(stderr, "??? init_svg: file_initialized");
+#endif
 	define_svg_symbols(str,
 		(p_fmt->landscape ? p_fmt->pageheight : p_fmt->pagewidth)
 				- cur_lmarg - max_rmarg + 10,
@@ -179,6 +182,7 @@ out1:
 	fclose(fout);
 out2:
 	fout = 0;
+	file_initialized = 0;
 }
 
 /* -- close the output file -- */
@@ -205,7 +209,6 @@ void close_output_file(void)
 		close_fout();
 	}				/* else (svg == 1)
 					 * 'fout' is closed in close_page */
-	file_initialized = 0;
 	nbpages = tunenum = 0;
 	defl = 0;
 }
@@ -422,35 +425,33 @@ static float headfooter(int header,
 }
 
 /* -- initialize postscript page -- */
+/* the flag 'in_page' is always false */
 static void init_page(void)
 {
 	float pheight, pwidth;
-
-	if (in_page)
-		return;
 
 	p_fmt = info['X' - 'A'] == 0 ? &cfmt : &dfmt;	/* global format */
 
 	if (svg) {
 		if (!file_initialized) {
+			if (svg == 1 && fout == 0) {
+				int i;
+
+				i = strlen(outfnam) - 7;
+				sprintf(&outfnam[i], "%03d.svg", ++nepsf);
+				if ((fout = fopen(outfnam, "w")) == 0) {
+					error(1, 0,
+						"Cannot create output file %s - abort",
+						outfnam);
+					exit(EXIT_FAILURE);
+				}
+			}
 			define_svg_symbols(in_fname,
 				cfmt.landscape ? p_fmt->pageheight : p_fmt->pagewidth,
 				cfmt.landscape ? p_fmt->pagewidth : p_fmt->pageheight);
 			file_initialized = 1;
 			output = svg_output;
 		} else {
-			if (svg == 1) {
-				int i;
-
-				i = strlen(outfnam) - 7;
-				sprintf(&outfnam[i], "%03d.svg", ++nepsf);
-				if ((fout = fopen(outfnam, "w")) == 0) {
-					fprintf(stderr,
-						"Cannot create output file %s - abort\n",
-						outfnam);
-					exit(2);
-				}
-			}
 			define_svg_symbols(in_fname,
 				cfmt.landscape ? p_fmt->pageheight : p_fmt->pagewidth,
 				cfmt.landscape ? p_fmt->pagewidth : p_fmt->pageheight);
@@ -541,8 +542,8 @@ void open_output_file(void)
 		strcpy(fnm, svg ? "Out.xhtml" : OUTPUTFILE);
 	} else if (i == 0 && fnm[0] == '-') {
 		if (svg == 1) {
-			fprintf(stderr, "Cannot use stdout with '-v' - abort\n");
-			exit(2);
+			error(1, 0, "Cannot use stdout with '-v' - abort");
+			exit(EXIT_FAILURE);
 		}
 	} else {
 		if (fnm[i] == '=') {
@@ -569,15 +570,16 @@ void open_output_file(void)
 		if (strncmp(fnm, outfnam, i) != 0)
 			nepsf = 0;
 		sprintf(&fnm[i + 1], "%03d.svg", ++nepsf);
-	} else if (strcmp(fnm, outfnam) == 0)
+	} else if (strcmp(fnm, outfnam) == 0) {
 		return;				/* same output file */
+	}
 
 	close_output_file();
 	strcpy(outfnam, fnm);
 	if (i != 0 || fnm[0] != '-') {
 		if ((fout = fopen(fnm, "w")) == 0) {
-			fprintf(stderr, "Cannot create output file %s - abort\n", fnm);
-			exit(2);
+			error(1, 0, "Cannot create output file %s - abort", fnm);
+			exit(EXIT_FAILURE);
 		}
 	} else {
 		fout = stdout;
@@ -645,7 +647,7 @@ void write_eps(void)
 	i = strlen(outfnam) - 1;
 	if (i == 0 && outfnam[0] == '-') {
 		if (epsf == 1) {
-			fprintf(stderr, "Cannot use stdout with '-E' - abort\n");
+			error(1, 0, "Cannot use stdout with '-E' - abort");
 			exit(EXIT_FAILURE);
 		}
 		fout = stdout;
@@ -664,7 +666,7 @@ void write_eps(void)
 		}
 		strcat(outfnam, epsf == 1 ? ".eps" : ".svg");
 		if ((fout = fopen(outfnam, "w")) == 0) {
-			fprintf(stderr, "Cannot open output file %s - abort\n",
+			error(1, 0, "Cannot open output file %s - abort",
 					outfnam);
 			exit(EXIT_FAILURE);
 		}
@@ -704,7 +706,7 @@ void a2b(char *fmt, ...)
 	if (mbf + BSIZE > outbuf + BUFFSZ) {
 		if (epsf) {
 			error(1, 0, "Possible buffer overflow - abort");
-			exit(2);
+			exit(EXIT_FAILURE);
 		}
 		error(0, 0, "Possible buffer overflow");
 		write_buffer();
@@ -832,10 +834,10 @@ void write_buffer(void)
 		maxy += dp;
 		p1 = ln_pos[l];
 	}
-	if (epsf == 2 || svg)
-		svg_write(p_buf, strlen(p_buf));
-	else
-		fwrite(p_buf, 1, strlen(p_buf), fout);
+#if 1 //fixme:test
+	if (strlen(p_buf) != 0)
+		fprintf(stderr, "??? buffer non empty:\n%s\n", p_buf);
+#endif
 	clear_buffer();
 	outft = outft_sav;
 }
@@ -845,9 +847,9 @@ void write_buffer(void)
    after page break and change buffer handling mode to pass though */
 void buffer_eob(void)
 {
-//fixme: should be done sooner and should be adjusted whencfmt change...
+//fixme: should be done sooner and should be adjusted when cfmt change...
 	if (maxy == 0)
-		maxy = (cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
+		maxy = (cfmt.landscape ? cfmt.pagewidth : cfmt.pageheight)
 			- cfmt.topmargin - cfmt.botmargin;
 	if (bposy == 0 && mbf == outbuf)
 		return;

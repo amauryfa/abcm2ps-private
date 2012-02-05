@@ -8,6 +8,7 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 CPPFLAGS = @DEFS@ @CPPFLAGS@ -I.
+CPPPANGO = @CPPPANGO@
 CFLAGS = @CFLAGS@
 LDFLAGS = @LDFLAGS@ -lm
 
@@ -23,11 +24,21 @@ docdir = @prefix@/doc
 
 # unix
 OBJECTS=abc2ps.o \
-	abcparse.o buffer.o deco.o draw.o format.o music.o parse.o \
-	subs.o svg.o syms.o
+	abcparse.o buffer.o deco.o draw.o format.o front.o music.o parse.o \
+	slre.o subs.o svg.o syms.o
 abcm2ps: $(OBJECTS)
-	$(CC) $(CFLAGS) -o abcm2ps $(OBJECTS) $(LDFLAGS)
-$(OBJECTS): abcparse.h abc2ps.h config.h Makefile
+	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
+
+$(OBJECTS): abcparse.h config.h Makefile
+abc2ps.o buffer.o deco.o draw.o format.o front.o music.o parse.o \
+	subs.o svg.o syms.o: abc2ps.h
+abc2ps.o front.o: front.h
+front.o parse.o slre.o: slre.h
+subs.o: subs.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(CPPPANGO) -o $@ $<
+
+abcmfe: front.c front.h slre.h
+	$(CC) $(CFLAGS) -DMAIN -o $@ $< slre.o
 
 DOCFILES=$(addprefix $(srcdir)/,Changes License README *.abc *.eps *.txt)
 
@@ -78,12 +89,12 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/fonts.fmt \
 	abcm2ps-$(VERSION)/format.c \
 	abcm2ps-$(VERSION)/format.txt \
+	abcm2ps-$(VERSION)/front.c \
+	abcm2ps-$(VERSION)/front.h \
 	abcm2ps-$(VERSION)/install.sh \
-	abcm2ps-$(VERSION)/journey.abc \
 	abcm2ps-$(VERSION)/landscape.fmt \
-	abcm2ps-$(VERSION)/mtunes1.abc \
-	abcm2ps-$(VERSION)/mtunes2.abc \
 	abcm2ps-$(VERSION)/music.c \
+	abcm2ps-$(VERSION)/musicfont.fmt \
 	abcm2ps-$(VERSION)/newfeatures.abc \
 	abcm2ps-$(VERSION)/options.txt \
 	abcm2ps-$(VERSION)/parse.c \
@@ -93,6 +104,8 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample3.eps \
 	abcm2ps-$(VERSION)/sample4.abc \
 	abcm2ps-$(VERSION)/sample5.abc \
+	abcm2ps-$(VERSION)/slre.c \
+	abcm2ps-$(VERSION)/slre.h \
 	abcm2ps-$(VERSION)/subs.c \
 	abcm2ps-$(VERSION)/svg.c \
 	abcm2ps-$(VERSION)/syms.c \
@@ -121,10 +134,9 @@ zip: abcm2ps.exe
 	abcm2ps-$(VERSION)/*.fmt \
 	abcm2ps-$(VERSION)/*.txt ; cd -
 
-EXAMPLES = deco.ps \
-	journey.ps \
-	mtunes1.ps \
-	mtunes2.ps \
+EXAMPLES = accordion.ps \
+	chinese.ps \
+	deco.ps \
 	newfeatures.ps \
 	sample.ps \
 	sample2.ps \

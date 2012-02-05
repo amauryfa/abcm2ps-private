@@ -13,15 +13,19 @@ A format file contains lines giving the parameters values, format:
 
 	parameter [parameter list]
 
-In a format file, empty lines and lines starting with '#' are ignored.
+In a format file, empty lines and lines starting with '%' are ignored.
 
 The pseudo-comments used for formatting have the format:
 
 	%%parameter [parameter list]
 
-Format parameters may appear in the command line by:
+Format parameters may appear in the command line as:
 
 	--parameter [parameter list]
+
+The keyword "lock" may appear at the end of the parameter list, in
+which case, the parameter will not be settable anymore (except with
+"lock" again). It is implicitly added in the command line parameters.
 
 Some pseudo-comments are treated while being parsed and cannot appear
 in a format file nor in the command line. These ones are listed at the
@@ -29,9 +33,9 @@ end of this file.
 
 In font definitions, <font>, <encoding> and <size> may be specified
 as '*' (star), in which case the font, encoding or size remains
-the same. When the <encoding> is omitted, it defaults to the global
-font encoding (see 'encoding'), or to the last 'font' definition
-of the same font.
+the same. When the <encoding> is omitted, it defaults to 'utf-8'
+or to the last 'font' definition of the same font. The <encoding> values
+are described in 'annotationfont'.
 
 
 List of the format parameters
@@ -71,6 +75,12 @@ List of the format parameters
 	Command line: none
 	Description:
 		Set the annotation font to <font> with a size <size>.
+		When present, <encoding> may be either 'us-ascii', 'utf-8'
+		or 'native'. It is used only for PostScript output without
+		pango. When the <encoding> is not 'native', a PostScript
+		convertion table is build to handle most latin characters.
+		It may be extended to handle more characters, but a good
+		PostScript knowledge is required (see the file sample.abc).
 
   autoclef <bool>
 	Default: 1
@@ -106,10 +116,45 @@ List of the format parameters
 	Command line: none
 	Description:
 		Start a PostScript sequence which ends on 'endps'.
-		This parameter may be found only in a format or ABC
+		This parameter may be found only in a format or a ABC
 		file (it cannot appear in the command line).
 		Each line between 'beginps' and 'endps' is included in
 		the PostScript output file.
+		Such a sequence cannot be greater than 128 Kb.
+		When the output file format is SVG (command options '-g',
+		'-v' or '-X'), the PostScript code is executed by the
+		small abcm2ps PS interpreter. Sequences which cannot
+		be executed (as font redefinitions) must be skipped
+		checking the presence of the symbol 'svg':
+
+		/svg where {pop} {
+		.. PostScript code which cannot be executed by abcm2ps ..
+		} ifelse
+
+  beginsvg
+	Default: none
+	Compilation: none
+	Command line: none
+	Description:
+		Start a SVG sequence which ends on 'endsvg'.
+		This parameter may be found only in a format or a ABC
+		file (it cannot appear in the command line).
+		Each line between 'beginsvg' and 'endsvg' is included in
+		the SVG output file.
+		It permits to add CSS to the generated SVG files.
+		It is ignored when the SVG generation is started (as
+		after the first K: information field).
+
+  bgcolor <color>
+	Default: none
+	Compilation: none
+	Command line: none
+	Description:
+		Define the background color of SVG images.
+		This parameter is used only when the output is pure SVG
+		(options '-g' and '-v').
+		The <color> may be a color name (as 'white') or a hexadecimal
+		RGB color (as '#faf0e6').
 
   botmargin <unit>
 	Default: 1cm
@@ -175,6 +220,14 @@ List of the format parameters
 	Description:
 		If true, ignore the line breaks in tune.
 		This parameter is deprecated in favour of '%%linebreak <none>'.
+
+  custos <bool>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		Add a custos at the end of the music lines.
+		This parameter works with single voice tunes only.
 
   dateformat <text>
 	Default: "\%b \%e, \%Y \%H:\%M"
@@ -260,15 +313,24 @@ List of the format parameters
 		This parameter may also be set by the parameter 'dyn='
 		of the V: information field.
 
-  encoding <encoding> | <int>
+  encoding <charset encoding> | <int>
 	Default: 0
 	Compilation: none
 	Command line: none
 	Description:
-		Set the global font encoding to <encoding> which may be:
-			<int>	<encoding>
-			  0	'us-ascii' or 'utf-8'
-			  1	'native'
+		Define the character encoding of the next ABC strings.
+		This parameter is the same as 'abc-charset'.
+		The recognized charset encodings and the associated <int>
+		values are:
+			us-ascii or utf-8		0
+			iso-8859-1 or latin1		1
+			iso-8859-2 or latin2		2
+			iso-8859-3 or latin3		3
+			iso-8859-4 or latin4		4
+			iso-8859-9 or latin5		5 or 9
+			iso-8859-10 or latin6		6 or 10
+		The extra value 'native' may be used in format files
+		when a font is direclty acceded by PostScript code.
 
   flatbeams <bool>
 	Default: 0
@@ -283,10 +345,10 @@ List of the format parameters
 	Command line: none
 	Description:
 		Define a font and its encoding.
-		This parameter is required when specific fonts are
-		defined later in ABC files/tunes, and it must be defined
-		before any PostScript output is done, generally in a
-		format file.
+		This parameter is required with PostScript output when
+		specific fonts are defined later in ABC files/tunes.
+		It must be defined before any PostScript output is done,
+		generally in a format file.
 		When absent, <encoding> defaults to the current
 		'encoding' parameter (see above).
 		<scale> is the width factor to apply to the Time-Roman
@@ -501,7 +563,7 @@ List of the format parameters
 		decoration.
 		The value '<none>' must be alone in the list. In this case
 		the program computes itself the linebreaks. This behaviour is
-		the same when the list is empty. Tjis replaces the previous
+		the same when the list is empty. This replaces the previous
 		'%%continueall 1'.
 
   lineskipfac <float>
@@ -511,6 +573,14 @@ List of the format parameters
 	Description:
 		Set the factor for spacing between lines of text
 		to <float>.
+
+  linewarn <bool>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		When set, raise a warning when there are too few or
+		too much elements in a music line.
 
   maxshrink <float>
 	Default: 0.65
@@ -707,6 +777,7 @@ List of the format parameters
 		This parameter may be used to override any PostScript
 		function or to define new functions for use in a 'deco'
 		format.
+		See 'beginps' above.
 
   repeatfont <font> [<encoding>] [<size>]
 	Default: Times-Roman 13
@@ -907,6 +978,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
+
 		When set, if a time signature occurs at the beginning
 		of a music line, a cautionary time signature is added
 		at the end of the previous line.
@@ -985,7 +1057,7 @@ List of the format parameters
 	Command line: none
 	Description:
 		When set, if the last word of a title starts with a capital
-		letter and is preceeded by a comma and a space, this word is
+		letter and is preceded by a comma and a space, this word is
 		moved at the head. For example: the title
 			T:Clair de la lune, Au
 		is printed as
@@ -1182,7 +1254,7 @@ List of the pseudo-comments treated while parsed
 	See 'sample5.abc' for examples.
 
   score <definition>
-	See the ABC standard version 2.0 for description.
+	See the ABC standard version 2.1 for description.
 
   sep [<h1> <h2> <len>]
 	Print a separator (centered line) of length <len> with
@@ -1274,3 +1346,138 @@ List of the pseudo-comments treated while parsed
 
   vskip <h>
 	Skip vertical space of height <h>.
+
+
+Pseudo-commands used for external formatting
+--------------------------------------------
+
+  break <symbol selection> [ "," <symbol selection> ]
+	Insert a music line break after the selected symbol(s).
+	This command may appear only a %%tune sequence.
+	There may be many %%break commands in a %%tune sequence.
+
+  clip [ <start symbol> ]  "-" [ <end symbol> ]
+	Define the subset of the tune(s) to be printed.
+	<start symbol> and <end symbol> are <symbol selection>s (see below).
+	This command may appear only a %%tune sequence.
+	There may be only one %%clip command in a %%tune sequence.
+
+  select [ <tune index list> ] [ <regular expression> ]
+	Select a subset of tunes of an ABC file to be printed.
+	<tune index list> is a comma separated list of tune numbers.
+	Each selector applies to the current ABC file.
+	A tune number may be:
+	- a single index value as indicated in the 'X:' field,
+	- a range of such values.
+	  A range is indicated as <first_index> "-" [ <last_index> ].
+	  The last index may be omitted meaning 'last tune of file'.
+	The <regular expression> may have two formats:
+	- without a ':' (colon) as the second character, the regular expression
+	  applies to the content of the first 'T:' field of each tunes.
+	- with a ':', the regular expression is applied to the tune headers
+	  on their whole.
+	An empty %%select selects all the tunes of the next ABC files.
+	Command line examples:
+		abcm2ps voices -e 1,3-5 newfeatures -e5-
+		abcm2ps sample2 -eclefs voices -e 'K:C\s'
+	ABC file example:
+
+		%%select C:.*Bach
+		%%abc-include voices.abc
+		%%abc-include sample5.abc
+
+	Note: Such elections may give strange results when there are global
+	definitions in the ABC files (before and between the tunes).
+
+  tune [ <regular expression> ]
+	Select the tune(s) to which the following options will be applied.
+	These options, up to an empty line, an other '%%tune' command, or
+	the beginning of a tune, apply to the tunes which titles match
+	the <regular expression>. These options may be:
+		%%break
+		%%clip
+		%%voice
+		%%transpose
+	This command may appear only in a global definition (command line,
+	format file or file header).
+	When <regular expression> is absent, all the tune  options are erased.
+	Note: The regular expression applies to T: only
+
+  transpose <int> [ "#" | "b" ]
+	Transpose the displayed music.
+	<int> is a signed number of half-tones.
+	When "#" or "b" is present, the new key signature(s) will have
+	sharps or flats in case of enharmonic keys.
+	When this command appears in a global definition (format file or
+	file header), it applies to all voices of all the following tunes.
+	When it appears in a tune header, it applies to all voices.
+	When inside a tune body, it applies to the current voice only.
+	It may be delayed by %%tune or %%voice in which case it applies to
+	the selected tune(s) and/or voice(s).
+	Note 1: The name of the latin guitar chords is not transposed.
+	Note 2: Transposition of key signatures with explicit or
+	added accidental list does not work.
+	Note 3: The transposition is always absolute (it does not depend
+	on a previous %%transpose command).
+
+  voice [ <regular expression> ]
+	Select the voice(s) to which the following options will be applied.
+	These options, up to an empty line, a '%%voice' or '%%tune'
+	command, or the beginning of a tune, apply to the voices which
+	identifiers or full names match the <regular expression>.
+	These options may be:
+		%%transpose
+	This command may appear only in a global definition (command line,
+	format file or file header).
+	When <regular expression> is absent, all the global or tune related
+	voice options are erased.
+
+  <symbol selection>
+	The <symbol selection> used in %%break and %%clip permits to identify
+	a music symbol (note, rest or bar - only).
+	It has the following format:
+
+		<measure number> [ ":" <time numerator> "/" <time denominator> ]
+
+	<measure_number> is the measure number as it is with "%%measurenb 1"
+	or '-j1'.
+	Note that this number may change when changing the %%contbarnb value.
+
+	<time numerator> and <time denominator> define the fraction of a whole
+	note which gives the time offset of the symbol inside the selected
+	measure.
+	The numerator is numbered starting from 1. The value "1" as
+	the numerator always selects the first note/rest of the measure.
+
+	When the time value is ommited, the measure bar is selected.
+
+  <regular expression>
+	  Such expressions are a subset of Perl regular expressions:
+		^	match beginning of the string
+		$	match end of the string
+		|	start an alternate sequence
+		()	grouping
+		.	match any character
+		[...]	match any character from set
+		[^...]	match any character but ones from set
+		\s	match whitespace
+		\S	match non-whitespace
+		\d	match decimal digit
+		+	match one or more times
+		*	match zero or more times
+		?	match zero or once
+		\xDD	match byte with hex value 0xDD
+		\meta	match one of the meta character: ^$().[*+?\
+
+  Examples:
+	- transpose up  by two semitones all the voices which names contain
+	  the characters "Bb":
+
+		abcm2ps tune1.abc --voice Bb --transpose 2
+
+	- display only the 2 first measures of the tunes which titles start
+	  with "Gloria":
+
+		abcm2ps tune2.abc --tune '^Gloria' --clip -3
+
+	  (note: "-3" means "include the bar starting the measure 3")

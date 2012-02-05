@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2011 Jean-François Moine
+ * Copyright (C) 1998-2012 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA  02110-1335  USA
  */
 
 #include <string.h>
@@ -38,21 +38,9 @@ static char ps_head[] =
 	"/showb{	dup currentpoint 3 -1 roll show\n"
 	"	.6 SLW\n"
 	"	exch 2 sub exch 3 sub 3 -1 roll\n"
-#if 1
 	"	stringwidth pop 4 add\n"
 	"	currentfont /ScaleMatrix get 0 get .8 mul\n"
 	"	4 add rectstroke}!\n"
-#else
-	"	stringwidth pop 4 add fh 4 add rectstroke}!\n"
-#endif
-
-#if 0
-	"/showcb{ % usage: str showcb - show centered in box\n"
-	"	dup stringwidth pop dup .5 mul neg 0 RM currentpoint 4 -1 roll show\n"
-	"	.6 SLW\n"
-	"	exch 2 sub exch 3 sub 3 -1 roll\n"
-	"	4 add fh 4 add rectstroke}!\n"
-#endif
 
 	/* x y tclef - treble clef */
 	"/utclef{<95200072\n"
@@ -586,10 +574,7 @@ static char ps_head[] =
 	/* x y dy boxdraw - draw a box around a guitar chord */
 	"/boxdraw{x 3 index sub 2 add exch box}!\n"
 	/* w str gxshow - expand a guitar chord */
-	"/find{search{pop 3 -1 roll 1 add 3 1 roll}{pop exit}ifelse}!\n"
-	"/gxshow{exch 1 index stringwidth pop\n"
-	"	sub 0 2 index(	){find}loop div\n"
-	"	0 9 4 -1 roll widthshow}!\n"
+	"/gxshow{0 9 3 -1 roll widthshow}!\n"
 
 	/* str anshow - annotation */
 	"/anshow{show}!\n"
@@ -788,252 +773,11 @@ static char ps_head[] =
 	/* x1 y2 x2 y2 x3 y3 x0 y0 gsl - grace note slur */
 	"/gsl{dlw M RC stroke}!\n"
 
-#if 0
-	/* UTF-8 translations */
-	"/utf-array[\n"
-	"<c2a1>	/exclamdown\n"
-	"<c2a2>	/cent\n"
-	"<c2a3>	/sterling\n"
-	"<c2a4>	/currency\n"
-	"<c2a5>	/yen\n"
-	"<c2a6>	/brokenbar\n"
-	"<c2a7>	/section\n"
-	"<c2a8>	/dieresis\n"
-	"<c2a9>	/copyright\n"
-	"<c2aa>	/ordfeminine\n"
-	"<c2ab>	/guillemotleft\n"
-	"<c2ac>	/logicalnot\n"
-	"<c2ae>	/registered\n"
-	"<c2b0>	/degree\n"
-	"<c2b1>	/plusminus\n"
-	"<c2b2>	/twosuperior\n"
-	"<c2b3>	/threesuperior\n"
-	"<c2b4>	/acute\n"
-	"<c2b6>	/paragraph\n"
-	"<c2b8>	/cedilla\n"
-	"<c2b9>	/onesuperior\n"
-	"<c2ba>	/ordmasculine\n"
-	"<c2bb>	/guillemotright\n"
-	"<c2bc>	/onequarter\n"
-	"<c2bd>	/onehalf\n"
-	"<c2be>	/threequarters\n"
-	"<c2bf>	/questiondown\n"
-	"<c380>	/Agrave\n"
-	"<c381>	/Aacute\n"
-	"<c382>	/Acircumflex\n"
-	"<c383>	/Atilde\n"
-	"<c384>	/Adieresis\n"
-	"<c385>	/Aring\n"
-	"<c386>	/AE\n"
-	"<c387>	/Ccedilla\n"
-	"<c388>	/Egrave\n"
-	"<c389>	/Eacute\n"
-	"<c38a>	/Ecircumflex\n"
-	"<c38b>	/Edieresis\n"
-	"<c38c>	/Igrave\n"
-	"<c38d>	/Iacute\n"
-	"<c38e>	/Icircumflex\n"
-	"<c38f>	/Idieresis\n"
-	"<c390>	/Eth\n"
-	"<c391>	/Ntilde\n"
-	"<c392>	/Ograve\n"
-	"<c393>	/Oacute\n"
-	"<c394>	/Ocircumflex\n"
-	"<c395>	/Otilde\n"
-	"<c396>	/Odieresis\n"
-	"<c397>	/multiply\n"
-	"<c398>	/Oslash\n"
-	"<c399>	/Ugrave\n"
-	"<c39a>	/Uacute\n"
-	"<c39b>	/Ucircumflex\n"
-	"<c39c>	/Udieresis\n"
-	"<c39d>	/Yacute\n"
-	"<c39e>	/Thorn\n"
-	"<c39f>	/germandbls\n"
-	"<c3a0>	/agrave\n"
-	"<c3a1>	/aacute\n"
-	"<c3a2>	/acircumflex\n"
-	"<c3a3>	/atilde\n"
-	"<c3a4>	/adieresis\n"
-	"<c3a5>	/aring\n"
-	"<c3a6>	/ae\n"
-	"<c3a7>	/ccedilla\n"
-	"<c3a8>	/egrave\n"
-	"<c3a9>	/eacute\n"
-	"<c3aa>	/ecircumflex\n"
-	"<c3ab>	/edieresis\n"
-	"<c3ac>	/igrave\n"
-	"<c3ad>	/iacute\n"
-	"<c3ae>	/icircumflex\n"
-	"<c3af>	/idieresis\n"
-	"<c3b0>	/eth\n"
-	"<c3b1>	/ntilde\n"
-	"<c3b2>	/ograve\n"
-	"<c3b3>	/oacute\n"
-	"<c3b4>	/ocircumflex\n"
-	"<c3b5>	/otilde\n"
-	"<c3b6>	/odieresis\n"
-	"<c3b7>	/divide\n"
-	"<c3b8>	/oslash\n"
-	"<c3b9>	/ugrave\n"
-	"<c3ba>	/uacute\n"
-	"<c3bb>	/ucircumflex\n"
-	"<c3bc>	/udieresis\n"
-	"<c3bd>	/yacute\n"
-	"<c3be>	/thorn\n"
-	"<c3bf>	/ydieresis\n"
-	"<c480>	/Amacron\n"
-	"<c481>	/amacron\n"
-	"<c482>	/Abreve\n"
-	"<c483>	/abreve\n"
-	"<c484>	/Aogonek\n"
-	"<c485>	/aogonek\n"
-	"<c486>	/Cacute\n"
-	"<c487>	/cacute\n"
-	"<c488>	/Ccircumflex\n"
-	"<c489>	/ccircumflex\n"
-	"<c48a>	/Cdotaccent\n"
-	"<c48b>	/cdotaccent\n"
-	"<c48c>	/Ccaron\n"
-	"<c48d>	/ccaron\n"
-	"<c48e>	/Dcaron\n"
-	"<c48f>	/dcaron\n"
-	"<c490>	/Dcroat\n"
-	"<c491>	/dcroat\n"
-	"<c492>	/Emacron\n"
-	"<c493>	/emacron\n"
-	"<c494>	/Ebreve\n"
-	"<c495>	/ebreve\n"
-	"<c496>	/Edotaccent\n"
-	"<c497>	/edotaccent\n"
-	"<c498>	/Eogonek\n"
-	"<c499>	/eogonek\n"
-	"<c49a>	/Ecaron\n"
-	"<c49b>	/ecaron\n"
-	"<c49c>	/Gcircumflex\n"
-	"<c49d>	/gcircumflex\n"
-	"<c49e>	/Gbreve\n"
-	"<c49f>	/gbreve\n"
-	"<c4a0>	/Gdotaccent\n"
-	"<c4a1>	/gdotaccent\n"
-	"<c4a2>	/Gcommaaccent\n"
-	"<c4a3>	/gcommaaccent\n"
-	"<c4a4>	/Hcircumflex\n"
-	"<c4a5>	/hcircumflex\n"
-	"<c4a6>	/Hbar\n"
-	"<c4a7>	/hbar\n"
-	"<c4a8>	/Itilde\n"
-	"<c4a9>	/itilde\n"
-	"<c4aa>	/Imacron\n"
-	"<c4ab>	/imacron\n"
-	"<c4ac>	/Ibreve\n"
-	"<c4ad>	/ibreve\n"
-	"<c4ae>	/Iogonek\n"
-	"<c4af>	/iogonek\n"
-	"<c4b0>	/Idotaccent\n"
-	"<c4b1>	/dotlessi\n"
-	"<c4b2>	/IJ\n"
-	"<c4b3>	/ij\n"
-	"<c4b4>	/Jcircumflex\n"
-	"<c4b5>	/jcircumflex\n"
-	"<c4b6>	/Kcommaaccent\n"
-	"<c4b7>	/kcommaaccent\n"
-	"<c4b8>	/kgreenlandic\n"
-	"<c4b9>	/Lacute\n"
-	"<c4ba>	/lacute\n"
-	"<c4bb>	/Lcommaaccent\n"
-	"<c4bc>	/lcommaaccent\n"
-	"<c4bd>	/Lcaron\n"
-	"<c4be>	/lcaron\n"
-	"<c4bf>	/Ldot\n"
-	"<c581>	/Lslash\n"
-	"<c582>	/lslash\n"
-	"<c583>	/Nacute\n"
-	"<c584>	/nacute\n"
-	"<c585>	/Ncedilla\n"
-	"<c586>	/ncedilla\n"
-	"<c587>	/Ncaron\n"
-	"<c588>	/ncaron\n"
-	"<c58a>	/Eng\n"
-	"<c58b>	/eng\n"
-	"<c58c>	/Omacron\n"
-	"<c58d>	/omacron\n"
-	"<c58e>	/Obreve\n"
-	"<c58f>	/obreve\n"
-	"<c590>	/Ohungarumlaut\n"
-	"<c591>	/ohungarumlaut\n"
-	"<c594>	/Racute\n"
-	"<c595>	/racute\n"
-	"<c596>	/Rcedilla\n"
-	"<c597>	/rcedilla\n"
-	"<c598>	/Rcaron\n"
-	"<c599>	/rcaron\n"
-	"<c59a>	/Sacute\n"
-	"<c59b>	/sacute\n"
-	"<c59c>	/Scircumflex\n"
-	"<c59d>	/scircumflex\n"
-	"<c59e>	/Scedilla\n"
-	"<c59f>	/scedilla\n"
-	"<c5a0>	/Scaron\n"
-	"<c5a1>	/scaron\n"
-	"<c5a2>	/Tcedilla\n"
-	"<c5a3>	/tcedilla\n"
-	"<c5a4>	/Tcaron\n"
-	"<c5a5>	/tcaron\n"
-	"<c5a6>	/Tbar\n"
-	"<c5a7>	/tbar\n"
-	"<c5a8>	/Utilde\n"
-	"<c5a9>	/utilde\n"
-	"<c5aa>	/Umacron\n"
-	"<c5ab>	/umacron\n"
-	"<c5ac>	/Ubreve\n"
-	"<c5ad>	/ubreve\n"
-	"<c5ae>	/Uring\n"
-	"<c5af>	/uring\n"
-	"<c5b0>	/Uhungarumlaut\n"
-	"<c5b1>	/uhungarumlaut\n"
-	"<c5b2>	/Uogonek\n"
-	"<c5b3>	/uogonek\n"
-	"<c5b9>	/Zacute\n"
-	"<c5ba>	/zacute\n"
-	"<c5bb>	/Zdotaccent\n"
-	"<c5bc>	/zdotaccent\n"
-	"<c5bd>	/Zcaron\n"
-	"<c5be>	/zcaron\n"
-	"<cb87>	/caron\n"
-	"<cb98>	/breve\n"
-	"<cb99>	/dotaccent\n"
-	"<cb9b>	/ogonek\n"
-	"<cb9d>	/hungarumlaut\n"
-	"<e280a6> /ellipsis\n"
-	"<e282ac> /Euro\n"
-	"]def\n"
+	/* x y custos */
+	"/custos{2 copy M -4 0 RM 2 2.5 RL 2 -2.5 RL 2 2.5 RL 2 -2.5 RL\n"
+	"	-2 -2.5 RL -2 2.5 RL -2 -2.5 RL -2 2.5 RL fill\n"
+	"	M 3.5 0 RM 5 7 RL dlw stroke}!\n"
 
-	/* extra characters and drawing functions */
-	"/extra-array[\n"
-#if 1
-	"<c281> /sharp\n"
-	"<c282> /flat\n"
-	"<c283> /natural\n"
-	"<c284> /dsharp\n"
-	"<c285> /dflat\n"
-#else
-	"<e299ad> /flat\n"	/* or /uni266D */
-	"<e299ae> /natural\n"	/* or /uni266E */
-	"<e299af> /sharp\n"	/* or /uni266F */
-	"<f09d84aa> /dsharp\n"
-	"<f09d84ab> /dflat\n"
-#endif
-	"]def\n"
-	"/extra-draw<<\n"
-	"	/.notdef{ }\n"
-	"	/sharp{460 0 setcharwidth usharp ufill}\n"
-	"	/flat{400 0 setcharwidth uflat ufill}\n"
-	"	/natural{380 0 setcharwidth unat ufill}\n"
-	"	/dsharp{460 0 setcharwidth udblesharp ufill}\n"
-	"	/dflat{500 0 setcharwidth udbleflat ufill}\n"
-	">>def\n"
-#else
 	/* extra characters (accidentals) range c280 .. c29f */
 	"/c280_c29f[\n"
 	"	/.notdef	/sharp		/flat		/natural\n"
@@ -1125,8 +869,7 @@ static char ps_head[] =
 	"  /latinfont curfont findfont dup length\n"
 	"	dict begin\n"
 	"		{1 index/FID ne{def}{pop pop}ifelse}forall\n"
-	"		/Encoding 256 array def\n"
-	"		Encoding 0 c2a0_c5bf putinterval\n"
+	"		/Encoding c2a0_c5bf def\n"
 	"		currentdict\n"
 	"	end\n"
 	"  definefont}def\n"
@@ -1151,7 +894,6 @@ static char ps_head[] =
 #ifdef HAVE_PANGO
 	"/glypharray{{glyphshow}forall}!\n"
 #endif
-#endif
 
 	/* x y showerror */
 	"/showerror{	gsave 1 0.7 0.7 setrgbcolor 2.5 SLW newpath\n"
@@ -1166,64 +908,6 @@ static char ps_head[] =
  * these ones may change the default behaviour */
 void define_cmap(void)
 {
-#if 0
-	static char cmap[] =
-
-	/* font for extra characters */
-	"/Extra 10 dict begin\n"
-	"	/FontType 3 def\n"
-	"	/FontMatrix[.001 0 0 .001 0 0]def\n"
-	"	/Encoding 256 array def\n"
-	"	/FontBBox[0 0 1000 1000]def\n"
-	"	/BuildGlyph{\n"
-	"		userdict/extra-draw get exch\n"
-	"		2 copy known not{pop/.notdef}if\n"
-	"		get exec pop\n"
-	"	}!\n"
-	"	currentdict\n"
-	"end\n"
-	"definefont pop\n"
-
-	/* CMAP definition */
-	"/CIDInit/ProcSet findresource begin\n"
-	"    12 dict begin\n"
-	"	begincmap\n"
-	"		/CMapName/CMAP-UTF8 def\n"
-	"		/CMapType 1 def\n"
-	"		/CIDSystemInfo[null]def\n"
-	"		/WMode 0 def\n"
-							/* main font */
-	"		3 begincodespacerange\n"
-	"			<00>	<7f>\n"
-	"			<c280>	<dfbf>\n"
-	"			<e28080> <e28fbf>\n"
-	"		endcodespacerange\n"
-	"		1 beginbfrange\n"
-	"			<00> <7f> <00>\n"
-	"		endbfrange\n"
-	"		utf-array length 2 idiv\n"	/* not used by ghostscript */
-	"		beginbfchar\n"
-	"			utf-array aload pop\n"
-	"		endbfchar\n"
-							/* extra font */
-	"		1 usefont\n"
-#if 0
-	"		2 begincodespacerange\n"
-	"			<e299ad> <e299af>\n"
-	"			<f09d84aa> <f09d84ab>\n"
-	"		endcodespacerange\n"
-#endif
-	"		extra-array length 2 idiv\n"
-	"		beginbfchar\n"
-	"			extra-array aload pop\n"
-	"		endbfchar\n"
-	"	endcmap\n"
-	"    CMapName currentdict/CMap defineresource pop\n"
-	"    end\n"
-	"end\n";
-
-	fputs(cmap, fout);
-#else
 	static char mkfont[] =
 
 	/* extra characters (accidentals) range c280 .. c29f */
@@ -1295,7 +979,6 @@ void define_cmap(void)
 	"	>>definefont pop}bind def\n";
 
 	fputs(mkfont, fout);
-#endif
 }
 
 /* -- define a font -- */
@@ -1304,15 +987,9 @@ void define_font(char name[],
 		 int enc)
 {
 	if (enc == 0)		/* utf-8 */
-#if 0
-		fprintf(fout, "/%s-utf8/CMAP-UTF8[/%s /Extra]composefont pop\n"
-			"/F%d{/%s-utf8 exch selectfont}!\n",
-			name, name, num, name);
-#else
 		fprintf(fout, "/%s-utf8/%s mkfont-utf8\n"
 			"/F%d{/%s-utf8 exch selectfont}!\n",
 			name, name, num, name);
-#endif
 	else			/* native encoding */
 		fprintf(fout, "/F%d{/%s exch selectfont}!\n",
 			num, name);

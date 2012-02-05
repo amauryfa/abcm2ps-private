@@ -1,6 +1,6 @@
 % sample5.abc - this file is part of abcm2ps
 
-%%writehistory 1
+%%writefields NF 1
 %%infoname F "This file is part of the "
 F:abcm2ps sources at http://moinejf.free.fr/
 
@@ -16,9 +16,7 @@ N:on two lines
 M:c. C=4/4
 L:1/4
 Q:"Tempo in the tune header"
-%%printtempo 0
 K:C
-%%printtempo 1
 Q:"Tempo in the tune body"
 "C"C"Dm	G"D2"C"C"^<- guitar chords between symbols"|\
 	C//E//G//E// \
@@ -35,7 +33,7 @@ Q:"Tempo in the tune body"
 	z !//!C/ !//!c/ !//!C !//!c | !//!C2 !//!c2 ||
 	!/!C4 | !/!c4 | !//!C4 | !//!c4 |
 
-%%writehistory 0
+%%writefields F 0
 X:2
 T:Romance sans paroles
 C:F.B. Mendelssohn

@@ -4,7 +4,7 @@
 %%font UKaiCN-UTF8-H native
 
 % add the utf8 -> CID translator
-%%beginps
+%%beginps nosvg
 /UKaiCN-UTF8-H /UniGB-UTF8-H [ /UKaiCN ] composefont pop
 %%endps
 

@@ -11,6 +11,8 @@
 
 #define BASE_LEN 1536	/* basic note length (semibreve or whole note - same as MIDI) */
 
+#define VOICE_ID_SZ 16	/* max size of the voice identifiers */
+
 /* accidentals */
 enum accidentals {
 	A_NULL,		/* none */
@@ -71,11 +73,10 @@ struct abcsym {
 #define ABC_T_REST	5
 #define ABC_T_BAR	6
 #define ABC_T_EOLN	7
-#define ABC_T_INFO2	8		/* (info without header - H:) */
-#define ABC_T_MREST	9		/* multi-measure rest */
-#define ABC_T_MREP	10		/* measure repeat */
-#define ABC_T_V_OVER	11		/* voice overlay */
-#define ABC_T_TUPLET	12
+#define ABC_T_MREST	8		/* multi-measure rest */
+#define ABC_T_MREP	9		/* measure repeat */
+#define ABC_T_V_OVER	10		/* voice overlay */
+#define ABC_T_TUPLET	11
 	char state;		/* symbol state in file/tune */
 #define ABC_S_GLOBAL 0			/* global */
 #define ABC_S_HEAD 1			/* in header (after X:) */
@@ -91,7 +92,6 @@ struct abcsym {
 #define ABC_F_GRACE	0x0020		/* grace note */
 #define ABC_F_GR_END	0x0040		/* end of grace note sequence */
 #define ABC_F_SAPPO	0x0080		/* short appoggiatura */
-	unsigned short dum;	/* (align on 64bits boundary) */
 	int linenum;		/* ABC source line number */
 	char *text;		/* main text (INFO, PSCOM),
 				 * guitar chord (NOTE, REST, BAR) */
@@ -103,9 +103,10 @@ struct abcsym {
 			char exp;		/* exp (1) or mod (0) */
 			char mode;		/* mode */
 /* 0: Ionian, 1: Dorian, 2: Phrygian, 3: Lydian, 4: Mixolydian
- * 5: Aeolian, 6: Locrian, 7: minor, 8: HP, 9: Hp */
-#define MINOR 7
-#define BAGPIPE 8				/* bagpipe when >= 8 */
+ * 5: Aeolian, 6: Locrian, 7: major, 8:minor, 9: HP, 10: Hp */
+#define MAJOR 7
+#define MINOR 8
+#define BAGPIPE 9				/* bagpipe when >= 8 */
 			signed char nacc;	/* number  of explicit accidentals */
 						/* (-1) if no accidental */
 			signed char pits[8];
@@ -131,7 +132,7 @@ struct abcsym {
 			char *str2;		/* string after */
 		} tempo;
 		struct {		/* V: info */
-			char *id;		/* voice ID */
+			char id[VOICE_ID_SZ];	/* voice ID */
 			char *fname;		/* full name */
 			char *nname;		/* nick name */
 			float scale;		/* != 0 when change */
@@ -190,7 +191,6 @@ struct abcsym {
 /* tune definition */
 struct abctune {
 	struct abctune *next;	/* next tune */
-	struct abctune *prev;	/* previous tune */
 	struct abcsym *first_sym; /* first symbol */
 	struct abcsym *last_sym; /* last symbol */
 	int abc_vers;		/* ABC version = (H << 16) + (M << 8) + L */
