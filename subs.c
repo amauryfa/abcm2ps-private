@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2011 Jean-François Moine
+ * Copyright (C) 1998-2012 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,11 +18,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA  02110-1335  USA
  */
-
-//fixme: more work to do
-//#define HEX_USER
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -44,8 +41,6 @@ int outft = -1;			/* last font in the output file */
 
 static char *strop;		/* current string output operation */
 static float strlw;		/* line width */
-static float strtw = -1;	/* current text width */
-static int strns;		/* number of spaces (justify) */
 static int curft;		/* current (wanted) font */
 static int defft;		/* default font */
 static int strtx;		/* PostScript text outputing */
@@ -88,467 +83,6 @@ static short cw_tb[] = {
 	500,500,500,500,500,500,500,500,
 };
 
-/* translation of tex sequences */
-/* first 2 characters: input sequence
- * next 2 characters: UTF-8 sequence */
-static char tex_tb[][4] = {
-/* translation table from the IETF rfc1345 */
-	{'N', 'S',	0xc2, 0xa0},
-	{'!', 'I',	0xc2, 0xa1},
-	{'C', 't',	0xc2, 0xa2},
-	{'P', 'd',	0xc2, 0xa3},
-	{'C', 'u',	0xc2, 0xa4},
-	{'Y', 'e',	0xc2, 0xa5},
-	{'B', 'B',	0xc2, 0xa6},
-	{'S', 'E',	0xc2, 0xa7},
-	{'\'', ':',	0xc2, 0xa8},
-	{'C', 'o',	0xc2, 0xa9},
-	{'-', 'a',	0xc2, 0xaa},
-	{'<', '<',	0xc2, 0xab},
-	{'N', 'O',	0xc2, 0xac},
-	{'-', '-',	0xc2, 0xad},
-	{'R', 'g',	0xc2, 0xae},
-	{'\'', 'm',	0xc2, 0xaf},
-	{'D', 'G',	0xc2, 0xb0},
-	{'+', '-',	0xc2, 0xb1},
-	{'2', 'S',	0xc2, 0xb2},
-	{'3', 'S',	0xc2, 0xb3},
-	{'\'', '\'',	0xc2, 0xb4},
-	{'M', 'y',	0xc2, 0xb5},
-	{'P', 'I',	0xc2, 0xb6},
-	{'.', 'M',	0xc2, 0xb7},
-	{'\'', ',',	0xc2, 0xb8},
-	{'1', 'S',	0xc2, 0xb9},
-	{'-', 'o',	0xc2, 0xba},
-	{'>', '>',	0xc2, 0xbb},
-	{'1', '4',	0xc2, 0xbc},
-	{'1', '2',	0xc2, 0xbd},
-	{'3', '4',	0xc2, 0xbe},
-//	{'?', 'I',	0xc2, 0xbf},	/*fixme: questiondown - conflict with 'I?' */
-	{'A', '!',	0xc3, 0x80},
-	{'A', '\'',	0xc3, 0x81},
-	{'A', '>',	0xc3, 0x82},
-	{'A', '?',	0xc3, 0x83},
-	{'A', ':',	0xc3, 0x84},
-	{'A', 'A',	0xc3, 0x85},
-	{'A', 'E',	0xc3, 0x86},
-	{'C', ',',	0xc3, 0x87},
-	{'E', '!',	0xc3, 0x88},
-	{'E', '\'',	0xc3, 0x89},
-	{'E', '>',	0xc3, 0x8a},
-	{'E', ':',	0xc3, 0x8b},
-	{'I', '!',	0xc3, 0x8c},
-	{'I', '\'',	0xc3, 0x8d},
-	{'I', '>',	0xc3, 0x8e},
-	{'I', ':',	0xc3, 0x8f},
-	{'D', '-',	0xc3, 0x90},
-	{'N', '?',	0xc3, 0x91},
-	{'O', '!',	0xc3, 0x92},
-	{'O', '\'',	0xc3, 0x93},
-	{'O', '>',	0xc3, 0x94},
-	{'O', '?',	0xc3, 0x95},
-	{'O', ':',	0xc3, 0x96},	//fixme
-	{'*', 'X',	0xc3, 0x97},
-	{'O', '/',	0xc3, 0x98},
-	{'U', '!',	0xc3, 0x99},
-	{'U', '\'',	0xc3, 0x9a},
-	{'U', '>',	0xc3, 0x9b},
-	{'U', ':',	0xc3, 0x9c},	//fixme
-	{'Y', '\'',	0xc3, 0x9d},
-	{'T', 'H',	0xc3, 0x9e},
-	{'s', 's',	0xc3, 0x9f},
-	{'a', '!',	0xc3, 0xa0},
-	{'a', '\'',	0xc3, 0xa1},
-	{'a', '>',	0xc3, 0xa2},
-	{'a', '?',	0xc3, 0xa3},
-	{'a', ':',	0xc3, 0xa4},
-	{'a', 'a',	0xc3, 0xa5},
-	{'a', 'e',	0xc3, 0xa6},
-	{'c', ',',	0xc3, 0xa7},
-	{'e', '!',	0xc3, 0xa8},
-	{'e', '\'',	0xc3, 0xa9},
-	{'e', '>',	0xc3, 0xaa},
-	{'e', ':',	0xc3, 0xab},
-	{'i', '!',	0xc3, 0xac},
-	{'i', '\'',	0xc3, 0xad},
-	{'i', '>',	0xc3, 0xae},
-	{'i', ':',	0xc3, 0xaf},
-	{'d', '-',	0xc3, 0xb0},
-	{'n', '?',	0xc3, 0xb1},
-	{'o', '!',	0xc3, 0xb2},
-	{'o', '\'',	0xc3, 0xb3},
-	{'o', '>',	0xc3, 0xb4},
-	{'o', '?',	0xc3, 0xb5},
-	{'o', ':',	0xc3, 0xb6},	// fixme
-	{'-', ':',	0xc3, 0xb7},
-	{'o', '/',	0xc3, 0xb8},
-	{'u', '!',	0xc3, 0xb9},
-	{'u', '\'',	0xc3, 0xba},
-	{'u', '>',	0xc3, 0xbb},
-	{'u', ':',	0xc3, 0xbc},	//fixme
-	{'y', '\'',	0xc3, 0xbd},
-	{'t', 'h',	0xc3, 0xbe},
-	{'y', ':',	0xc3, 0xbf},
-	{'A', '-',	0xc4, 0x80},
-	{'a', '-',	0xc4, 0x81},
-	{'A', '(',	0xc4, 0x82},
-	{'a', '(',	0xc4, 0x83},
-	{'A', ';',	0xc4, 0x84},
-	{'a', ';',	0xc4, 0x85},
-	{'C', '\'',	0xc4, 0x86},
-	{'c', '\'',	0xc4, 0x87},
-	{'C', '>',	0xc4, 0x88},
-	{'c', '>',	0xc4, 0x89},
-	{'C', '.',	0xc4, 0x8a},
-	{'c', '.',	0xc4, 0x8b},
-	{'C', '<',	0xc4, 0x8c},
-	{'c', '<',	0xc4, 0x8d},
-	{'D', '<',	0xc4, 0x8e},
-	{'d', '<',	0xc4, 0x8f},
-	{'D', '/',	0xc4, 0x90},
-	{'d', '/',	0xc4, 0x91},
-	{'E', '-',	0xc4, 0x92},
-	{'e', '-',	0xc4, 0x93},
-	{'E', '.',	0xc4, 0x96},
-	{'e', '.',	0xc4, 0x97},
-	{'E', ';',	0xc4, 0x98},
-	{'e', ';',	0xc4, 0x99},
-	{'E', '<',	0xc4, 0x9a},
-	{'e', '<',	0xc4, 0x9b},
-	{'G', '>',	0xc4, 0x9c},
-	{'g', '>',	0xc4, 0x9d},
-	{'G', '(',	0xc4, 0x9e},
-	{'g', '(',	0xc4, 0x9f},
-	{'G', '.',	0xc4, 0xa0},
-	{'g', '.',	0xc4, 0xa1},
-	{'G', ',',	0xc4, 0xa2},
-	{'g', ',',	0xc4, 0xa3},
-	{'H', '>',	0xc4, 0xa4},
-	{'h', '>',	0xc4, 0xa5},
-	{'H', '/',	0xc4, 0xa6},
-	{'h', '/',	0xc4, 0xa7},
-	{'I', '?',	0xc4, 0xa8},
-	{'i', '?',	0xc4, 0xa9},
-	{'I', '-',	0xc4, 0xaa},
-	{'i', '-',	0xc4, 0xab},
-	{'I', ';',	0xc4, 0xae},
-	{'i', ';',	0xc4, 0xaf},
-	{'I', '.',	0xc4, 0xb0},
-	{'i', '.',	0xc4, 0xb1},
-	{'I', 'J',	0xc4, 0xb2},
-	{'i', 'j',	0xc4, 0xb3},
-	{'J', '>',	0xc4, 0xb4},
-	{'j', '>',	0xc4, 0xb5},
-	{'K', ',',	0xc4, 0xb6},
-	{'k', ',',	0xc4, 0xb7},
-	{'k', 'k',	0xc4, 0xb8},
-	{'L', '\'',	0xc4, 0xb9},
-	{'l', '\'',	0xc4, 0xba},
-	{'L', ',',	0xc4, 0xbb},
-	{'l', ',',	0xc4, 0xbc},
-	{'L', '<',	0xc4, 0xbd},
-	{'l', '<',	0xc4, 0xbe},
-	{'L', '.',	0xc4, 0xbf},
-	{'l', '.',	0xc5, 0x80},
-	{'L', '/',	0xc5, 0x81},
-	{'l', '/',	0xc5, 0x82},
-	{'N', '\'',	0xc5, 0x83},
-	{'n', '\'',	0xc5, 0x84},
-	{'N', ',',	0xc5, 0x85},
-	{'n', ',',	0xc5, 0x86},
-	{'N', '<',	0xc5, 0x87},
-	{'n', '<',	0xc5, 0x88},
-	{'N', 'G',	0xc5, 0x8a},
-	{'n', 'g',	0xc5, 0x8b},
-	{'O', '-',	0xc5, 0x8c},
-	{'o', '-',	0xc5, 0x8d},
-	{'O', '(',	0xc5, 0x8e},
-	{'o', '(',	0xc5, 0x8f},
-//	{'O', '"',	0xc5, 0x90},	//fixme
-//	{'o', '"',	0xc5, 0x91},
-	{'O', 'E',	0xc5, 0x92},
-	{'o', 'e',	0xc5, 0x93},
-	{'R', '\'',	0xc5, 0x94},
-	{'r', '\'',	0xc5, 0x95},
-	{'R', ',',	0xc5, 0x96},
-	{'r', ',',	0xc5, 0x97},
-	{'R', '<',	0xc5, 0x98},
-	{'r', '<',	0xc5, 0x99},
-	{'S', '\'',	0xc5, 0x9a},
-	{'s', '\'',	0xc5, 0x9b},
-	{'S', '>',	0xc5, 0x9c},
-	{'s', '>',	0xc5, 0x9d},
-	{'S', ',',	0xc5, 0x9e},
-	{'s', ',',	0xc5, 0x9f},
-	{'S', '<',	0xc5, 0xa0},
-	{'s', '<',	0xc5, 0xa1},
-	{'T', ',',	0xc5, 0xa2},
-	{'t', ',',	0xc5, 0xa3},
-	{'T', '<',	0xc5, 0xa4},
-	{'t', '<',	0xc5, 0xa5},
-	{'T', '/',	0xc5, 0xa6},
-	{'t', '/',	0xc5, 0xa7},
-	{'U', '?',	0xc5, 0xa8},
-	{'u', '?',	0xc5, 0xa9},
-	{'U', '-',	0xc5, 0xaa},
-	{'u', '-',	0xc5, 0xab},
-	{'U', '(',	0xc5, 0xac},
-	{'u', '(',	0xc5, 0xad},
-	{'U', '0',	0xc5, 0xae},
-	{'u', '0',	0xc5, 0xaf},
-//	{'U', '"',	0xc5, 0xb0},	//fixme
-//	{'u', '"',	0xc5, 0xb1},
-	{'U', ';',	0xc5, 0xb2},
-	{'u', ';',	0xc5, 0xb3},
-	{'W', '>',	0xc5, 0xb4},
-	{'w', '>',	0xc5, 0xb5},
-	{'Y', '>',	0xc5, 0xb6},
-	{'y', '>',	0xc5, 0xb7},
-	{'Y', ':',	0xc5, 0xb8},
-	{'Z', '\'',	0xc5, 0xb9},
-	{'z', '\'',	0xc5, 0xba},
-	{'Z', '.',	0xc5, 0xbb},
-	{'z', '.',	0xc5, 0xbc},
-	{'Z', '<',	0xc5, 0xbd},
-	{'z', '<',	0xc5, 0xbe},
-	{'\'', '<',	0xcb, 0x87},
-	{'\'', '(',	0xcb, 0x98},
-	{'\'', '.',	0xcb, 0x99},
-	{'\'', ';',	0xcb, 0x9b},
-	{'\'', '"',	0xcb, 0x9d},
-/* X11 compose sequences (/usr/share/X11/locale/en_US.UTF-8/Compose) */
-	{',', '-',	0xc2, 0xac},
-	{'^', '2',	0xc2, 0xb2},
-	{'^', '3',	0xc2, 0xb3},
-	{'M', 'u',	0xc2, 0xb5},
-	{'^', '1',	0xc2, 0xb9},
-	{'D', 'H',	0xc3, 0x90},
-	{'O', '"',	0xc3, 0x96},
-	{'x', 'x',	0xc3, 0x97},
-	{'U', '"',	0xc3, 0x9c},
-	{'o', '"',	0xc3, 0xb6},
-	{'u', '"',	0xc3, 0xbc},
-	{'O', '=',	0xc5, 0x90},
-	{'o', '=',	0xc5, 0x91},
-	{'U', '=',	0xc5, 0xb0},
-	{'u', '=',	0xc5, 0xb1},
-#if 1
-/*
- * translation table from the ABC draft version 2
- *	` grave
- *	' acute
- *	^ circumflex
- *	, cedilla
- *	" umlaut
- *	~ tilde
- *	o ring
- *	= macron or stroke
- *	/ slash
- *	; ogonek
- *	v caron
- *	u breve
- *	: long Hungarian umlaut
- *	. dot / dotless
- * else, ligatures
- *	ae ss ng
- */
-#if 0
-	{'`', 'A',	0xc3, 0x80},
-	{'`', 'E',	0xc3, 0x88},
-	{'`', 'I',	0xc3, 0x8c},
-	{'`', 'O',	0xc3, 0x92},
-	{'`', 'U',	0xc3, 0x99},
-	{'`', 'a',	0xc3, 0xa0},
-	{'`', 'e',	0xc3, 0xa8},
-	{'`', 'i',	0xc3, 0xac},
-	{'`', 'o',	0xc3, 0xb2},
-	{'`', 'u',	0xc3, 0xb9},
-
-	{'\'', 'A',	0xc3, 0x81},
-	{'\'', 'E',	0xc3, 0x89},
-	{'\'', 'I',	0xc3, 0x8d},
-	{'\'', 'O',	0xc3, 0x93},
-	{'\'', 'U',	0xc3, 0x9a},
-	{'\'', 'Y',	0xc3, 0x9d},
-	{'\'', 'a',	0xc3, 0xa1},
-	{'\'', 'e',	0xc3, 0xa9},
-	{'\'', 'i',	0xc3, 0xad},
-	{'\'', 'o',	0xc3, 0xb3},
-	{'\'', 'u',	0xc3, 0xba},
-	{'\'', 'y',	0xc3, 0xbd},
-	{'\'', 'S',	0xc5, 0x9a},
-	{'\'', 'Z',	0xc5, 0xb9},
-	{'\'', 's',	0xc5, 0x9b},
-	{'\'', 'z',	0xc5, 0xba},
-	{'\'', 'R',	0xc5, 0x94},
-	{'\'', 'L',	0xc4, 0xb9},
-	{'\'', 'C',	0xc4, 0x86},
-	{'\'', 'N',	0xc5, 0x83},
-	{'\'', 'r',	0xc5, 0x95},
-	{'\'', 'l',	0xc4, 0xba},
-	{'\'', 'c',	0xc4, 0x87},
-	{'\'', 'n',	0xc5, 0x84},
-
-	{'^', 'A',	0xc3, 0x82},
-	{'^', 'E',	0xc3, 0x8a},
-	{'^', 'I',	0xc3, 0x8e},
-	{'^', 'O',	0xc3, 0x94},
-	{'^', 'U',	0xc3, 0x9b},
-	{'^', 'a',	0xc3, 0xa2},
-	{'^', 'e',	0xc3, 0xaa},
-	{'^', 'i',	0xc3, 0xae},
-	{'^', 'o',	0xc3, 0xb4},
-	{'^', 'u',	0xc3, 0xbb},
-	{'^', 'H',	0xc4, 0xa4},
-	{'^', 'J',	0xc4, 0xb4},
-	{'^', 'h',	0xc4, 0xa5},
-	{'^', 'j',	0xc4, 0xb5},
-	{'^', 'C',	0xc4, 0x88},
-	{'^', 'G',	0xc4, 0x9c},
-	{'^', 'S',	0xc5, 0x9c},
-	{'^', 'c',	0xc4, 0x89},
-	{'^', 'g',	0xc4, 0x9d},
-	{'^', 's',	0xc5, 0x9d},
-
-	{',', 'C',	0xc3, 0x87},
-	{',', 'c',	0xc3, 0xa7},
-	{',', 'S',	0xc5, 0x9e},
-	{',', 's',	0xc5, 0x9f},
-	{',', 'T',	0xc5, 0xa2},
-	{',', 't',	0xc5, 0xa3},
-	{',', 'R',	0xc5, 0x96},
-	{',', 'L',	0xc4, 0xbb},
-	{',', 'G',	0xc4, 0xa2},
-	{',', 'r',	0xc5, 0x97},
-	{',', 'l',	0xc4, 0xbc},
-	{',', 'g',	0xc4, 0xa3},
-	{',', 'N',	0xc5, 0x85},
-	{',', 'K',	0xc4, 0xb6},
-	{',', 'n',	0xc5, 0x86},
-	{',', 'k',	0xc4, 0xb7},
-
-#endif
-	{'"', 'A',	0xc3, 0x84},
-	{'"', 'E',	0xc3, 0x8b},
-	{'"', 'I',	0xc3, 0x8f},
-#if 0
-	{'"', 'O',	0xc3, 0x96},
-	{'"', 'U',	0xc3, 0x9c},
-#endif
-	{'"', 'a',	0xc3, 0xa4},
-	{'"', 'e',	0xc3, 0xab},
-	{'"', 'i',	0xc3, 0xaf},
-#if 0
-	{'"', 'o',	0xc3, 0xb6},
-	{'"', 'u',	0xc3, 0xbc},
-#endif
-	{'"', 'y',	0xc3, 0xbf},
-#if 0
-	{'~', 'A',	0xc3, 0x83},
-	{'~', 'N',	0xc3, 0x91},
-	{'~', 'O',	0xc3, 0x95},
-	{'~', 'a',	0xc3, 0xa3},
-	{'~', 'n',	0xc3, 0xb1},
-	{'~', 'o',	0xc3, 0xb5},
-	{'~', 'I',	0xc4, 0xa8},
-	{'~', 'i',	0xc4, 0xa9},
-	{'~', 'U',	0xc5, 0xa8},
-	{'~', 'u',	0xc5, 0xa9},
-#endif
-	{'o', 'A',	0xc3, 0x85},
-	{'o', 'a',	0xc3, 0xa5},
-	{'o', 'U',	0xc5, 0xae},
-	{'o', 'u',	0xc5, 0xaf},
-	{'=', 'A',	0xc4, 0x80},
-	{'=', 'D',	0xc4, 0x90},
-	{'=', 'E',	0xc4, 0x92},
-	{'=', 'H',	0xc4, 0xa6},
-	{'=', 'I',	0xc4, 0xaa},
-#if 0
-	{'=', 'O',	0xc5, 0x8c},
-#endif
-	{'=', 'T',	0xc5, 0xa6},
-#if 0
-	{'=', 'U',	0xc5, 0xaa},
-#endif
-	{'=', 'a',	0xc4, 0x81},
-	{'=', 'd',	0xc4, 0x91},
-	{'=', 'e',	0xc4, 0x93},
-	{'=', 'h',	0xc4, 0xa7},
-	{'=', 'i',	0xc4, 0xab},
-#if 0
-	{'=', 'o',	0xc5, 0x8d},
-#endif
-	{'=', 't',	0xc5, 0xa7},
-#if 0
-	{'=', 'u',	0xc5, 0xab},
-#endif
-#if 0
-	{'/', 'O',	0xc3, 0x98},
-	{'/', 'o',	0xc3, 0xb8},
-	{'/', 'D',	0xc4, 0x90},
-	{'/', 'd',	0xc4, 0x91},
-	{'/', 'L',	0xc5, 0x81},
-	{'/', 'l',	0xc5, 0x82},
-	{';', 'A',	0xc4, 0x84},
-	{';', 'a',	0xc4, 0x85},
-	{';', 'E',	0xc4, 0x98},
-	{';', 'e',	0xc4, 0x99},
-	{';', 'I',	0xc4, 0xae},
-	{';', 'U',	0xc5, 0xb2},
-	{';', 'i',	0xc4, 0xaf},
-	{';', 'u',	0xc5, 0xb3},
-#endif
-	{'v', 'L',	0xc4, 0xbd},
-	{'v', 'S',	0xc5, 0xa0},
-	{'v', 'T',	0xc5, 0xa4},
-	{'v', 'Z',	0xc5, 0xbd},
-	{'v', 'l',	0xc4, 0xbe},
-	{'v', 's',	0xc5, 0xa1},
-	{'v', 't',	0xc5, 0xa5},
-	{'v', 'z',	0xc5, 0xbe},
-	{'v', 'C',	0xc4, 0x8c},
-	{'v', 'E',	0xc4, 0x9a},
-	{'v', 'D',	0xc4, 0x8e},
-	{'v', 'N',	0xc5, 0x87},
-	{'v', 'R',	0xc5, 0x98},
-	{'v', 'c',	0xc4, 0x8d},
-	{'v', 'e',	0xc4, 0x9b},
-	{'v', 'd',	0xc4, 0x8f},
-	{'v', 'n',	0xc5, 0x88},
-	{'v', 'r',	0xc5, 0x99},
-	{'u', 'A',	0xc4, 0x82},
-	{'u', 'a',	0xc4, 0x83},
-	{'u', 'E',	0xc4, 0x94},
-	{'u', 'e',	0xc4, 0x95},
-	{'u', 'G',	0xc4, 0x9e},
-	{'u', 'g',	0xc4, 0x9f},
-	{'u', 'I',	0xc4, 0xac},
-	{'u', 'i',	0xc4, 0xad},
-	{'u', 'O',	0xc5, 0x8e},
-	{'u', 'o',	0xc5, 0x8f},
-	{'u', 'U',	0xc5, 0xac},
-	{'u', 'u',	0xc5, 0xad},
-#if 0
-	{':', 'O',	0xc5, 0x90},	/*fixme*/
-	{':', 'U',	0xc5, 0xb0},	/*fixme*/
-	{':', 'o',	0xc5, 0x91},	/*fixme*/
-	{':', 'u',	0xc5, 0xb1},	/*fixme*/
-	{'.', 'Z',	0xc5, 0xbb},
-	{'.', 'z',	0xc5, 0xbc},
-	{'.', 'I',	0xc4, 0xb0},
-	{'.', 'i',	0xc4, 0xb1},
-	{'.', 'C',	0xc4, 0x8a},
-	{'.', 'G',	0xc4, 0xa0},
-	{'.', 'c',	0xc4, 0x8b},
-	{'.', 'g',	0xc4, 0xa1},
-	{'.', 'E',	0xc4, 0x96},
-	{'.', 'e',	0xc4, 0x97},
-#endif
-/*	{'(C)',	0xc2, 0xa9},		fixme: 3 characters */
-#endif
-};
-
 static struct u_ps {
 	struct u_ps *next;
 	char text[2];
@@ -560,7 +94,7 @@ void bug(char *msg, int fatal)
 	error(1, 0, "Internal error: %s.", msg);
 	if (fatal) {
 		fprintf(stderr, "Emergency stop.\n\n");
-		exit(3);
+		exit(EXIT_FAILURE);
 	}
 	fprintf(stderr, "Trying to continue...\n");
 }
@@ -586,16 +120,15 @@ static struct SYMBOL *t;
 	if (s != 0) {
 		fprintf(stderr, "in line %d.%d",
 			s->as.linenum, s->as.colnum);
-		if (showerror) {
-			s->as.flags |= ABC_F_ERROR;
-			showerror++;
-		}
+		s->as.flags |= ABC_F_ERROR;
 	}
 	fprintf(stderr, ": ");
 	va_start(args, fmt);
 	vfprintf(stderr, fmt, args);
 	va_end(args);
 	fprintf(stderr, "\n");
+	if (sev > severity)
+		severity = sev;
 }
 
 /* -- read a number with a unit -- */
@@ -614,7 +147,7 @@ float scan_u(char *str)
 		if (!strncasecmp(str + nch, "pt", 2))
 			return a PT;
 	}
-	error(1, 0, "\n++++ Unknown unit value \"%s\"", str);
+	error(1, 0, "Unknown unit value \"%s\"", str);
 	return 20 PT;
 }
 
@@ -629,7 +162,7 @@ static void cap_str(char *p)
 		c = (unsigned char) *p;
 		if (c >= 'a' && c <= 'z')
 /*fixme: KO with utf-8*/
-//		    || (c >= 0xe0 && c <= 0xfe))
+//		 || (c >= 0xe0 && c <= 0xfe))
 			*p = c & ~0x20;
 #else
 		*p = toupper((unsigned char) *p);
@@ -650,9 +183,9 @@ float cwid(unsigned short c)
 /* Return an estimated width of the string. */
 float tex_str(char *s)
 {
-	char *d, c2;
+	char *d;
 	signed char c1;
-	unsigned maxlen, i, j, v;
+	unsigned maxlen, i;
 	float w, swfac;
 
 	w = 0;
@@ -663,150 +196,24 @@ float tex_str(char *s)
 	swfac = cfmt.font_tb[i].swfac;
 	while ((c1 = *s++) != '\0') {
 		switch (c1) {
-		case '\\':			/* backslash sequences */
-			if (*s == '\0')
-				continue;
+		case '\\':
 			c1 = *s++;
+			if (c1 == '\0') {
+				*d = '\0';
+				return w;
+			}
 			switch (c1) {
-			case ' ':
-				goto addchar;
+			case 'n':
+				c1 = '\n';
+				break;
 			case 't':
 				c1 = '\t';
-				goto addchar;
-			case 'u':		/* unicode 16 bits */
-				i = 4;
-				goto hexuni;
-			case 'U':		/* unicode 32 bits */
-				i = 8;
-		hexuni:
-
-				/* check if hexadecimal digits */
-				for (j = 0; j < i; j++)
-					if (!isxdigit((unsigned char) s[j]))
-						break;
-				if (j != i)
-					break;
-				v = 0;		/* get the unicode value */
-				while (--i >= 0
-				    && isxdigit((unsigned char) *s)) {
-					v <<= 4;
-					if (*s <= '9')
-						v += *s - '0';
-					else if (*s <= 'F')
-						v += *s - 'A' + 10;
-					else
-						v += *s - 'a' + 10;
-					s++;
-				}
-				if ((v & 0xd800) == 0xd800) {	/* surrogates */
-					if (*s != '\\' || s[1] != 'u')
-						break;
-					s += 2;
-					for (j = 0; j < i; j++)
-						if (!isxdigit((unsigned char) s[j]))
-							break;
-					if (j != i)
-						break;
-					v = (v - 0xd7c0) << (10 - 4);
-					while (--i >= 0
-					    && isxdigit((unsigned char) *s)) {
-						v <<= 4;
-						if (*s <= '9')
-							v += *s - '0';
-						else if (*s <= 'F')
-							v += *s - 'A' + 10;
-						else
-							v += *s - 'a' + 10;
-						s++;
-					}
-					v -= 0xdc00;
-				}
-				if (v < 0x80) {	/* convert to UTF-8 */
-					c1 = v;
-				} else if (v < 0x800) {
-					if (--maxlen <= 0)
-						goto addchar;
-					*d++ = 0xc0 | (v >> 6);
-					c1 = 0x80 | (v & 0x3f);
-				} else if (v < 0x10000) {
-					if (--maxlen <= 0)
-						goto addchar;
-					*d++ = 0xe0 | (v >> 12);
-					if (--maxlen <= 0)
-						goto addchar;
-					*d++ = 0x80 | ((v >> 6) & 0x3f);
-					c1 = 0x80 | (v & 0x3f);
-				} else {
-					if (--maxlen <= 0)
-						goto addchar;
-					*d++ = 0xf0 | (v >> 18);
-					if (--maxlen <= 0)
-						goto addchar;
-					*d++ = 0x80 | ((v >> 12) & 0x3f);
-					if (--maxlen <= 0)
-						goto addchar;
-					*d++ = 0x80 | ((v >> 6) & 0x3f);
-					c1 = 0x80 | (v & 0x3f);
-				}
-				goto addchar;
-			}
-			c2 = *s;
-
-			/* treat escape with octal value */
-			if ((unsigned) (c1 - '0') <= 3
-			    && (unsigned) (c2 - '0') <= 7
-			    && (unsigned) (s[1] - '0') <= 7) {
-				c1 = ((c1 - '0') << 6) + ((c2 - '0') << 3) + s[1] - '0';
-				s += 2;
-
-				/* accidental compatibility */
-				switch (c1) {
-				case '\201':
-				case '\202':
-				case '\203':
-				case '\204':
-				case '\205':
-					c1 &= 0x07;
-					break;
-				default:
-					goto compat;
-				}
 				break;
-			}
-
-			/* convert to rfc1345 */
-			switch (c1) {
-			case '`': c1 = '!'; break;
-			case '^': c1 = '>'; break;
-			case '~': c1 = '?'; break;
-//			case '"': c1 = ':'; break;	/* KO with some chars */
-			}
-
-			switch (c2) {
-			case '`': c2 = '!'; break;
-			case '^': c2 = '>'; break;
-			case '~': c2 = '?'; break;
-//			case '"': c2 = ':'; break;
-			}
-
-			/* check the sequence in both orders */
-			for (i = 0; i < sizeof tex_tb / sizeof tex_tb[0]; i++) {
-				if ((tex_tb[i][0] == c1 &&
-						tex_tb[i][1] == c2) ||
-				    (tex_tb[i][0] == c2 &&
-						tex_tb[i][1] == c1)) {
-					if (--maxlen <= 0)
-						goto addchar_nowidth;;
-					s++;
-					*d++ = tex_tb[i][2];
-					c1 = tex_tb[i][3];
-					goto addchar;
-				}
 			}
 			break;
 		case '$':
 			if (isdigit((unsigned char) *s)
-			    && (unsigned) (*s - '0') < FONT_UMAX) {
+			 && (unsigned) (*s - '0') < FONT_UMAX) {
 				i = *s - '0';
 				if (i == 0)
 					i = defft;
@@ -824,31 +231,7 @@ float tex_str(char *s)
 				s++;
 			}
 			break;
-		default:
-compat:
-			/* latin1 compatibility */
-			if (c1 >= 0)
-				break;		/* ascii */
-//			if ((unsigned) ((c1 & 0xff) - 0xa0) > 0x100 - 0xa0)
-//				break;
-			if ((c1 & 0xff) > 0xc0) {
-				if ((*s & 0xc0) == 0x80)
-					break;
-				if (*s == '\\' && s[1] == '2')
-					break;
-			} else {
-				if (d[-1] < 0)
-					break;
-			}
-
-			/* replace the character by the utf-8 value */
-			if (--maxlen <= 0)
-				break;
-			*d++ = 0xc0 | ((c1 >> 6) & 0x03);
-			c1 = 0x80 | (c1 & 0x3f);
-			break;
 		}
-	addchar:
 		if (c1 < 0) {
 			if ((c1 & 0xc0) == 0x80) {
 				unsigned short unicode;
@@ -857,48 +240,43 @@ compat:
 				unicode = ((d[-1] & 0x0f) << 6) | (c1 & 0x3f);
 				w += cwid(unicode) * swfac;
 			}
-		} else if (c1 <= 5) {		/* accidentals */
-#if 1
-			if (--maxlen <= 0)
+		} else if (c1 <= 5) {		/* accidentals from gchord */
+			if (--maxlen < 4)
 				break;
-			*d++ = 0xc2;
-			c1 |= 0x80;		/* pseudo utf8 c201 .. c205 */
-#else
-			if (c1 < 4) {
-				if (--maxlen <= 0)
-					break;
+			switch (c1) {
+			case 1:
 				*d++ = 0xe2;
-				if (--maxlen <= 0)
-					break;
 				*d++ = 0x99;
-				switch (c1) {
-				case 1:
-					c1 = 0xaf;
-					break;
-				case 2:
-					c1 = 0xad;
-					break;
-				default:
-/*				case 3: */
-					c1 = 0xae;
-					break;
-				}
-			} else {
-				if (--maxlen <= 0)
-					break;
+				*d++ = 0xaf;
+				break;
+			case 2:
+				*d++ = 0xe2;
+				*d++ = 0x99;
+				*d++ = 0xad;
+				break;
+			case 3:
+				*d++ = 0xe2;
+				*d++ = 0x99;
+				*d++ = 0xae;
+				break;
+			case 4:
 				*d++ = 0xf0;
-				if (--maxlen <= 0)
-					break;
 				*d++ = 0x9d;
-				if (--maxlen <= 0)
-					break;
 				*d++ = 0x84;
-				c1 += 0xaa - 4;	/* aa / ab */
+				*d++ = 0xaa;
+				break;
+			case 5:
+				*d++ = 0xf0;
+				*d++ = 0x9d;
+				*d++ = 0x84;
+				*d++ = 0xab;
+				break;
 			}
-#endif
 			w += cwid('A') * swfac;
-		} else
+			continue;
+		} else {
 			w += cwid((unsigned short) c1) * swfac;
+		}
 	addchar_nowidth:
 		if (--maxlen <= 0)
 			break;
@@ -933,7 +311,7 @@ void pg_init(void)
 	if (context != NULL)
 		layout = pango_layout_new(context);
 	if (layout == NULL) {
-		fprintf(stderr, "pango disabled\n");
+		error(0, 0, "pango disabled\n");
 		cfmt.pango = 0;
 	} else {
 		pango_layout_set_wrap(layout, PANGO_WRAP_WORD);
@@ -999,7 +377,7 @@ static void pg_line_output(PangoLayoutLine *line)
 //fixme: works only for extra chars (accidentals)
 				c &= ~PANGO_GLYPH_UNKNOWN_FLAG;
 				if ((unsigned) (c - 0x80) >= 0x20) {
-					fprintf(stderr, "char %04x not treated\n", c);
+					error(0, 0, "char %04x not treated\n", c);
 					continue;
 				}
 				if (glypharray)
@@ -1056,7 +434,7 @@ static void str_font_change(int start,
 	fnum = f->fnum;
 	if (f->size == 0) {
 		error(0, 0, "Font \"%s\" with a null size - set to 8",
-		      fontnames[fnum]);
+			fontnames[fnum]);
 		f->size = 8;
 	}
 	desc_font(fnum);
@@ -1065,26 +443,26 @@ static void str_font_change(int start,
 	attr1->start_index = start;
 	attr1->end_index = end;
 	pango_attr_list_insert(attrs, attr1);
-//	pango_attr_list_change(attrs, attr1);
 	attr2 = pango_attr_size_new((int) (f->size * PG_SCALE));
 	attr2->start_index = start;
 	attr2->end_index = end;
 	pango_attr_list_insert(attrs, attr2);
-//	pango_attr_list_change(attrs, attr2);
 }
 
-static GString *str_set_font(char *p, GString *str)
+static void str_set_font(char *p)
 {
+	GString *str;
 	char *q;
 	int start;
 
+	str = pg_str;
 	start = str->len;
 	q = p;
 	while (*p != '\0') {
 		switch (*p) {
 		case '$':
 			if (isdigit((unsigned char) p[1])
-			    && (unsigned) (p[1] - '0') < FONT_UMAX) {
+			 && (unsigned) (p[1] - '0') < FONT_UMAX) {
 				if (p > q)
 					str = g_string_append_len(str, q, p - q);
 				if (curft != p[1] - '0') {
@@ -1110,21 +488,44 @@ static GString *str_set_font(char *p, GString *str)
 		str = g_string_append_len(str, q, p - q);
 		str_font_change(start, str->len);
 	}
-	return str;
+	pg_str = str;
 }
 
 /* -- output a string using the pango and freetype libraries -- */
 static void str_pg_out(char *p, int action)
 {
 	PangoLayoutLine *line;
+	int wi;
+	float w;
 
 //fixme: test
 //PUT1("\n%% t: '%s'\n", p);
 	if (out_pg_ft != curft)
 		out_pg_ft = -1;
 
+	/* guitar chord with TABs */
+	if (action == A_GCHEXP) {
+		char *q;
+
+		/* get the inter TAB width (see draw_gchord) */
+		q = mbf - 1;
+		while (q[-1] != ' ')
+			q--;
+		mbf = q;
+		w = atof(q);
+		for (;;) {
+			q = strchr(p, '\t');
+			if (q == 0)
+				break;
+			*q = '\0';
+			str_pg_out(p, A_LEFT);
+			a2b(" %.1f 0 RM ", w);
+			p = q + 1;
+		}
+	}
+
 	attrs = pango_attr_list_new();
-	pg_str = str_set_font(p, pg_str);
+	str_set_font(p);
 
 	pango_layout_set_text(layout, pg_str->str, pg_str->len);
 	pango_layout_set_attributes(layout, attrs);
@@ -1133,19 +534,14 @@ static void str_pg_out(char *p, int action)
 	line = pango_layout_get_line_readonly(layout, 0);
 	switch (action) {
 	case A_CENTER:
-	case A_RIGHT: {
-		int wi;
-		float w;
-
+	case A_RIGHT:
 		pango_layout_get_size(layout, &wi, NULL);
-//printf("w: %d\n", wi);
 		if (action == A_CENTER)
 			wi /= 2;
 //		w = (float) wi / PG_SCALE;
 		w = (float) wi / PANGO_SCALE;
 		a2b("-%.1f 0 RM ", w);
 		break;
-	    }
 	}
 	pg_line_output(line);
 	pango_layout_set_attributes(layout, NULL);
@@ -1179,7 +575,6 @@ static void pg_para_output(int job)
 
 		line = lines->data;
 		pango_layout_line_get_extents(line, NULL, &pos);
-//		y += (float) (pos.height - pos.y) / PG_SCALE;
 		y += (float) pos.height
 				* .87		/* magic! */
 				/ PANGO_SCALE;
@@ -1216,7 +611,7 @@ static void pg_para_output(int job)
 						a2b("]glypharray");
 						glypharray = 0;
 					}
-//					   else if (mbf[-1] != '\n') {
+//					  else if (mbf[-1] != '\n') {
 						a2b("\n");
 //					}
 					a2b("%.2f %.2f M ",
@@ -1227,7 +622,7 @@ static void pg_para_output(int job)
 //fixme: works only for extra chars (accidentals)
 					g &= ~PANGO_GLYPH_UNKNOWN_FLAG;
 					if ((unsigned) (g - 0x80) >= 0x20) {
-						fprintf(stderr, "char %04x not treated\n", g);
+						error(0, 0, "char %04x not treated\n", g);
 						continue;
 					}
 					if (glypharray)
@@ -1293,31 +688,38 @@ static void pg_para_output(int job)
 	pango_attr_list_unref(attrs);
 }
 
-/* concatenate text for fill and justify */
-static void pg_add_text(char *s, int job, float baseskip)
+/* output of filled / justified text*/
+static void pg_write_text(char *s, int job, float baseskip)
 {
-	if (strtw <= 0) {			/* new paragraph */
-		if (strtw < 0) {		/* first line */
-			curft = defft;
-			pango_layout_set_width(layout, strlw * PANGO_SCALE);
-			pango_layout_set_justify(layout, job == T_JUSTIFY);
+	char *p;
+
+	curft = defft;
+	pango_layout_set_width(layout, strlw * PANGO_SCALE);
+	pango_layout_set_justify(layout, job == T_JUSTIFY);
+	attrs = pango_attr_list_new();
+
+	p = s;
+	while (*p != '\0') {
+		if (*p++ != '\n')
+			continue;
+		if (*p == '\n') {		/* if empty line */
+			p[-1] = '\0';
+			tex_str(s);
+			str_set_font(tex_buf);
+			if (pg_str->len > 0)
+				pg_para_output(job);
+			bskip(baseskip * 0.5);
+			buffer_eob();
+			s = ++p;
+			continue;
 		}
-		attrs = pango_attr_list_new();
-	}
-	if (*s == '\0') {
-		if (pg_str->len > 0)
-			pg_para_output(job);
-		bskip(baseskip * 0.5);
-		buffer_eob();
-		strtw = 0;
-		return;
+//fixme: maybe not useful
+		p [-1] = ' ';
 	}
 	tex_str(s);
-	s = &tex_buf[strlen(tex_buf)];
-	*s++ = ' ';
-	*s = '\0';
-	pg_str = str_set_font(tex_buf, pg_str);
-	strtw = strlw;
+	str_set_font(tex_buf);
+	if (pg_str->len)
+		pg_para_output(job);
 }
 #endif
 
@@ -1361,16 +763,16 @@ static void str_ft_out1(char *p, int l)
 }
 
 /* -- output a string and the font changes -- */
-static void str_ft_out(char *p, int end)
+void str_ft_out(char *p, int end)
 {
-	char *q;
+	char *q, tmp[2];
 
 	q = p;
 	while (*p != '\0') {
-		switch (*p) {
+		switch ((unsigned char) *p) {
 		case '$':
 			if (isdigit((unsigned char) p[1])
-			    && (unsigned) (p[1] - '0') < FONT_UMAX) {
+			 && (unsigned) (p[1] - '0') < FONT_UMAX) {
 				if (p > q)
 					str_ft_out1(q, p - q);
 				if (curft != p[1] - '0') {
@@ -1395,6 +797,47 @@ static void str_ft_out(char *p, int end)
 			str_ft_out1("\\", 1);
 			q = p;
 			break;
+
+		/* is PostScript, convert the accidentals to unicode 81..85 */
+		case 0xe2:
+			if (svg || epsf == 2)
+				break;
+			if ((unsigned char) p[1] != 0x99)
+				break;
+			if ((unsigned char) p[2] == 0xaf)
+				tmp[1] = 0x81;
+			else if ((unsigned char) p[2] == 0xad)
+				tmp[1] = 0x82;
+			else if ((unsigned char) p[2] == 0xae)
+				tmp[1] = 0x83;
+			else
+				break;
+			if (p > q)
+				str_ft_out1(q, p - q);
+			tmp[0] = 0xc2;
+			str_ft_out1(tmp, 2);
+			p += 3;
+			q = p;
+			continue;
+		case 0xf0:
+			if (svg || epsf == 2)
+				break;
+			if ((unsigned char) p[1] != 0x9d
+			 || (unsigned char) p[2] != 0x84)
+				break;
+			if ((unsigned char) p[3] == 0xaa)
+				tmp[1] = 0x84;
+			else if ((unsigned char) p[3] == 0xab)
+				tmp[1] = 0x85;
+			else
+				break;
+			if (p > q)
+				str_ft_out1(q, p - q);
+			tmp[0] = 0xc2;
+			str_ft_out1(tmp, 2);
+			p += 4;
+			q = p;
+			continue;
 		}
 		p++;
 	}
@@ -1424,7 +867,7 @@ void str_out(char *p, int action)
 	/* special case when font change at start of text */
 /*---fixme: authorize 2 chars?*/
 	if (*p == '$' && isdigit((unsigned char) p[1])
-	    && (unsigned) (p[1] - '0') < FONT_UMAX) {
+	 && (unsigned) (p[1] - '0') < FONT_UMAX) {
 		if (curft != p[1] - '0') {
 			curft = p[1] - '0';
 			if (curft == 0)
@@ -1512,8 +955,8 @@ static void put_inf(struct SYMBOL *s)
 
 /* -- output a header format '111 (222)' -- */
 static void put_inf2r(struct SYMBOL *s1,
-		      struct SYMBOL *s2,
-		      int action)
+			struct SYMBOL *s2,
+			int action)
 {
 	char buf[256], *p, *q;
 
@@ -1542,28 +985,22 @@ static void put_inf2r(struct SYMBOL *s1,
 	put_str(p, action);
 }
 
-/* -- add text to a block -- */
-#ifdef HAVE_PANGO
-void add_to_text_block(char *s, int job, int do_pango)
-#else
-void add_to_text_block(char *s, int job)
-#endif
+/* -- write a text block (%%begintext / %%text / %%center) -- */
+void write_text(char *cmd, char *s, int job)
 {
-	float baseskip, lw;
-	char *p, sep;
+	int nw;
+#ifdef HAVE_PANGO
+	int do_pango;
+#endif
+	float baseskip, strw;
+	char *p;
 	struct FONTSPEC *f;
 
-	/* if first line, set the fonts */
-	if (strtw < 0) {
-		str_font(TEXTFONT);
-		strlw = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
-			- cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale;
-	}
+	str_font(TEXTFONT);
+	strlw = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
+		- cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale;
 
-	if (curft > 0)
-		f = &cfmt.font_tb[curft];
-	else
-		f = &cfmt.font_tb[defft];
+	f = &cfmt.font_tb[defft];
 	baseskip = f->size * cfmt.lineskipfac;
 
 	/* follow lines */
@@ -1571,98 +1008,128 @@ void add_to_text_block(char *s, int job)
 	case T_LEFT:
 	case T_CENTER:
 	case T_RIGHT:
-		if (*s != '\0') {
+		switch (job) {
+		case T_LEFT:
+#if T_LEFT != A_LEFT
+			job = A_LEFT;
+#endif
+			break;
+		case T_CENTER:
+#if T_CENTER != A_CENTER
+			job = A_CENTER;
+#endif
+			break;
+		default:
+#if T_RIGHT != A_RIGHT
+			job = A_RIGHT;
+#endif
+			break;
+		}
+		while (*s != '\0') {
+			p = s;
+			while (*p != '\0' && *p != '\n')
+				p++;
+			if (*p != '\0')
+				*p++ = '\0';
 			bskip(baseskip);
 			switch (job) {
-			case T_LEFT:
-				PUT0("0 0 M ");
-#if T_LEFT != A_LEFT
-				job = A_LEFT;
-#endif
+			case A_LEFT:
+				a2b("0 0 M ");
 				break;
-			case T_CENTER:
-				PUT1("%.1f 0 M ", strlw * 0.5);
-#if T_CENTER != A_CENTER
-				job = A_CENTER;
-#endif
+			case A_CENTER:
+				a2b("%.1f 0 M ", strlw * 0.5);
 				break;
 			default:
-#if T_RIGHT != A_RIGHT
-				job = A_RIGHT;
-#endif
-				PUT1("%.1f 0 M ", strlw);
+				a2b("%.1f 0 M ", strlw);
 				break;
 			}
 			put_str(s, job);
-		} else {
-			bskip(baseskip * 0.5);
-			buffer_eob();
+			s = p;
 		}
-		strtw = 0;
+		bskip(baseskip * 0.5);
+		buffer_eob();
 		return;
 	}
 
 	/* fill or justify lines */
 #ifdef HAVE_PANGO
+	do_pango = cfmt.pango;
+	if (do_pango == 1) {
+		do_pango = 0;
+		for (p = s; *p != 0; p++) {
+			if (*p >= 0xc6) {		/* if not latin */
+				do_pango++;
+				break;
+			}
+		}
+	}
 	if (do_pango) {
-		pg_add_text(s, job, baseskip);
+		pg_write_text(s, job, baseskip);
+		bskip(cfmt.font_tb[TEXTFONT].size * cfmt.parskipfac);
+		buffer_eob();
 		return;
 	}
 #endif
-	if (strtw <= 0) {		/* if first line */
-		if (strtw < 0)
-			curft = defft;
-		bskip(baseskip);
-		PUT0("0 0 M ");
-		if (job == T_FILL) {
-			strop = "show";
-		} else {
-			PUT0("/str{");
-			outft = -1;
-			strop = "strop";
-		}
-	}
+	curft = defft;
+	nw = 0;					/* number of words */
+	strw = 0;				/* have gcc happy */
+	while (*s != '\0') {
+		float lw;
 
-	if (*s == '\0') {			/* empty line */
-		if (strtx) {
-			PUT1(")%s", strop);
-			strtx = 0;
+		if (nw == 0) {			/* if new paragraph */
+			bskip(baseskip);
+			a2b("0 0 M ");
+			if (job == T_FILL) {
+				strop = "show";
+			} else {
+				a2b("/str{");
+				outft = -1;
+				strop = "strop";
+			}
+			strw = 0;		/* current line width */
 		}
-		if (job == T_JUSTIFY)
-			PUT0("}def\n"
-				"/strop/show load def str");
-		a2b("\n");
-		bskip(baseskip * 0.5);
-		buffer_eob();
-		strtw = 0;
-		return;
-	}
-
-	p = s;
-	for (;;) {
-		if (strtw <= 0) {
-			strns = 0;
-			strtw = 0;
-		} else {
-			str_ft_out(" ", 0);
-			strtw += cwid(' ') * cfmt.font_tb[curft].swfac;
-			strns++;
-		}
-		while (*p != ' ' && *p != '\0')
-			p++;
-		sep = *p;
-		*p = '\0';
-		lw = tex_str(s);
-		if (strtw + lw > strlw) {
+		if (*s == '\n') {		/* empty line */
 			if (strtx) {
-				if (mbf[-1] == ' ')
-					mbf--;
-				PUT1(")%s ", strop);
+				a2b(")%s", strop);
+				strtx = 0;
+			}
+			if (job == T_JUSTIFY)
+				a2b("}def\n"
+					"/strop/show load def str");
+			a2b("\n");
+			bskip(baseskip * 0.5);
+			buffer_eob();
+			nw = 0;
+			while (isspace((unsigned char) *s))
+				s++;
+			continue;
+		}
+
+		/* get a word */
+		p = s;
+		while (*p != '\0' && !isspace((unsigned char) *p))
+			p++;
+		if (*p != '\0') {
+			char *q;
+
+			q = p;
+			if (*p != '\n') {
+				do {
+					p++;
+				} while (*p != '\n' && isspace((unsigned char) *p));
+			}
+			if (*p == '\n')
+				p++;
+			*q = '\0';
+		}
+
+		lw = tex_str(s);
+		if (strw + lw > strlw) {
+			if (strtx) {
+				a2b(")%s ", strop);
 				strtx = 0;
 			}
 			if (job == T_JUSTIFY) {
-				if (--strns <= 0)
-					strns = 1;
 				if (svg || epsf == 2)
 					a2b("}def\n"
 						"%.1f jshow"
@@ -1673,70 +1140,52 @@ void add_to_text_block(char *s, int job)
 						"/strop/strw load def/w 0 def str"
 						"/w %.1f w sub %d div def"
 						"/strop/jshow load def str ",
-						strlw, strns);
-				strns = 0;
+						strlw, nw);
 			}
 			bskip(cfmt.font_tb[curft].size * cfmt.lineskipfac);
 			a2b("0 0 M ");
 			if (job == T_JUSTIFY) {
-				PUT0("/str{");
+				a2b("/str{");
 				outft = -1;
 			}
-			strtw = 0;
+			nw = 0;
+			strw = 0;
+		}
+
+		if (nw != 0) {
+			str_ft_out1(" ", 1);
+			strw += cwid(' ') * cfmt.font_tb[curft].swfac;
 		}
 		str_ft_out(tex_buf, 0);
-		strtw += lw;
-		*p = sep;
-		while (*p == ' ')
-			p++;
-		if (*p == '\0')
-			break;
+		strw += lw;
+		nw++;
+
 		s = p;
 	}
-}
-
-/* -- write a text block -- */
-void write_text_block(int job, int abc_state)
-{
-	if (strtw < 0)
-		return;
-
-#ifdef HAVE_PANGO
-	if (pg_str->len > 0) {
-		pg_para_output(job);
-	} else
-#endif
-	if (strtw > 0) {
-		if (strtx) {
-			PUT1(")%s", strop);
-			strtx = 0;
-		}
-		if (job == T_JUSTIFY)
-			PUT0("}def\n"
-				"/strop/show load def str");
-//		if (mbf[-1] != '\n')
-			a2b("\n");
+	if (strtx) {
+		a2b(")%s", strop);
+		strtx = 0;
 	}
+	if (job == T_JUSTIFY)
+		a2b("}def\n"
+			"/strop/show load def str");
+//	    if (mbf[-1] != '\n')
+		a2b("\n");
 	bskip(cfmt.font_tb[TEXTFONT].size * cfmt.parskipfac);
 	buffer_eob();
-
-	/* next line to allow pagebreak after each paragraph */
-	if (!epsf && abc_state != ABC_S_TUNE)
-		write_buffer();
-	strtw = -1;
 }
 
 /* -- output a line of words after tune -- */
 static int put_wline(char *p,
-		     float x,
-		     int right)
+			float x,
+			int right)
 {
 	char *q, *r, sep;
 
 	while (isspace((unsigned char) *p))
 		p++;
 	if (*p == '$' && isdigit((unsigned char) p[1])
-	    && (unsigned) (p[1] - '0') < FONT_UMAX) {
+	 && (unsigned) (p[1] - '0') < FONT_UMAX) {
 		if (curft != p[1] - '0') {
 			curft = p[1] - '0';
 			if (curft == 0)
@@ -1750,8 +1199,8 @@ static int put_wline(char *p,
 		while (*p != '\0') {
 			p++;
 			if (*p == ' '
-			    || p[-1] == ':'
-			    || p[-1] == '.')
+			 || p[-1] == ':'
+			 || p[-1] == '.')
 				break;
 		}
 		r = p;
@@ -1761,7 +1210,7 @@ static int put_wline(char *p,
 
 	/* on the left side, permit page break at empty lines or stanza start */
 	if (!right
-	   && (*p == '\0' || r != 0))
+	 && (*p == '\0' || r != 0))
 		buffer_eob();
 
 	if (r != 0) {
@@ -1806,7 +1255,9 @@ void put_words(struct SYMBOL *words)
 				n++;
 				have_text = 0;
 			}
-		} else	have_text = 1;
+		} else {
+			have_text = 1;
+		}
 	}
 	if (n > 0) {
 		n++;
@@ -1822,7 +1273,9 @@ void put_words(struct SYMBOL *words)
 				if (have_text && --i <= 0)
 					break;
 				have_text = 0;
-			} else	have_text = 1;
+			} else {
+				have_text = 1;
+			}
 			s_end = s_end->next;
 		}
 		s2 = s_end->next;
@@ -1844,9 +1297,9 @@ void put_words(struct SYMBOL *words)
 		if (s2 != 0) {
 			if (put_wline(&s2->as.text[2], 20. + middle, 1)) {
 				if (--n == 0) {
-					if (s != 0)
+					if (s != 0) {
 						n++;
-					else if (s2->next != 0) {
+					} else if (s2->next != 0) {
 
 						/* center the last words */
 /*fixme: should compute the width average.. */
@@ -1872,8 +1325,6 @@ void put_history(void)
 	font = 0;
 	for (s = info['I' - 'A']; s != 0; s = s->next) {
 		u = s->as.text[0] - 'A';
-		if (!(cfmt.fields[0] & (1 << u)))
-			continue;
 		if ((s2 = info[u]) == 0)
 			continue;
 		if (!font) {
@@ -1909,7 +1360,7 @@ static char buf[STRL1];
 		q = strrchr(p, ',');
 		if (q != 0) {
 			if (q[1] != ' ' || !isupper((unsigned char) q[2])
-			    || strchr(q + 2, ' ') != 0)
+			 || strchr(q + 2, ' ') != 0)
 				q = 0;
 		}
 	}
@@ -1962,7 +1413,8 @@ void write_title(struct SYMBOL *s)
 	}
 	if (cfmt.titleleft)
 		PUT0("0 0 M ");
-	else	PUT1("%.1f 0 M ",
+	else
+		PUT1("%.1f 0 M ",
 		     0.5 * ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 		     - cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale);
 	put_str(p, cfmt.titleleft ? A_LEFT : A_CENTER);
@@ -2031,8 +1483,10 @@ static void write_headform(float lwidth)
 				fmt[j++] = 126;		/* next line */
 		} else if (*p == '+') {
 			if (j > 0 && fmt[j - 1] < 125
-			    && j < sizeof fmt - 3)
+			 && j < sizeof fmt - 4) {
 				fmt[j++] = 125;		/* concatenate */
+				fmt[j++] = 0;
+			}
 /*new fixme: add free text "..." ?*/
 		}
 		p++;
@@ -2054,7 +1508,8 @@ static void write_headform(float lwidth)
 			if (i >= 126)		/* if newline */
 				break;
 			align = *q++;
-			if (yb[align] != 0)
+			if (yb[align] != 0
+			 || i == 125)
 				continue;
 			s = inf_s[i];
 			if (s == 0 || inf_nb[i] == 0)
@@ -2066,8 +1521,6 @@ static void write_headform(float lwidth)
 				y = sz;
 			yb[align] = sz;
 /*fixme:should count the height of the concatenated field*/
-			if (*q == 125)
-				q++;
 		}
 		for (i = 0; i < 3; i++)
 			ya[i] += y - yb[i];
@@ -2076,8 +1529,10 @@ static void write_headform(float lwidth)
 			if (i >= 126)		/* if newline */
 				break;
 			align = *p++;
-			if (!(cfmt.fields[0] & (1 << (unsigned) i)))
+			if (i == 125)
 				continue;
+//			if (!(cfmt.fields[0] & (1 << (unsigned) i)))
+//				continue;
 			s = inf_s[i];
 			if (s == 0 || inf_nb[i] == 0)
 				continue;
@@ -2089,10 +1544,10 @@ static void write_headform(float lwidth)
 			y = ya[align] + sz;
 			PUT2("%.1f %.1f M ", x, -y);
 			if (*p == 125) {	/* concatenate */
-			    p++;
+			    p += 2;
 /*fixme: do it work with different fields*/
 			    if (*p == i && p[1] == align
-				&& s->next != 0) {
+			     && s->next != 0) {
 				char buf[256], *r;
 
 				q = s->as.text;
@@ -2124,17 +1579,20 @@ static void write_headform(float lwidth)
 				PUT0("\n");
 				inf_nb[i]--;
 				p += 2;
+			    } else {
+				put_inf2r(s, 0, align);
 			    }
 			} else if (i == 'Q' - 'A') {	/* special case for tempo */
 				if (align != A_LEFT) {
 					float w;
 
-					w = tempo_width(s);
+					w = -tempo_width(s);
 					if (align == A_CENTER)
-						PUT1("-%.1f 0 RM ", w * 0.5);
-					else	PUT1("-%.1f 0 RM ", w);
+						w *= 0.5;
+					PUT1("%.1f 0 RM ", w);
 				}
 				write_tempo(s, 0, 0.75);
+				info['Q' - 'A'] = 0;	/* don't display in tune */
 			} else {
 				put_inf2r(s, 0, align);
 			}
@@ -2193,8 +1651,6 @@ void write_heading(struct abctune *t)
 	down1 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
 	rhythm = (first_voice->key.mode >= BAGPIPE
 			&& !cfmt.infoline) ? info['R' - 'A'] : 0;
-	if (!(cfmt.fields[0] & (1 << ('R' - 'A'))))
-		rhythm = 0;
 	if (rhythm) {
 		str_font(COMPOSERFONT);
 		PUT1("0 %.1f M ",
@@ -2207,14 +1663,8 @@ void write_heading(struct abctune *t)
 		area = info['A' - 'A'];
 	else
 		author = info['A' - 'A'];
-	if (!(cfmt.fields[0] & (1 << ('A' - 'A'))))
-		area = author = 0;
 	composer = info['C' - 'A'];
-	if (!(cfmt.fields[0] & (1 << ('C' - 'A'))))
-		composer = 0;
 	origin = info['O' - 'A'];
-	if (!(cfmt.fields[0] & (1 << ('O' - 'A'))))
-		origin = 0;
 	if (composer != 0 || origin != 0 || author != 0) {
 		float xcomp;
 		int align;
@@ -2244,7 +1694,7 @@ void write_heading(struct abctune *t)
 		}
 		if (composer != 0 || origin != 0) {
 			if (cfmt.aligncomposer >= 0
-			    && down1 != down2)
+			 && down1 != down2)
 				bskip(down1 - down2);
 			s = composer;
 			for (;;) {
@@ -2264,8 +1714,6 @@ void write_heading(struct abctune *t)
 		}
 
 		rhythm = rhythm ? 0 : info['R' - 'A'];
-		if (!(cfmt.fields[0] & (1 << ('R' - 'A'))))
-			rhythm = 0;
 		if ((rhythm || area) && cfmt.infoline) {
 
 			/* if only one of rhythm or area then do not use ()'s
@@ -2282,8 +1730,7 @@ void write_heading(struct abctune *t)
 	}
 
 	/* parts */
-	if (info['P' - 'A']
-	 && (cfmt.fields[0] & (1 << ('P' - 'A')))) {
+	if (info['P' - 'A'] != 0) {
 		down1 = cfmt.partsspace + cfmt.font_tb[PARTSFONT].size - down1;
 		if (down1 > 0)
 			down2 += down1;
@@ -2297,19 +1744,32 @@ void write_heading(struct abctune *t)
 	bskip(down2 + cfmt.musicspace);
 }
 
-/* -- memorize a PS line -- */
-void user_ps_add(char *s)
+/* -- memorize a PS / SVG line -- */
+/* 'use' may be:
+ *	'g': SVG code
+ *	'p': PS code for PS output only
+ *	's': PS code for SVG output only
+ *	'b': PS code for PS or SVG output
+ */
+void user_ps_add(char *s, char use)
 {
 	struct u_ps *t, *r;
 	int l;
 
+	if (*s == '\0' || *s == '%')
+		return;
 	l = strlen(s);
-	t = malloc(sizeof *user_ps - sizeof user_ps->text + l + 1);
-	strcpy(t->text, s);
+	if (use == 'g') {
+		t = malloc(sizeof *user_ps - sizeof user_ps->text + l + 6);
+		sprintf(t->text, "%%svg %s", s);
+	} else {
+		t = malloc(sizeof *user_ps - sizeof user_ps->text + l + 2);
+		sprintf(t->text, "%c%s", use, s);
+	}
 	t->next = 0;
-	if ((r = user_ps) == 0)
+	if ((r = user_ps) == 0) {
 		user_ps = t;
-	else {
+	} else {
 		while (r->next != 0)
 			r = r->next;
 		r->next = t;
@@ -2322,7 +1782,8 @@ void user_ps_write(void)
 	struct u_ps *t;
 
 	for (t = user_ps; t != 0; t = t->next) {
-		if (t->text[0] == '\001') {	/* PS file */
+		switch (t->text[0]) {
+		case '\001': {		/* PS file */
 			FILE *f;
 			char line[BSIZE];
 
@@ -2334,8 +1795,31 @@ void user_ps_write(void)
 					fwrite(line, 1, strlen(line), fout);
 				fclose(f);
 			}
-		} else {
-			output(fout, "%s\n", t->text);
+			continue;
+		    }
+		case '%':		/* SVG code */
+//			if (svg || epsf == 2)
+				svg_write(t->text, strlen(t->text));
+			continue;
+		case 'p':		/* PS code for PS output only */
+//			if (secure || svg || epsf == 2)
+//				continue;
+			break;
+		case 'b':		/* PS code for both PS and SVG */
+			if (svg || epsf == 2) {
+				svg_write(&t->text[1], strlen(&t->text[1]));
+				continue;
+			}
+//			if (secure)
+//				continue;
+			break;
+		case 's':		/* PS code for SVG output only */
+//			if (!svg && epsf != 2)
+//				continue;
+			svg_write(&t->text[1], strlen(&t->text[1]));
+			continue;
 		}
+		fputs(&t->text[1], fout);
+		fputs("\n", fout);
 	}
 }

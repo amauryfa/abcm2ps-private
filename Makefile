@@ -1,15 +1,15 @@
 # Makefile source for abcm2ps
 
-VERSION = 6.4.7
+VERSION = 6.6.5
 
 CC = gcc
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
-CPPFLAGS = -DHAVE_CONFIG_H  -DHAVE_PANGO=1 -pthread -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/cairo -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/libdrm   -I.
-CFLAGS = -g -O2 -Wall -pipe -Wsign-compare
-LDFLAGS =  -pthread -lpangocairo-1.0 -lcairo -lpangoft2-1.0 -lpango-1.0 -lfontconfig -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lfreetype -lm
+CPPFLAGS = -DHAVE_CONFIG_H  -DHAVE_PANGO=1 -pthread -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/cairo   -I.
+CFLAGS = -g -O2 -Wall -pipe
+LDFLAGS =  -pthread -lpangocairo-1.0 -lcairo -lpangoft2-1.0 -lpango-1.0 -lfontconfig -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lfreetype   -lm
 
 prefix = /usr/local
 exec_prefix = ${prefix}
@@ -23,11 +23,15 @@ docdir = /usr/local/doc
 
 # unix
 OBJECTS=abc2ps.o \
-	abcparse.o buffer.o deco.o draw.o format.o music.o parse.o \
-	subs.o syms.o svg.o
+	abcparse.o buffer.o deco.o draw.o format.o front.o music.o parse.o \
+	subs.o svg.o syms.o
 abcm2ps: $(OBJECTS)
 	$(CC) $(CFLAGS) -o abcm2ps $(OBJECTS) $(LDFLAGS)
 $(OBJECTS): abcparse.h abc2ps.h config.h Makefile
+abc2ps.o front.o: front.h
+
+abcmfe: front.c
+	$(CC) -g -O2 front.c -DMAIN -o abcmfe
 
 DOCFILES=$(addprefix $(srcdir)/,Changes License README *.abc *.eps *.txt)
 
@@ -78,12 +82,12 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/fonts.fmt \
 	abcm2ps-$(VERSION)/format.c \
 	abcm2ps-$(VERSION)/format.txt \
+	abcm2ps-$(VERSION)/front.c \
+	abcm2ps-$(VERSION)/front.h \
 	abcm2ps-$(VERSION)/install.sh \
-	abcm2ps-$(VERSION)/journey.abc \
 	abcm2ps-$(VERSION)/landscape.fmt \
-	abcm2ps-$(VERSION)/mtunes1.abc \
-	abcm2ps-$(VERSION)/mtunes2.abc \
 	abcm2ps-$(VERSION)/music.c \
+	abcm2ps-$(VERSION)/musicfont.fmt \
 	abcm2ps-$(VERSION)/newfeatures.abc \
 	abcm2ps-$(VERSION)/options.txt \
 	abcm2ps-$(VERSION)/parse.c \
@@ -94,14 +98,14 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/sample4.abc \
 	abcm2ps-$(VERSION)/sample5.abc \
 	abcm2ps-$(VERSION)/subs.c \
-	abcm2ps-$(VERSION)/syms.c \
 	abcm2ps-$(VERSION)/svg.c \
+	abcm2ps-$(VERSION)/syms.c \
 	abcm2ps-$(VERSION)/tight.fmt \
 	abcm2ps-$(VERSION)/voices.abc
 
 dist:
 	ln -s . abcm2ps-$(VERSION); \
-	tar -zchvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES); \
+	tar -zcvf abcm2ps-$(VERSION).tar.gz $(DIST_FILES); \
 	rm abcm2ps-$(VERSION)
 
 zip-dist:
@@ -121,10 +125,9 @@ zip: abcm2ps.exe
 	abcm2ps-$(VERSION)/*.fmt \
 	abcm2ps-$(VERSION)/*.txt ; cd -
 
-EXAMPLES = deco.ps \
-	journey.ps \
-	mtunes1.ps \
-	mtunes2.ps \
+EXAMPLES = accordion.ps \
+	chinese.ps \
+	deco.ps \
 	newfeatures.ps \
 	sample.ps \
 	sample2.ps \

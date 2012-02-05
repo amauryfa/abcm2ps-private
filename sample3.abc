@@ -51,7 +51,7 @@ X:2
 T:Staff break
 M:none
 L:1/8
-K:G ^F ^F, clef=C
+K:G exp ^F ^F, clef=C
 %%staffbreak 0.2cm
 [K:G clef=treble][M:C]SDE FG|AG !alcoda!FEO|DE FES||\
 %%staffbreak 2cm

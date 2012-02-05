@@ -4,11 +4,20 @@
 The list of the command line options may be known running:
 	'abcm2ps -h'
 
-The options may be grouped when they have no argument, except the
+The options may be grouped when they have no argument, but the
 last one (ex: "-lnGI20").
 
 The options may be disabled when starting with '+' or ending with '-'
 (ex: "+MT1" is the same as "-MT1-"
+
+The general output format is the last found in the command line.
+It may be
+	"-E" for Encapsulated PostScript one file per tune
+	"-g" for XHTML/SVG one file per tune
+	"-v" for XHTML/SVG one file per page
+	"-X" for XHTML/SVG
+	(none) for PostScript
+(see below for more information)
 
 List of the options
 -------------------
@@ -42,7 +51,7 @@ List of the options
   -d<unit>
 	See: format.txt - staffsep <unit>
 
-  -E, +E
+  -E
 	Produce EPS output instead of simple PS.
 	In this mode, each tune goes to a different file which
 	name is '<name>nnn.eps' or <title>.eps (see option '-O'
@@ -51,7 +60,7 @@ List of the options
 	EPS files are normally embedded into Postscript documents,
 	but they may be a way to generate graphical images. For
 	example, using GhostScript:
-		abcm2ps voices -E -e7
+		abcm2ps voices -Ee7
 		gs -sDEVICE=pngmono -r80 -g590x174 \
 			-dBATCH -dNOPAUSE \
 			-sOutputFile=quitolis.png Out001.eps
