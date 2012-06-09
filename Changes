@@ -1,3 +1,105 @@
+---- Version 6.6.17 - 12/06/10 ----
+
+Fix bad tie when at end of repeat and start of new repeat ("c- :|2 c")
+	(reported by Nils Liberg).
+Fix abnormal line with one note when line cut should be on a clef change
+	(reported by Alex Scheutzow - was forgotten in 6.6.16).
+Fix presence of meter at start of line when empty voice
+	(was forgotten in 6.6.16).
+
+---- Version 6.6.16 - 12/06/02 ----
+
+Better hyphen in lyrics lines when great space between notes
+	(reported by Nils Liberg).
+Fix presence of tempo when "%%writefields Q 0" before first K:
+	(reported by Nils Liberg).
+Don't remove '%%' in %%beginps/%%endps sequences.
+Fix array overflow and possible crash with empty %%beginxxx/%endxxx
+	(reported by Nils Liberg).
+
+---- Version 6.6.15 - 12/05/28 ----
+
+Fix crash when K: without more symbol at end of tune
+	(reported by Nils Liberg).
+Fix clash of '8' in clef with octave +/-8
+	(reported by David Lacroix).
+
+---- Version 6.6.14 - 12/05/23 ----
+
+Fix program loop when width of measure bigger than staff width.
+Fix bad last measure bar position again
+	(reported by many people).
+Fix loss of music line break when line ending with grace note(s),
+		note and no bar
+	(reported by John Chambers).
+
+---- Version 6.6.13 - 12/05/21 ----
+
+Fix loss of paragraph break on empty lines.
+Fix crash in %%begintext with fill/justify and pango on an empty line.
+Fix bad offset of lyrics after tune when new page
+	(reported by Christian Schnarr).
+Fix lack of tempo at start of tune when "%%writefields Q 0" later.
+
+---- Version 6.6.12 - 12/05/16 ----
+
+Fix bad line numbers in errors and svg annotations
+	(reported by Nils Liberg).
+
+---- Version 6.6.11 - 12/05/13 ----
+
+Fix lack of key signature when K: + clef inside music line.
+Fix placement errors when scaled voice or staff
+	(reported by: Glenn Arthur Jr).
+Don't put a measure bar at end of line when the measure is incomplete
+	(reported by Christian Schnarr).
+Fix ps2pdf error when unknown UTF-8 characters
+	(reported by Nils Liberg).
+
+---- Version 6.6.10 - 12/04/30 ----
+
+Bad offset of %%EPS since version 5.x.x
+	(reported-by: Glenn Arthur Jr)
+Handle more lowercase to uppercase letters when %%titlecaps
+	(reported by Christian Schnarr).
+
+---- Version 6.6.9 - 12/03/31 ----
+
+Fix loss of music after abc 2.0 continuation ('\').
+Fix misplaced part (P:) when followed by K:, or M:
+	(reported by Richard Walker).
+Crash when misplaced dble repeat bar in second voice at end of tune
+	(reported by Simon Wascher).
+
+---- Version 6.6.8 - 12/03/09 ----
+
+Don't print the X: value in title when ', The' at end of T:
+	(reported by Paul Hardy).
+Don't print the tempo in tune when '%%writefields Q 0'
+	(reported by Martin Tarenskeen).
+
+---- Version 6.6.7 - 12/02/21 ----
+
+Don't add the %%transpose values
+	(reported by Alex Scheutzow).
+Fix lack of key signature change when exp accidental list of the same size.
+Fix lack of history information since previous version
+	(reported by Jon Freeman).
+Fix bad slur on grace notes when staffscale != 1
+	(reported by Pete Showman).
+Ignore %%sep and %%vskip when global and -E or -g.
+Fix crash when some output needed in format files by ignoring %%text...
+Fix %%abc2pscompat again.
+Fix some errors "??? buffer not empty:".
+
+---- Version 6.6.6 - 12/02/11 ----
+
+Fix vertical offset problems on page breaks with %%multicol.
+Fix bad page header when %%multicol outside and inside tunes.
+Ignore %%writefields when outputting %%titleformat
+	(reported by Pete S).
+Reset the default standard title format when %%titleformat is empty.
+
 ---- Version 6.6.5 - 12/02/06 ----
 
 Fix loss of music when voices disappear and reappear by %%score

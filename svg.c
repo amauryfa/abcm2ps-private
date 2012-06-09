@@ -2379,17 +2379,20 @@ curveto:
 			return;
 		}
 		if (strcmp(op, "hyph") == 0) {
+			int d;
+
 			setg(1);
 			y = pop_free_val();
 			x = pop_free_val();
 			w = pop_free_val();
-			n = w / gcur.font_s;
-			n = (w - 15.) / 25.;
-			x += w / 2 - 12.5 * n - 2.5;
+			d = 25 + (int) w / 20 * 3;
+			n = (w - 15.) / d;
+			x += (w - d * n - 5) / 2;
 			fprintf(fout, "<path stroke=\"currentColor\" fill=\"none\" stroke-width=\"1.2\"\n"
-				"	stroke-dasharray=\"5,20\"\n"
-				"	d=\"M%.2f %.2fh%.2f\"/>\n",
-				xoffs + x, yoffs - y - gcur.font_s * 0.3, 25. * n + 5.);
+				"	stroke-dasharray=\"5,%d\"\n"
+				"	d=\"M%.2f %.2fh%d\"/>\n",
+				d - 5,
+				xoffs + x, yoffs - y - gcur.font_s * 0.3, d * n + 5);
 			return;
 		}
 		break;
@@ -2654,13 +2657,10 @@ moveto:
 			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
-			if (op[3] == 'l') {
+			if (op[3] == 'l')
 				x -= 3.5;
-				y += 19;
-			} else {
-				x -= 1.5;
-				y -= 36;
-			}
+			else
+				x -= 2.5;
 			fprintf(fout, "<text font-family=\"Times\" font-size=\"10\" font-weight=\"normal\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">8</text>\n",
 				x, y);

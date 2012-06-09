@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2011 Jean-François Moine
+ * Copyright (C) 1998-2012 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -759,6 +759,19 @@ void write_buffer(void)
 	p1 = 0;
 	p_buf = outbuf;
 	for (l = 0; l < ln_num; l++) {
+		if (ln_pos[l] > 0) {		/* if in multicol */
+			int ll;
+			float pos;
+
+			for (ll = l + 1; ll < ln_num; ll++) {
+				if (ln_pos[ll] <= 0) {
+					pos = ln_pos[ll];
+					while (--ll >= l)
+						ln_pos[ll] = pos;
+					break;
+				}
+			}
+		}
 		dp = ln_pos[l] - p1;
 		np = maxy + dp < 0 && !epsf;
 		if (np) {
@@ -837,8 +850,8 @@ void write_buffer(void)
 		p1 = ln_pos[l];
 	}
 #if 1 //fixme:test
-	if (strlen(p_buf) != 0)
-		fprintf(stderr, "??? buffer non empty:\n%s\n", p_buf);
+	if (*p_buf != '\0')
+		fprintf(stderr, "??? buffer not empty:\n%s\n", p_buf);
 #else
 	if (epsf == 2 || svg)
 		svg_write(p_buf, strlen(p_buf));
@@ -854,27 +867,32 @@ void write_buffer(void)
    after page break and change buffer handling mode to pass though */
 void buffer_eob(void)
 {
+//	if (bposy == 0 && mbf == outbuf)
+	if (mbf == outbuf)
+		return;
 //fixme: should be done sooner and should be adjusted when cfmt change...
 	if (maxy == 0)
 		maxy = (cfmt.landscape ? cfmt.pagewidth : cfmt.pageheight)
 			- cfmt.topmargin - cfmt.botmargin;
-	if (bposy == 0 && mbf == outbuf)
-		return;
 	if (ln_num > 0 && mbf == ln_buf[ln_num - 1])
 		return;
 	if (ln_num >= BUFFLN) {
-		int mc_sav;
+		char c, *p;
 
 		error(1, 0, "max number of buffer lines exceeded"
 			" -- check BUFFLN");
-		mc_sav = multicol_start;
 		multicol_start = 0;
+		p = ln_buf[ln_num - 1];
+		c = *p;				/* (avoid "buffer not empty") */
+		*p = '\0';
 		write_buffer();
-		multicol_start = mc_sav;
+		multicol_start = maxy + bposy;
+		*p = c;
+		strcpy(outbuf, p);
 		use_buffer = 0;
 	}
 	ln_buf[ln_num] = mbf;
-	ln_pos[ln_num] = bposy;
+	ln_pos[ln_num] = multicol_start == 0 ? bposy : 1;
 	ln_lmarg[ln_num] = cfmt.leftmargin;
 	if (epsf) {
 		if (cfmt.leftmargin < min_lmarg)
@@ -890,8 +908,9 @@ void buffer_eob(void)
 		return;
 	}
 	if (maxy + bposy < 0 && !epsf && multicol_start == 0) {
-		if (tunenum > 1)
-			newpage();
+//		if (tunenum > 1)
+//			newpage();
+		maxy = 0;		/* force new page */
 		write_buffer();
 		use_buffer = 0;
 	}

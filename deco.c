@@ -1422,6 +1422,7 @@ void draw_deco_staff(void)
 
 		if (p_voice->second || p_voice->sym == 0)
 			continue;
+		set_sscale(p_voice->staff);
 
 		/* search the max y offset */
 		y = staff_tb[p_voice->staff].topbar + 6 + 20;
@@ -1560,7 +1561,7 @@ void draw_deco_staff(void)
 			if (i >= 0) {
 				PUT3("(%s)-%.1f %d ",
 				     p, cfmt.font_tb[REPEATFONT].size * 0.8 + 1, i);
-				putf(w);
+				putx(w);
 				putxy(x, y);
 				PUT1("y%d repbra\n", s1->staff);
 				y_set(s1, 1, x, w, y + 2);
@@ -1706,6 +1707,7 @@ static void draw_gchord(struct SYMBOL *s,
 	x = y = expdx = 0;			/* (compiler warning) */
 
 	/* loop on each line */
+	set_sscale(s->staff);
 	antype = '\0';
 	sep = '\n';
 	for (;;) {
@@ -1888,8 +1890,9 @@ static void draw_gchord(struct SYMBOL *s,
 		xmin -= 2;
 		w = xmax - xmin + 2;
 		y_set(s, 1, xmin, w, ymax + 2);
-		a2b("%.1f %.1f y%d %.1f boxdraw ",
-			xmin, ymin - 5, s->staff, ymax - ymin + 4);
+		putxy(xmin, ymin - 5);
+		a2b("y%d %.1f boxdraw ",
+			s->staff, ymax - ymin + 4);
 	}
 }
 

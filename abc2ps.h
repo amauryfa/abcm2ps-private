@@ -508,12 +508,13 @@ void y_set(struct SYMBOL *s,
 void draw_sym_near(void);
 void draw_all_symb(void);
 float draw_systems(float indent);
-void set_scale(struct SYMBOL *s);
 void output_ps(struct SYMBOL *s, int state);
 void putf(float f);
 void putx(float x);
 void puty(float y);
 void putxy(float x, float y);
+void set_scale(struct SYMBOL *s);
+void set_sscale(int staff);
 /* format.c */
 void define_fonts(void);
 int get_textopt(char *p);

@@ -1726,7 +1726,7 @@ static void set_allsymwidth(struct SYMBOL *last_s)
 		} while (!(s2->sflags & S_SEQST));
 
 		/* set the spaces at start of sequence */
-		if (shrink == 0 && space == 0) {
+		if (shrink == 0 && space == 0 && s->type == CLEF) {
 			s->sflags &= ~S_SEQST;		/* no space (clef) */
 			s->time = s->ts_prev->time;
 		} else {
@@ -2011,7 +2011,7 @@ delrep:					/* remove the %%repeat */
 /* -- define the beginning of a new music line -- */
 static struct SYMBOL *set_nl(struct SYMBOL *s)
 {
-	struct SYMBOL *s2;
+	struct SYMBOL *s2, *extra;
 	int time, done;
 
 	/* if normal symbol, cut here */
@@ -2039,14 +2039,13 @@ static struct SYMBOL *set_nl(struct SYMBOL *s)
 			break;
 
 		/* don't cut beamed notes */
-		for (s2 = s->ts_next; s2 != 0; s2 = s2->ts_next) {
-			if (s2->sflags & S_SEQST) {
-				s2 = s2->ts_prev;
+		for (s2 = s->ts_next; ; s2 = s2->ts_next) {
+			if (s2 == 0)
+				return s;
+			if (s2->sflags & S_SEQST)
 				break;
-			}
 		}
-		if (s2 == 0)
-			return s;
+		s2 = s2->ts_prev;
 		done = 1;
 		for ( ; s2 != s; s2 = s2->ts_prev) {
 			if (s2->as.type == ABC_T_NOTE
@@ -2077,14 +2076,26 @@ static struct SYMBOL *set_nl(struct SYMBOL *s)
 		break;
 	}
 	done = 0;
+	extra = 0;
 	for (; s != 0; s = s->ts_next) {
 		if (!(s->sflags & S_SEQST))
 			continue;
 		if (done < 0)
 			break;
+		if (s->extra != 0) {
+			if (extra == 0)
+				extra = s;
+			else
+				error(0, s, "Extra symbol may be misplaced");
+		}
 		switch (s->type) {
 		case BAR:
-			if (done)
+			if (done
+			 || (s->u == 0		/* incomplete measure */
+			  && s->next != 0	/* not at end of tune */
+			  && (s->as.u.bar.type & 0x07) == B_COL
+			  && !(s->sflags & S_RRBAR)))
+						/* 'xx:' (not ':xx:') */
 				break;
 			done = 1;
 			continue;
@@ -2105,14 +2116,24 @@ static struct SYMBOL *set_nl(struct SYMBOL *s)
 		case KEYSIG:
 			continue;
 		default:
-			if (!done && s->prev->type == GRACE)
+			if (!done || s->prev == 0 || s->prev->type == GRACE)
 				continue;
 			break;
 		}
 		break;
 	}
-	if (s != 0)
+	if (s != 0) {
 		s->sflags |= S_NL;
+		if (extra != 0		/* extra symbol(s) to be moved */
+		 && extra != s) {
+			s2 = extra->extra;
+			while (s2->next != 0)
+				s2 = s2->next;
+			s2->next = s->extra;
+			s->extra = extra->extra;
+			extra->extra = 0;
+		}
+	}
 	return s;
 }
 
@@ -2161,7 +2182,8 @@ static struct SYMBOL *set_lines(struct SYMBOL *first,	/* first symbol */
 			else
 				x += shrink * cfmt.maxshrink
 					+ space * (1 - cfmt.maxshrink);
-			if (s->type == BAR) {
+			if (s->type == BAR
+			 && !(s->sflags & S_NL)) {
 				s2 = s;
 				x2 = x;
 			}
@@ -2386,19 +2408,23 @@ static void set_yval(struct SYMBOL *s)
 		switch (s->as.u.clef.type) {
 		default:			/* treble / perc */
 			s->y = -2 * 6;
-			s->ymx = 24 + 9;
-			s->ymn = -9;
+			s->ymx = 24 + 15;
+			s->ymn = -11;
 			break;
 		case ALTO:
 			s->y = -3 * 6;
-			s->ymx = 24 + 5;
-			s->ymn = -4;
+			s->ymx = 24 + 6;
+			s->ymn = -3;
 			break;
 		case BASS:
 			s->y = -4 * 6;
-			s->ymx = 24 + 5;
+			s->ymx = 24 + 6;
 			s->ymn = -3;
 			break;
+		}
+		if (s->u) {
+			s->ymx -= 2;
+			s->ymn += 2;
 		}
 		s->y += s->as.u.clef.line * 6;
 		if (s->y > 0)
@@ -3182,12 +3208,13 @@ static void init_music_line(void)
 
 	/* if initialization of a new music line, compute the spacing,
 	 * including the first (old) sequence */
-	if ((s = tsnext) != 0) {	/* (if called from cut_symbols()) */
+	if (tsnext != 0) {		/* (if called from cut_symbols()) */
 		if ((s = last_s) != 0) {
 			for ( ; s != 0; s = s->ts_next)
 				if (s->sflags & S_SEQST)
 					break;
-			for (s = s->ts_next; s != 0; s = s->ts_next)
+			if (s != 0)
+			    for (s = s->ts_next; s != 0; s = s->ts_next)
 				if (s->sflags & S_SEQST)
 					break;
 		}
@@ -3225,8 +3252,8 @@ static void set_global(void)
 
 #if 1
 			/* (the clefs in the voice table are not yet initialized) */
-			i = p_voice - voice_tb;
-			i = cursys->voice[i].clef.type;
+			i = p_voice->staff;
+			i = cursys->staff[i].clef.type;
 #else
 			i = p_voice->clef.type;
 #endif
@@ -4045,7 +4072,8 @@ static void check_bar(struct SYMBOL *s)
 
 	/* search the last bar */
 	while (s->type == CLEF || s->type == KEYSIG || s->type == TIMESIG) {
-		if (s->type == TIMESIG)
+		if (s->type == TIMESIG
+		 && s->time > p_voice->sym->time)	/* if not empty voice */
 			insert_meter |= 1;
 		if ((s = s->prev) == 0)
 			return;

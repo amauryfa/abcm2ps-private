@@ -156,14 +156,23 @@ static void cap_str(char *p)
 {
 	while (*p != '\0') {
 #if 1
-/* pb with toupper - works with ASCII only */
+/* pb with toupper - works with ASCII and some latin characters only */
 		unsigned char c;
 
 		c = (unsigned char) *p;
-		if (c >= 'a' && c <= 'z')
-/*fixme: KO with utf-8*/
-//		 || (c >= 0xe0 && c <= 0xfe))
+		if (c >= 'a' && c <= 'z') {
 			*p = c & ~0x20;
+		} else if (c == 0xc3) {
+			p++;
+			c = *p;
+			if (c >= 0xa0 && c <= 0xbe && c != 0xb7)
+				*p = c & ~0x20;
+		} else if (c == 0xc4) {
+			p++;
+			c = *p;
+			if (c >= 0x81 && c <= 0xb7 && (c & 0x01))
+				(*p)--;
+		}
 #else
 		*p = toupper((unsigned char) *p);
 #endif
@@ -685,7 +694,6 @@ static void pg_para_output(int job)
 	bskip(y);
 	pango_layout_set_attributes(layout, NULL);
 	pg_str = g_string_truncate(pg_str, 0);
-	pango_attr_list_unref(attrs);
 }
 
 /* output of filled / justified text*/
@@ -720,8 +728,33 @@ static void pg_write_text(char *s, int job, float baseskip)
 	str_set_font(tex_buf);
 	if (pg_str->len)
 		pg_para_output(job);
+	pango_attr_list_unref(attrs);
 }
-#endif
+
+/* check if pango is needed */
+static int is_latin(unsigned char *p)
+{
+	while (*p != '\0') {
+		if (*p >= 0xc6) {
+			if (*p == 0xe2) {
+				if (p[1] != 0x99
+				 || p[2] < 0xad || p[2] > 0xaf)
+					return 0;
+				p += 2;
+			} else if (*p == 0xf0) {
+				if (p[1] != 0x9d
+				 || p[2] != 0x84
+				 || p[3] < 0xaa || p[3] > 0xab)
+					return 0;
+			} else {
+				return 0;
+			}
+		}
+		p++;
+	}
+	return 1;
+}
+#endif /* HAVE_PANGO */
 
 /* -- set the default font of a string -- */
 void str_font(int ft)
@@ -880,17 +913,9 @@ void str_out(char *p, int action)
 //fixme: pango KO if user modification of ly/gc/an/gxshow
 	/* use pango if some characters are out of the utf-array (in syms.c) */
 	if (cfmt.pango) {
-		unsigned char *q;
-
-		if (cfmt.pango == 2) {
+		if (cfmt.pango == 2 || !is_latin((unsigned char *) p)) {
 			str_pg_out(p, action);	/* output the string */
 			return;
-		}
-		for (q = (unsigned char *) p; *q != '\0'; q++) {
-			if (*q >= 0xc6) {
-				str_pg_out(p, action);	/* output the string */
-				return;
-			}
 		}
 	}
 #endif
@@ -1031,6 +1056,10 @@ void write_text(char *cmd, char *s, int job)
 				p++;
 			if (*p != '\0')
 				*p++ = '\0';
+			if (*s == '\0') {
+				bskip(baseskip * 0.5);
+				buffer_eob();
+			}
 			bskip(baseskip);
 			switch (job) {
 			case A_LEFT:
@@ -1054,15 +1083,8 @@ void write_text(char *cmd, char *s, int job)
 	/* fill or justify lines */
 #ifdef HAVE_PANGO
 	do_pango = cfmt.pango;
-	if (do_pango == 1) {
-		do_pango = 0;
-		for (p = s; *p != 0; p++) {
-			if (*p >= 0xc6) {		/* if not latin */
-				do_pango++;
-				break;
-			}
-		}
-	}
+	if (do_pango == 1)
+		do_pango = !is_latin((unsigned char *) s);
 	if (do_pango) {
 		pg_write_text(s, job, baseskip);
 		bskip(cfmt.font_tb[TEXTFONT].size * cfmt.parskipfac);
@@ -1208,11 +1230,6 @@ static int put_wline(char *p,
 			p++;
 	}
 
-	/* on the left side, permit page break at empty lines or stanza start */
-	if (!right
-	 && (*p == '\0' || r != 0))
-		buffer_eob();
-
 	if (r != 0) {
 		sep = *r;
 		*r = '\0';
@@ -1287,6 +1304,9 @@ void put_words(struct SYMBOL *words)
 	/* output the text */
 	bskip(cfmt.wordsspace);
 	for (s = words; s != 0 || s2 != 0; ) {
+//fixme:should also permit page break on stanza start
+		if (s != 0 && s->as.text[2] == '\0')
+			buffer_eob();
 		bskip(cfmt.lineskipfac * cfmt.font_tb[WORDSFONT].size);
 		if (s != 0) {
 			put_wline(&s->as.text[2], 45., 0);
@@ -1325,7 +1345,8 @@ void put_history(void)
 	font = 0;
 	for (s = info['I' - 'A']; s != 0; s = s->next) {
 		u = s->as.text[0] - 'A';
-		if ((s2 = info[u]) == 0)
+		if (!(cfmt.fields[0] & (1 << u))
+		 || (s2 = info[u]) == 0)
 			continue;
 		if (!font) {
 			bskip(cfmt.textspace);
@@ -1398,8 +1419,6 @@ void write_title(struct SYMBOL *s)
 {
 	char *p;
 
-	if (!(cfmt.fields[0] & (1 << ('T' - 'A'))))
-		return;
 	p = &s->as.text[2];
 	if (*p == '\0')
 		return;
@@ -1531,8 +1550,6 @@ static void write_headform(float lwidth)
 			align = *p++;
 			if (i == 125)
 				continue;
-//			if (!(cfmt.fields[0] & (1 << (unsigned) i)))
-//				continue;
 			s = inf_s[i];
 			if (s == 0 || inf_nb[i] == 0)
 				continue;
@@ -1637,20 +1654,24 @@ void write_heading(struct abctune *t)
 	lwidth = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 		- cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale;
 
-	if (cfmt.titleformat != 0) {
+	if (cfmt.titleformat != 0 && cfmt.titleformat[0] != '\0') {
 		write_headform(lwidth);
 		bskip(cfmt.musicspace);
 		return;
 	}
 
 	/* titles */
-	for (s = info['T' - 'A']; s != 0; s = s->next)
-		write_title(s);
+	if (cfmt.fields[0] & (1 << ('T' - 'A'))) {
+		for (s = info['T' - 'A']; s != 0; s = s->next)
+			write_title(s);
+	}
 
 	/* rhythm, composer, origin */
 	down1 = cfmt.composerspace + cfmt.font_tb[COMPOSERFONT].size;
 	rhythm = (first_voice->key.mode >= BAGPIPE
-			&& !cfmt.infoline) ? info['R' - 'A'] : 0;
+			&& !cfmt.infoline
+			&& (cfmt.fields[0] & (1 << ('R' - 'A'))))
+					? info['R' - 'A'] : 0;
 	if (rhythm) {
 		str_font(COMPOSERFONT);
 		PUT1("0 %.1f M ",
@@ -1659,12 +1680,14 @@ void write_heading(struct abctune *t)
 		down1 -= cfmt.font_tb[COMPOSERFONT].size;
 	}
 	area = author = 0;
-	if (t->abc_vers != (2 << 16))
-		area = info['A' - 'A'];
-	else
-		author = info['A' - 'A'];
-	composer = info['C' - 'A'];
-	origin = info['O' - 'A'];
+	if (cfmt.fields[0] & (1 << ('A' - 'A'))) {
+		if (t->abc_vers != (2 << 16))
+			area = info['A' - 'A'];
+		else
+			author = info['A' - 'A'];
+	}
+	composer = (cfmt.fields[0] & (1 << ('C' - 'A'))) ? info['C' - 'A'] : 0;
+	origin = (cfmt.fields[0] & (1 << ('O' - 'A'))) ? info['O' - 'A'] : 0;
 	if (composer != 0 || origin != 0 || author != 0) {
 		float xcomp;
 		int align;
@@ -1713,7 +1736,8 @@ void write_heading(struct abctune *t)
 				bskip(down2 - down1);
 		}
 
-		rhythm = rhythm ? 0 : info['R' - 'A'];
+		if (cfmt.fields[0] & (1 << ('R' - 'A')))
+			rhythm = rhythm ? 0 : info['R' - 'A'];
 		if ((rhythm || area) && cfmt.infoline) {
 
 			/* if only one of rhythm or area then do not use ()'s
@@ -1730,7 +1754,8 @@ void write_heading(struct abctune *t)
 	}
 
 	/* parts */
-	if (info['P' - 'A'] != 0) {
+	if (info['P' - 'A'] != 0
+	 && (cfmt.fields[0] & (1 << ('P' - 'A')))) {
 		down1 = cfmt.partsspace + cfmt.font_tb[PARTSFONT].size - down1;
 		if (down1 > 0)
 			down2 += down1;

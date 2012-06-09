@@ -1009,10 +1009,16 @@ void interpret_fmt_line(char *w,		/* keyword */
 					else
 						break;	/*fixme: error */
 				}
-				if (bool)
+				if (bool) {
 					cfmt.fields[i] |= (1 << u);
-				else
+				} else {
 					cfmt.fields[i] &= ~(1 << u);
+					switch (*q) {
+					case 'Q':
+						cfmt.fields[u] = 0;
+						break;
+					}
+				}
 				q++;
 			}
 			break;

@@ -81,9 +81,9 @@ static char ps_head[] =
 	"/stclef{gsave T -10 0 T .037 dup scale utclef ufill grestore}!\n"
 
 	/* x y octu - upper '8' */
-	"/octu{/Times-Roman 12 selectfont M -1.5 36 RM(8)show}!\n"
+	"/octu{/Times-Roman 12 selectfont M -2.5 0 RM(8)show}!\n"
 	/* x y octl - lower '8' */
-	"/octl{/Times-Roman 12 selectfont M -3.5 -19 RM(8)show}!\n"
+	"/octl{/Times-Roman 12 selectfont M -3.5 0 RM(8)show}!\n"
 
 	/* x y bclef - bass clef */
 	"/ubclef{<95200046\n"
@@ -592,15 +592,18 @@ static char ps_head[] =
 	"/anshow{show}!\n"
 
 	/* -- lyrics under notes -- */
-	/* l x y wln - underscore line */
+	/* w x y wln - underscore line */
 	"/wln{M .8 SLW 0 RL stroke}!\n"
-	/* l x y hyph - hyphen */
+	/* w x y hyph - hyphen */
 	"/hyph{	.8 SLW 3 add M\n"
-	"	dup cvi 40 idiv 1 add 1 index exch div\n"	/* l dx */
-	"	dup 3 sub 3 1 roll\n"		/* (dx-3) l dx */
-	"	dup .5 mul dup 1.5 sub 0 RM\n"	/* (dx-3) l dx (dx/2) */
-	"	exch 3 -1 roll\n"		/* (dx-3) (dx/2) dx l */
-	"	{pop 3 0 RL dup 0 RM}for stroke pop}!\n"
+	"	dup cvi 20 idiv 3 mul 25 add\n"	/* w d */
+	"	1 index cvi exch idiv 1 add "	/* w n */
+		"exch "				/* n w */
+		"1 index div\n"			/* n dx */
+	"	dup 4 sub "			/* n dx (dx-4) */
+		"3 1 roll "			/* (dx-4) n dx */
+		".5 mul 2 sub 0 RM\n"		/* (dx / 2 - 4) rmoveto */
+	"	{4 0 RL dup 0 RM}repeat stroke pop}!\n"
 	/* str lyshow - lyrics */
 	"/lyshow{show}!\n"
 
@@ -885,19 +888,28 @@ static char ps_head[] =
 	"/Error<<\n"
 	"	/FontType 3\n"
 	"	/FontMatrix[.001 0 0 .001 0 0]\n"
-	"	/Encoding 256 array\n"
-	"	/FontBBox[0 0 1000 1000]\n"
+	"	/Encoding[256{/.notdef}repeat]\n"
+	"	/FontBBox[0 0 500 500]\n"
 	"	/BuildChar{\n"
 	"		500 0 setcharwidth 50 setlinewidth\n"
 	"		100 500 moveto 300 0 rlineto stroke\n"
-	"		(char: )print = pop\n"
+//	"		(char: )print = pop\n"
+	"		pop pop\n"
 	"	}\n"
 	"  >>definefont pop\n"
 
 	/* stub for utf-8 with 3 bytes */
-	"/compe000def{/Error findfont}def\n"
-	"/compe100def{/Error findfont}def\n"
-	"/compe200def{/Error findfont}def\n"
+	"/compdef{\n"
+	"	/FontType 0\n"
+	"	/FontMatrix[1 0 0 1 0 0]\n"
+	"	/FMapType 6\n"
+	"	/SubsVector<01 8080>\n"
+	"	/Encoding[0 0]\n"
+	"	/FDepVector[/Error findfont]\n"
+	"  }def\n"
+	"/compe000def{/compe000<<compdef>>definefont}def\n"
+	"/compe100def{/compe100<<compdef>>definefont}def\n"
+	"/compe200def{/compe200<<compdef>>definefont}def\n"
 #ifdef HAVE_PANGO
 	"/glypharray{{glyphshow}forall}!\n"
 #endif
@@ -980,8 +992,7 @@ void define_cmap(void)
 	"				compe100def\n"
 	"				compe200def\n"
 	"			]\n"
-	"		>>definefont pop\n"
-	"		/compfont2 findfont\n"
+	"		>>definefont\n"
 	"	]\n"
 	"	>>definefont pop}bind def\n";
 

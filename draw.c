@@ -36,13 +36,13 @@ struct BEAM {			/* packages info on one beam */
 static char *acc_tb[] = { "", "sh", "nt", "ft", "dsh", "dft" };
 
 /* scaling stuff */
+static int scale_voice;		/* staff (0) or voice(1) scaling */
 static float cur_scale = 1;	/* voice or staff scale */
 static float cur_trans = 0;	/* != 0 when scaled staff */
 
 static void draw_note(float x,
 		      struct SYMBOL *s,
 		      int fl);
-static void set_sscale(int staff);
 static void set_tie_room(void);
 
 /* output debug annotations */
@@ -1292,9 +1292,10 @@ static void draw_gracenotes(struct SYMBOL *s)
 	y2 = bet2 * y3 + (1 - bet2) * y0 - dy2;
 
 	staffb = staff_tb[s->staff].y;		/* bottom of staff */
-	putxy(x1 - x0, y1 - y0);
-	putxy(x2 - x0, y2 - y0);
-	putxy(x3 - x0, y3 - y0);
+	a2b("%.2f %.2f %.2f %.2f %.2f %.2f ",
+		x1 - x0, y1 - y0,
+		x2 - x0, y2 - y0,
+		x3 - x0, y3 - y0);
 	putxy(x0, y0 + staffb);
 	PUT0("gsl\n");
 }
@@ -1767,13 +1768,17 @@ static void slur_out(float x1,
 
 	if (!dotted)
 		a2b("%.2f %.2f %.2f %.2f %.2f %.2f 0 %.2f ",
-			xx2 - dx - x2, yy2 + dy - y2 - dz,
-			xx1 + dx - x2, yy1 + dy - y2 - dz,
-			x1 - x2, y1 - y2 - dz, dz);
+			(xx2 - dx - x2) / cur_scale,
+				(yy2 + dy - y2 - dz) / cur_scale,
+			(xx1 + dx - x2) / cur_scale,
+				(yy1 + dy - y2 - dz) / cur_scale,
+			(x1 - x2) / cur_scale,
+				(y1 - y2 - dz) / cur_scale,
+				dz);
 	a2b("%.2f %.2f %.2f %.2f %.2f %.2f ",
-		xx1 - x1, yy1 - y1,
-		xx2 - x1, yy2 - y1,
-		x2 - x1, y2 - y1);
+		(xx1 - x1) / cur_scale, (yy1 - y1) / cur_scale,
+		(xx2 - x1) / cur_scale, (yy2 - y1) / cur_scale,
+		(x2 - x1) / cur_scale, (y2 - y1) / cur_scale);
 	putxy(x1, y1);
 	if (staff >= 0)
 		a2b("y%d ", staff);
@@ -2877,6 +2882,8 @@ found:
 		}
 	}
 
+    if (job != 2) {
+
 	/* try an other voice of the same staff */
 	k3 = k1->ts_next;
 	while (k3 != 0 && k3->time < time)
@@ -2909,6 +2916,7 @@ found:
 		}
 		k3 = k3->ts_next;
 	}
+    }
 	if (ntie3 != 0) {
 		if (job == 2)
 			draw_note_ties(k1, k2 ? k2 : k1,
@@ -3309,7 +3317,7 @@ static float draw_lyrics(struct VOICE_S *p_voice,
 	for (; j != nly ; j += incr) {
 		float x0, shift;
 
-		PUT2("/y{%.1f y%d}def ", y + desc, p_voice->staff);
+		PUT2("/y{%.1f y%d}! ", y + desc, p_voice->staff);
 		hyflag = lflag = 0;
 		if (p_voice->hy_st & (1 << j)) {
 			hyflag = 1;
@@ -3543,6 +3551,7 @@ static void draw_all_lyrics(void)
 			continue;
 		}
 		staff = p_voice->staff;
+		set_sscale(staff);
 		if (nly_tb[voice] > 0)
 			lyst_tb[staff].bot = draw_lyrics(p_voice, nly_tb[voice],
 							 lyst_tb[staff].bot, 1);
@@ -3571,6 +3580,7 @@ static void draw_all_lyrics(void)
 		voice = rv_tb[i];
 		p_voice = &voice_tb[voice];
 		staff = p_voice->staff;
+		set_sscale(staff);
 		lyst_tb[staff].top = draw_lyrics(p_voice, nly_tb[voice],
 						 lyst_tb[staff].top, -1);
 	}
@@ -3580,6 +3590,7 @@ static void draw_all_lyrics(void)
 		if (p_voice->sym == 0)
 			continue;
 		staff = p_voice->staff;
+		set_sscale(staff);
 		if (lyst_tb[staff].a) {
 			top = lyst_tb[staff].top + 2;
 			for (s = p_voice->sym->next; s != 0; s = s->next) {
@@ -3704,6 +3715,7 @@ void draw_sym_near(void)
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 		if ((s = p_voice->sym) == 0)
 			continue;
+		set_sscale(s->staff);
 		for (s = s->next; s != 0; s = s->next) {
 			struct SYMBOL *g;
 
@@ -3739,6 +3751,9 @@ void draw_sym_near(void)
 	draw_all_lyrics();
 	outft = -1;				/* force font output */
 	draw_deco_staff();
+
+	/* restore the scale parameters */
+	set_sscale(-1);
 }
 
 /* -- draw the name/subname of the voices -- */
@@ -3965,7 +3980,7 @@ static float set_staff(void)
 
 		for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 			if (p_voice->scale != 1)
-				PUT2("/scvo%d{gsave %.2f dup scale}def\n",
+				PUT2("/scvo%d{gsave %.2f dup scale}!\n",
 				     (int) (p_voice - voice_tb),
 				     p_voice->scale);
 			staff = p_voice->staff;
@@ -4042,11 +4057,13 @@ static float set_staff(void)
 		y += dy;
 		staff_tb[staff].y = -y;
 /*fixme: handle tablature?*/
-		PUT2("/y%d{%.1f add}def\n", staff, -y);
 		if (staff_tb[staff].clef.staffscale != 1
 		 && staff_tb[staff].clef.staffscale != 0) {
-			PUT3("/scst%d{gsave 0 %.2f translate %.2f dup scale}def\n",
+			a2b("/scst%d{gsave 0 %.2f translate %.2f dup scale}!\n",
 			     staff, -y, staff_tb[staff].clef.staffscale);
+			a2b("/y%d{}!\n", staff);
+		} else {
+			a2b("/y%d{%.1f add}!\n", staff, -y);
 		}
 		if (sy->staff[staff].sep != 0)
 			staffsep = sy->staff[staff].sep;
@@ -4332,9 +4349,9 @@ static void draw_symbols(struct VOICE_S *p_voice)
 				break;
 /*fixme:break the compatibility and avoid strange numbers*/
 			if (s->as.u.clef.octave > 0)
-				y += s->ymx - 36 - 12;
+				y += s->ymx - 12;
 			else
-				y += s->ymn + 19 + 5;
+				y += s->ymn + 2;
 			putxy(x, y);
 			PUT1("oct%c\n",
 			     s->as.u.clef.octave > 0 ? 'u' : 'l');
@@ -4411,14 +4428,14 @@ void putx(float x)
 
 void puty(float y)
 {
-	putf(cur_trans == 0 ?
+	putf(scale_voice ?
 		y / cur_scale :		/* scaled voice */
 		y - cur_trans);		/* scaled staff */
 }
 
 void putxy(float x, float y)
 {
-	if (cur_trans == 0)
+	if (scale_voice)
 		PUT2("%.1f %.1f ",
 		     x / cur_scale, y / cur_scale);	/* scaled voice */
 	else
@@ -4443,10 +4460,13 @@ void set_scale(struct SYMBOL *s)
 	} else {
 		scale = 1;
 	}
-	if (staff >= 0 && scale != 1)
+	if (staff >= 0 && scale != 1) {
 		trans = staff_tb[staff].y;
-	else
+		scale_voice = 0;
+	} else {
 		trans = 0;
+		scale_voice = 1;
+	}
 	if (scale == cur_scale && trans == cur_trans)
 		return;
 	if (cur_scale != 1)
@@ -4454,7 +4474,7 @@ void set_scale(struct SYMBOL *s)
 	cur_scale = scale;
 	cur_trans = trans;
 	if (scale != 1) {
-		if (staff < 0)
+		if (scale_voice)
 			PUT1("scvo%d ", s->voice);
 		else
 			PUT1("scst%d ", staff);
@@ -4462,10 +4482,11 @@ void set_scale(struct SYMBOL *s)
 }
 
 /* -- set the staff scale (only) -- */
-static void set_sscale(int staff)
+void set_sscale(int staff)
 {
 	float scale, trans;
 
+	scale_voice = 0;
 	if (staff >= 0)
 		scale = staff_tb[staff].clef.staffscale;
 	else

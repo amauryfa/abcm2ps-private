@@ -398,6 +398,9 @@ unsigned char *frontend(unsigned char *s,
 	if (dst != 0)			/* if continuation */
 		offset--;		/* restart before the EOL */
 
+	add_lnum(0);
+	txt_add_eol();
+
 	/* if unknown encoding, check if latin1 or utf-8 */
 	if (ftype == FE_ABC
 	 && strncmp((char *) s, "%abc-2.1", 8) == 0) {
@@ -450,9 +453,39 @@ unsigned char *frontend(unsigned char *s,
 				p++;
 		}
 		nline++;
+
+		if (begin_end) {
+			if (ftype == FE_FMT) {
+				if (strncmp((char *) s, "end", 3) == 0
+				 && strncmp((char *) s + 3,
+						(char *) begin_end, end_len) == 0) {
+					begin_end = 0;
+					txt_add((unsigned char *) "%%", 2);
+					goto next;
+				}
+				if (*s == '%')
+					goto next_eol;		/* comment */
+				goto next;
+			}
+			if (strncmp((char *) s, "%%end", 5) == 0
+			 && strncmp((char *) s + 5,
+					(char *) begin_end, end_len) == 0) {
+				begin_end = 0;
+				goto next;
+			}
+			if (strncmp("ps", (char *) begin_end, end_len) == 0) {
+				if (*s == '%')
+					goto next_eol;		/* comment */
+			} else {
+				if (*s == '%' && s[1] == '%') {
+					s += 2;
+					l -= 2;
+				}
+			}
+			goto next;
+		}
+
 		if (l == 0) {			/* empty line */
-			if (begin_end)
-				goto next_eol;
 			switch (state) {
 			case 1:
 				fprintf(stderr,
@@ -496,14 +529,27 @@ unsigned char *frontend(unsigned char *s,
 			}
 		}
 
-		if (ftype == FE_PS)
+		if (ftype == FE_PS) {
+			if (*s == '%')
+				goto next_eol;
 			goto next;
+		}
 
 		/* treat the pseudo-comments */
 		if (ftype == FE_FMT) {
 			if (*s == '%')
 				goto next_eol;
 			goto pscom;
+		}
+		if (*s == 'I' && s[1] == ':') {
+			s += 2;
+			l -= 2;
+			while (*s == ' ' || *s == '\t') {
+				s++;
+				l--;
+			}
+			txt_add((unsigned char *) "%%", 2);
+			goto info;
 		}
 		if (*s == '%') {
 			if (s[1] != '%') {		/* pure comment */
@@ -521,18 +567,6 @@ pscom:
 				s++;
 				l--;
 			}
-			if (begin_end) {
-				if (strncmp((char *) s, "end", 3) != 0
-				 || strncmp((char *) s + 3,
-						(char *) begin_end, end_len) != 0) {
-//					if (!format)
-//						txt_add((unsigned char *) "%%", 2);
-					goto next;
-				}
-				begin_end = 0;
-				txt_add((unsigned char *) "%%", 2);
-				goto next;
-			}
 			txt_add((unsigned char *) "%%", 2);
 			if (strncmp((char *) s, "begin", 5) == 0) {
 				q = begin_end = s + 5;
@@ -541,6 +575,7 @@ pscom:
 				end_len = q - begin_end;
 				goto next;
 			}
+info:
 			if (strncmp((char *) s, "encoding ", 9) == 0
 			 || strncmp((char *) s, "abc-charset ", 12) == 0) {
 				if (*s == 'e')
@@ -610,7 +645,7 @@ pscom:
 				include_f(q);
 				offset--;		/* remove the EOS */
 				*r = sep;
-				add_lnum(nline + 1);
+				add_lnum(nline);
 				goto next_eol;
 			}
 			goto next;

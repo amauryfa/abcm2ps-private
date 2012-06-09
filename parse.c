@@ -60,6 +60,7 @@ static int bar_number;			/* (for %%setbarnb) */
 float multicol_start;			/* (for multicol) */
 static float multicol_max;
 static float lmarg, rmarg;
+static int mc_in_tune;			/* multicol started in tune */
 
 static void get_clef(struct SYMBOL *s);
 static void get_key(struct SYMBOL *s);
@@ -1728,13 +1729,15 @@ static void get_info(struct SYMBOL *s,
 			}
 		}
 
-		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
-			info['Q' - 'A'] = 0;
 		nbar = nbar_rep = cfmt.measurefirst;	/* measure numbering */
 		over_voice = -1;
 		over_time = -1;
 		over_bar = 0;
 		reset_gen();
+
+		/* remove unwanted fields */
+		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
+			info['Q' - 'A'] = 0;
 
 		/* switch to the 1st voice */
 		curvoice = &voice_tb[parsys->top_voice];
@@ -1749,8 +1752,6 @@ static void get_info(struct SYMBOL *s,
 		get_meter(s);
 		break;
 	case 'P':
-		if (!(cfmt.fields[0] & (1 << ('P' - 'A'))))
-			break;
 		switch (s->as.state) {
 		case ABC_S_GLOBAL:
 		case ABC_S_HEAD:
@@ -1759,6 +1760,8 @@ static void get_info(struct SYMBOL *s,
 		case ABC_S_TUNE: {
 			struct VOICE_S *p_voice, *curvoice_sav;
 
+			if (!(cfmt.fields[0] & (1 << ('P' - 'A'))))
+				break;
 			p_voice = &voice_tb[parsys->top_voice];
 
 			/* if not main voice and if voices are synchronized
@@ -1771,16 +1774,17 @@ static void get_info(struct SYMBOL *s,
 				curvoice = curvoice_sav;
 				break;
 			}
-			/* fall thru */
+			sym_link(s, PART);
+			break;
 		    }
 		default:
+			if (!(cfmt.fields[0] & (1 << ('P' - 'A'))))
+				break;
 			sym_link(s, PART);
 			break;
 		}
 		break;
 	case 'Q':
-		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
-			break;
 		if (curvoice != &voice_tb[parsys->top_voice])
 			break;		/* tempo only for first voice */
 		switch (s->as.state) {
@@ -1789,6 +1793,8 @@ static void get_info(struct SYMBOL *s,
 			info['Q' - 'A'] = s;
 			break;
 		default:
+			if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
+				break;
 			sym_link(s, TEMPO);
 			break;
 		}
@@ -1796,8 +1802,6 @@ static void get_info(struct SYMBOL *s,
 	case 's':
 		break;
 	case 'T':
-		if (!(cfmt.fields[0] & (1 << ('T' - 'A'))))
-			s->as.text[2] = '\0';
 		switch (s->as.state) {
 		case ABC_S_HEAD:
 			goto addinfo;
@@ -1844,8 +1848,10 @@ static void get_info(struct SYMBOL *s,
 			break;
 		goto addinfo;
 	case 'X':
-		if (!epsf)
-			write_buffer();	/* flush stuff left from %% lines */
+		if (!epsf) {
+			buffer_eob();	/* flush stuff left from %% lines */
+			write_buffer();
+		}
 		dfmt = cfmt;		/* save format and info */
 		memcpy(&info_glob, &info, sizeof info_glob);
 		memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
@@ -1856,7 +1862,9 @@ static void get_info(struct SYMBOL *s,
 			struct SYMBOL *prev;
 
 addinfo:
-			if (!(cfmt.fields[0] & (1 << (info_type - 'A'))))
+			if (!(cfmt.fields[0] & (1 << (info_type - 'A')))
+			 && s->as.state != ABC_S_GLOBAL
+			 && s->as.state != ABC_S_HEAD)
 				break;
 			prev = info[info_type - 'A'];
 			if (prev == 0
@@ -2286,6 +2294,7 @@ void do_tune(struct abctune *t,
 	if (info['X' - 'A'] != 0) {
 		cfmt = dfmt;		/* restore format and info */
 		memcpy(&info, &info_glob, sizeof info);
+		info['X' - 'A'] = 0;
 	}
 //	clrarena(2);				/* clear generation */
 }
@@ -2540,9 +2549,12 @@ static void get_key(struct SYMBOL *s)
 				curvoice->key.sf = 0;
 			break;
 		}
-		if (curvoice->ckey.sf == s->as.u.key.sf	/* if same key */
-		 && curvoice->ckey.nacc == s->as.u.key.nacc
-		 && s->as.next->type != ABC_T_CLEF)	/* but not explicit clef */
+		if ((s->as.next == 0
+		  || s->as.next->type != ABC_T_CLEF)	/* if not explicit clef */
+		 && curvoice->ckey.sf == s->as.u.key.sf	/* and same key */
+		 && curvoice->ckey.nacc == 0
+		 && s->as.u.key.nacc == 0
+		 && curvoice->ckey.empty == s->as.u.key.empty)
 			break;				/* ignore */
 
 		if (!curvoice->ckey.empty)
@@ -2920,8 +2932,10 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 				use = 'g';
 			}
 			p = as->text + 2 + 7;
-			while (*p != '\n')
+			while (*p != '\0' && *p != '\n')
 				p++;
+			if (*p == '\0')
+				return as;		/* empty */
 			p++;
 			ps_def((struct SYMBOL *) as, p, use);
 			return as;
@@ -2930,8 +2944,10 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			int job;
 
 			gen_ly(1);
-			if (epsf && as->state == ABC_S_GLOBAL)
-				return as;
+			if (as->state == ABC_S_GLOBAL) {
+				if (epsf || in_fname == 0)
+					return as;
+			}
 			p = as->text + 2 + 9;
 			while (*p == ' ' || *p == '\t')
 				p++;
@@ -2997,7 +3013,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			}
 			PUT0("\001");	/* include file (must be the first after eob) */
 			bskip(y2 - y1);
-			PUT3("%.2f %.2f%%%s\n", x1, y1, fn);
+			PUT3("%.2f %.2f%%%s\n", -x1, -y1, fn);
 			buffer_eob();
 			return as;
 		}
@@ -3016,19 +3032,21 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			float bposy;
 
 			generate();
-			buffer_eob();
 			if (strncmp(p, "start", 5) == 0) {
 				if (!in_page)
 					PUT0("%%\n");	/* initialize the output */
+				buffer_eob();
 				bposy = get_bposy();
 				multicol_max = multicol_start = bposy;
 				lmarg = cfmt.leftmargin;
 				rmarg = cfmt.rightmargin;
+				mc_in_tune = info['X' - 'A'] != 0;
 			} else if (strncmp(p, "new", 3) == 0) {
 				if (multicol_start == 0)
 					error(1, s,
 					      "%%%%multicol new without start");
 				else {
+					buffer_eob();
 					bposy = get_bposy();
 					if (bposy < multicol_start)
 						abskip(bposy - multicol_start);
@@ -3042,14 +3060,23 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 					error(1, s,
 					      "%%%%multicol end without start");
 				else {
+					buffer_eob();
 					bposy = get_bposy();
 					if (bposy > multicol_max)
 						abskip(bposy - multicol_max);
-					cfmt.leftmargin = lmarg;
-					cfmt.rightmargin = rmarg;
+					else
+						a2b("%%\n");	/* force write_buffer */
+					if (mc_in_tune == (info['X' - 'A'] != 0)) {
+						cfmt.leftmargin = lmarg;
+						cfmt.rightmargin = rmarg;
+					} else if (!mc_in_tune) {
+						dfmt.leftmargin = lmarg;
+						dfmt.rightmargin = rmarg;
+					}
 					multicol_start = 0;
-					PUT0("%%\n");	/* force write_buffer */
 					buffer_eob();
+					if (info['X' - 'A'] == 0)
+						write_buffer();
 				}
 			} else {
 				error(1, s,
@@ -3060,7 +3087,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		break;
 	case 'n':
 		if (strcmp(w, "newpage") == 0) {
-			if (epsf)
+			if (epsf || in_fname == 0)
 				return as;
 			generate();
 			buffer_eob();
@@ -3150,6 +3177,10 @@ irepeat:
 			float h2, len, lwidth;
 
 			gen_ly(0);
+			if (as->state == ABC_S_GLOBAL) {
+				if (epsf || in_fname == 0)
+					return as;
+			}
 			lwidth = (cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 				- cfmt.leftmargin - cfmt.rightmargin;
 			h1 = h2 = len = 0;
@@ -3240,8 +3271,10 @@ irepeat:
 			int job;
 
 			gen_ly(1);
-			if (epsf && as->state == ABC_S_GLOBAL)
-				return as;
+			if (as->state == ABC_S_GLOBAL) {
+				if (epsf || in_fname == 0)
+					return as;
+			}
 			if (w[0] == 'c') {
 				job = T_CENTER;
 			} else {
@@ -3300,6 +3333,10 @@ irepeat:
 	case 'v':
 		if (strcmp(w, "vskip") == 0) {
 			gen_ly(0);
+			if (as->state == ABC_S_GLOBAL) {
+				if (epsf || in_fname == 0)
+					return as;
+			}
 			h1 = scan_u(p);
 			bskip(h1);
 			buffer_eob();
@@ -3327,6 +3364,8 @@ irepeat:
 			curvoice->transpose = cfmt.transpose;
 			s2 = curvoice->sym;
 			if (s2 == 0) {
+				memcpy(&curvoice->key, &curvoice->okey,
+					sizeof curvoice->key);
 				key_transpose(&curvoice->key);
 				memcpy(&curvoice->ckey, &curvoice->key,
 					sizeof curvoice->ckey);
@@ -3338,8 +3377,6 @@ irepeat:
 				if (s2->type == KEYSIG)
 					break;
 			if (s2 == 0 || s2->time != curvoice->time) {
-				memcpy(&s->as.u.key, &curvoice->key,
-							sizeof s->as.u.key);
 				s->as.type = ABC_T_INFO;
 				s->as.text[0] = 'K';
 				s->as.text[1] = '\0';
@@ -3347,6 +3384,8 @@ irepeat:
 				s->u = curvoice->ckey.sf;
 				s2 = s;
 			}
+			memcpy(&s2->as.u.key, &curvoice->okey,
+						sizeof s2->as.u.key);
 			key_transpose(&s2->as.u.key);
 			memcpy(&curvoice->ckey, &s->as.u.key,
 						sizeof curvoice->ckey);

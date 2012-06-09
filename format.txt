@@ -1001,8 +1001,8 @@ List of the format parameters
 		The format is a set of letters, numbers, commas and
 		plus and minus signs. Unrecognized characters are ignored.
 
-		A letter gives the ABC header infomation type. It may be
-		any type range 'A' to 'Z'.
+		A letter gives the ABC header information type. It may be any
+		type range 'A' to 'Z', but 'I', 'K', 'L', 'M', 'U' and 'V'.
 
 		Alignment is defined by a number and/or a minus sign
 		following the letter. It may be:

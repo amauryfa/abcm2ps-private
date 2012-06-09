@@ -1131,7 +1131,7 @@ static char *get_line(void)
 			p[l] = '\0';
 			if (*q == '\0')
 				break;
-			file = q;
+			file = q + 1;
 		}
 	}
 	return abc_line;
@@ -2044,7 +2044,7 @@ static int parse_line(struct abctune *t,
 		return 1;
 	case '%':
 		if (p[1] == '@') {		/* line number - see front.c */
-			linenum = atol(p + 2) - 1;
+			linenum = atol(p + 2);
 			return 0;
 		}
 		if (p[1] == '%') {
