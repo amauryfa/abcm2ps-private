@@ -1887,7 +1887,7 @@ curveto:
 		}
 		if (strcmp(op, "cvx") == 0) {
 			s = pop_free_str();
-			if (s == 0 || s[0] != '(') {
+			if (s == 0 || s[0] != '/') {
 				fprintf(stderr, "svg cvx: No / bad string\n");
 				ps_error = 1;
 				return;

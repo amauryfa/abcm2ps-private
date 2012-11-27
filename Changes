@@ -1,3 +1,37 @@
+---- Version 6.6.22 - 12/11/28 ----
+
+Fix left width of heads in flute.fmt.
+Fix the documentation about flute.fmt.
+Fix bad parsing of the command line ("-OE.ps" gives a EPS file)
+	(reported by Colin Hume).
+Fix bad parsing of the "%abc-<version>" at start of file.
+
+---- Version 6.6.21 - 12/10/03 ----
+
+Fix crash when %%continueall and music line cut on a bar with !beamon!
+	(also when %%breakoneoln 0) and handle beams on two music lines
+	(reported by Guido Gonzato).
+Fix bad handling of /symbol for "cvx" in the mini PS interpreter.
+
+---- Version 6.6.20 - 12/09/02 ----
+
+Fix abnormal new music line when Q: or P: followed by [V:x] and grace notes.
+Fix loss of tempo when second voice starting with grace notes
+	(reported by Wim Rotty).
+Fix crash with floating point sensitive machines as ARM.
+
+---- Version 6.6.19 - 12/07/19 ----
+
+Fix bad file date in header/footer ('$d') when %%format in the ABC file
+	(reported by D. Glenn Arthur Jr.).
+
+---- Version 6.6.18 - 12/06/17 ----
+
+Fix array overflow on %%writefields Q.
+Fix bad note heads when both normal and percussion voices in a same staff
+	(reported by Frédéric Boulanger).
+Don't transpose the percussion voices.
+
 ---- Version 6.6.17 - 12/06/10 ----
 
 Fix bad tie when at end of repeat and start of new repeat ("c- :|2 c")

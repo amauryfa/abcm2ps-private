@@ -362,7 +362,7 @@ static void voice_compress(void)
 			case TUPLET:
 				if (ns == 0)
 					ns = s;
-				sflags |= s->sflags;
+//				sflags |= s->sflags;
 				continue;
 			case MREST:		/* don't shift P: and Q: */
 				if (ns == 0)
@@ -1735,9 +1735,30 @@ static void get_info(struct SYMBOL *s,
 		over_bar = 0;
 		reset_gen();
 
+#if 1
+		/* move the Q: at start of the music */
+		s2 = info['Q' - 'A'];
+		if (s2 != 0) {
+			if (cfmt.fields[0] & (1 << ('Q' - 'A'))) {
+				s2->type = TEMPO;
+				s2->voice = curvoice - voice_tb;
+				s2->staff = curvoice->staff;
+				s2->time = curvoice->time;
+				if (curvoice->sym == 0) {
+					curvoice->last_sym = s2;
+				} else {
+					s2->next = curvoice->sym;
+					s2->next->prev = s2;
+				}
+				curvoice->sym = s2;
+			}
+			info['Q' - 'A'] = 0;
+		}
+#else
 		/* remove unwanted fields */
 		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
 			info['Q' - 'A'] = 0;
+#endif
 
 		/* switch to the 1st voice */
 		curvoice = &voice_tb[parsys->top_voice];
@@ -1785,16 +1806,36 @@ static void get_info(struct SYMBOL *s,
 		}
 		break;
 	case 'Q':
-		if (curvoice != &voice_tb[parsys->top_voice])
-			break;		/* tempo only for first voice */
 		switch (s->as.state) {
 		case ABC_S_GLOBAL:
 		case ABC_S_HEAD:
 			info['Q' - 'A'] = s;
 			break;
 		default:
+			if (curvoice != &voice_tb[parsys->top_voice])
+				break;		/* tempo only for first voice */
 			if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
 				break;
+			s2 = curvoice->last_sym;
+			if (s2 != 0) {			/* keep last Q: */
+				int tim;
+
+				tim = s2->time;
+				do {
+					if (s2->type == TEMPO) {
+						if (s2->next == 0)
+							curvoice->last_sym = s2->prev;
+						else
+							s2->next->prev = s2->prev;
+						if (s2->prev == 0)
+							curvoice->sym = s2->next;
+						else
+							s2->prev->next = s2->next;
+						break;
+					}
+					s2 = s2->prev;
+				} while (s2 != 0 && s2->time == tim);
+			}
 			sym_link(s, TEMPO);
 			break;
 		}
@@ -2322,6 +2363,8 @@ static void get_clef(struct SYMBOL *s)
 					parsys->voice[voice].clef.stafflines = stafflines;
 					parsys->voice[voice].clef.staffscale = staffscale;
 					voice_tb[voice].forced_clef = 1;
+					if (s->as.u.clef.type == PERC)
+						voice_tb[voice].perc = 1;
 				}
 			}
 			if ((stafflines = s->as.u.clef.stafflines) >= 0) {
@@ -2345,11 +2388,10 @@ static void get_clef(struct SYMBOL *s)
 			stafflines = parsys->voice[voice].clef.stafflines;
 		if ((staffscale = s->as.u.clef.staffscale) == 0)
 			staffscale = parsys->voice[voice].clef.staffscale;
-		if (s->as.u.clef.type >= 0) {
+		if (s->as.u.clef.type >= 0)
 			memcpy(&parsys->voice[voice].clef,
 				&s->as.u.clef,
 				sizeof parsys->voice[voice].clef);
-		}
 		parsys->voice[voice].clef.stafflines = stafflines;
 		parsys->voice[voice].clef.staffscale = staffscale;
 	} else {				/* clef change */
@@ -2394,8 +2436,10 @@ static void get_clef(struct SYMBOL *s)
 			s2->as.u.clef.staffscale = s->as.u.clef.staffscale;
 		}
 	}
-	if (s->as.u.clef.type >= 0)
+	if (s->as.u.clef.type >= 0) {
 		p_voice->forced_clef = 1;	/* don't change */
+		p_voice->perc = s->as.u.clef.type == PERC;
+	}
 }
 
 /* transpose a key */
@@ -2734,7 +2778,9 @@ static void get_note(struct SYMBOL *s)
 	prev = curvoice->last_sym;
 	s->nhd = m = s->as.u.note.nhd;
 
-	if (s->as.type == ABC_T_NOTE
+	if (curvoice->perc)
+		s->sflags |= S_PERC;
+	else if (s->as.type == ABC_T_NOTE
 	 && curvoice->transpose != 0)
 		note_transpose(s);
 

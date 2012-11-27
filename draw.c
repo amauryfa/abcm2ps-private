@@ -94,6 +94,22 @@ static float b_pos(int grace,
 	return d1;
 }
 
+/* duplicate a note for beaming continuation */
+static struct SYMBOL *sym_dup(struct SYMBOL *s_orig)
+{
+	struct SYMBOL *s;
+
+	s = (struct SYMBOL *) getarena(sizeof *s);
+	memcpy(s, s_orig, sizeof *s);
+	s->as.flags |= ABC_F_INVIS;
+	s->as.text = 0;
+	memset(s->as.u.note.sl1, 0, sizeof s->as.u.note.sl1);
+	memset(s->as.u.note.decs, 0, sizeof s->as.u.note.decs);
+	memset(&s->as.u.note.dc, 0, sizeof s->as.u.note.dc);
+	s->ly = 0;
+	return s;
+}
+
 /* -- calculate a beam -- */
 /* (the staves may be defined or not) */
 static int calculate_beam(struct BEAM *bm,
@@ -111,27 +127,73 @@ static int calculate_beam(struct BEAM *bm,
 	};
 
 	/* must have one printed note head */
-	if (s1->as.flags & s1->next->as.flags & ABC_F_INVIS)
-		return 0;
+	if (s1->as.flags & ABC_F_INVIS) {
+		if (s1->next == 0
+		 || (s1->next->as.flags & ABC_F_INVIS))
+			return 0;
+	}
 
-	/* find first and last note in beam */
+	if (!(s1->sflags & S_BEAM_ST)) {	/* beam on two lines */
+		s = sym_dup(s1);
+		s1->prev->next = s;
+		s->prev = s1->prev;
+		s1->prev = s;
+		s->next = s1;
+		s1->ts_prev->ts_next = s;
+		s->ts_prev = s1->ts_prev;
+		s1->ts_prev = s;
+		s->ts_next = s1;
+		s->x -= 12;
+		if (s->x > s1->prev->x + 12)
+			s->x = s1->prev->x + 12;
+		s->sflags &= ~S_BEAM_END;
+		s->sflags |= S_BEAM_ST;
+		s1 = s;
+	}
+
+	/* search last note in beam */
 	notes = nflags = 0;	/* set x positions, count notes and flags */
 	two_staves = two_dir = 0;
 	staff = s1->staff;
 	voice = s1->voice;
 	stem_xoff = (s1->as.flags & ABC_F_GRACE) ? GSTEM_XOFF : STEM_XOFF;
 	for (s2 = s1; ; s2 = s2->next) {
-		if (s2->as.type != ABC_T_NOTE)
-			continue;
-		if (s2->nflags > nflags)
-			nflags = s2->nflags;
-		notes++;
-		if (s2->staff != staff)
-			two_staves = 1;
-		if (s2->stem != s1->stem)
-			two_dir = 1;
-		if (s2->sflags & S_BEAM_END)
+		if (s2->as.type == ABC_T_NOTE) {
+			if (s2->nflags > nflags)
+				nflags = s2->nflags;
+			notes++;
+			if (s2->staff != staff)
+				two_staves = 1;
+			if (s2->stem != s1->stem)
+				two_dir = 1;
+			if (s2->sflags & S_BEAM_END)
+				break;
+		}
+		if (s2->next == 0) {		/* beam on two lines */
+			for (; ; s2 = s2->prev) {
+				if (s2->as.type == ABC_T_NOTE)
+					break;
+			}
+			s = sym_dup(s2);
+			s->next = s2->next;
+			if (s->next != 0)
+				s->next->prev = s;;
+			s2->next = s;
+			s->prev = s2;
+			s->ts_next = s2->ts_next;
+			if (s->ts_next != 0)
+				s->ts_next->ts_prev = s;
+			s2->ts_next = s;
+			s->ts_prev = s2;
+			s->sflags &= ~S_BEAM_ST;
+			s->sflags |= S_BEAM_END;
+			s->x += 12;
+			if (s->x < realwidth - 12)
+				s->x = realwidth - 12;
+			s2 = s;
+			notes++;
 			break;
+		}
 	}
 	bm->s2 = s2;			/* (don't display the flags) */
 	if (staff_tb[staff].y == 0) {	/* staves not defined */
@@ -1417,7 +1479,7 @@ static void draw_basic_note(float x,
 		p = "/y exch def/x exch def";
 	else if (s->as.flags & ABC_F_GRACE)
 		p = "ghd";
-	else if (cursys->staff[s->staff].clef.type == PERC
+	else if ((s->sflags & S_PERC)
 		 && (i = s->as.u.note.accs[m]) != 0) {
 		i &= 0x07;
 		sprintf(perc_hd, "p%shd", acc_tb[i]);
@@ -1469,7 +1531,7 @@ static void draw_basic_note(float x,
 
 	/* draw the accidental */
 	if ((i = s->as.u.note.accs[m]) != 0
-	 && cursys->staff[s->staff].clef.type != PERC) {
+	 && !(s->sflags & S_PERC)) {
 		x -= s->shac[m] * cur_scale;
 		PUT0(" ");
 		putx(x);
@@ -3637,12 +3699,17 @@ void draw_sym_near(void)
 	/* calculate the beams but don't draw them (the staves are undefined) */
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 		struct BEAM bm;
+		int first_note = 1;
 
 		for (s = p_voice->sym; s != 0; s = s->next) {
-			if (s->as.type == ABC_T_NOTE
-			 && (s->sflags & S_BEAM_ST)
-			 && !(s->sflags & S_BEAM_END))
+			if (s->as.type != ABC_T_NOTE)
+				continue;
+			if (((s->sflags & S_BEAM_ST)
+			  && !(s->sflags & S_BEAM_END))
+			 || (first_note && !(s->sflags & S_BEAM_ST))) {
+				first_note = 0;
 				calculate_beam(&bm, s);
+			}
 		}
 	}
 
@@ -4273,7 +4340,7 @@ static void draw_symbols(struct VOICE_S *p_voice)
 	struct BEAM bm;
 	struct SYMBOL *s;
 	float x, y;
-	int staff;
+	int staff, first_note;
 
 	/* output the PostScript code at start of line */
 	for (s = p_voice->sym; s != 0; s = s->next) {
@@ -4290,6 +4357,7 @@ static void draw_symbols(struct VOICE_S *p_voice)
 	}
 
 	bm.s2 = 0;
+	first_note = 1;
 	for (s = p_voice->sym; s != 0; s = s->next) {
 		if (s->extra != 0)
 			output_ps(s, 127);
@@ -4301,11 +4369,14 @@ static void draw_symbols(struct VOICE_S *p_voice)
 		case NOTEREST:
 			set_scale(s);
 			if (s->as.type == ABC_T_NOTE) {
-				if ((s->sflags & (S_BEAM_ST | S_BEAM_END)) == S_BEAM_ST) {
-					if (annotate)
-						anno_out(s, 'b');
-					if (calculate_beam(&bm, s))
+				if ((s->sflags & (S_BEAM_ST | S_BEAM_END)) == S_BEAM_ST
+				 || (first_note && !(s->sflags & S_BEAM_ST))) {
+					first_note = 0;
+					if (calculate_beam(&bm, s)) {
+						if (annotate)
+							anno_out(s, 'b');
 						draw_beams(&bm);
+					}
 				}
 				if (annotate)
 					anno_out(s, 'N');

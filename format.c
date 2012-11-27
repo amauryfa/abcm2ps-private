@@ -1013,11 +1013,13 @@ void interpret_fmt_line(char *w,		/* keyword */
 					cfmt.fields[i] |= (1 << u);
 				} else {
 					cfmt.fields[i] &= ~(1 << u);
+#if 0
 					switch (*q) {
 					case 'Q':
 						cfmt.fields[u] = 0;
 						break;
 					}
+#endif
 				}
 				q++;
 			}
@@ -1205,11 +1207,16 @@ void set_font(int ft)
 	if (ft == outft)
 		return;
 	f = &cfmt.font_tb[ft];
-	f2 = &cfmt.font_tb[outft];
-	outft = ft;
-	fnum = f->fnum;
-	if (fnum == f2->fnum && f->size == f2->size)
-		return;
+	if (outft >= 0) {
+		f2 = &cfmt.font_tb[outft];
+		outft = ft;
+		fnum = f->fnum;
+		if (fnum == f2->fnum && f->size == f2->size)
+			return;
+	} else {
+		outft = ft;
+		fnum = f->fnum;
+	}
 	if (!used_font[fnum]
 	 && epsf != 2 && !svg) {
 		error(1, 0,

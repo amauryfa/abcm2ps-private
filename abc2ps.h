@@ -156,6 +156,7 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_SL1		0x0800		/* some chord slur start */
 #define S_SL2		0x1000		/* some chord slur end */
 #define S_TI1		0x2000		/* some chord tie start */
+#define S_PERC		0x4000		/* percussion */
 #define S_RBSTOP	0x8000		/* repeat bracket stop */
 #define S_REPEAT	0x00020000	/* sequence / measure repeat */
 #define S_NL		0x00040000	/* start of new music line */
@@ -381,6 +382,7 @@ struct VOICE_S {
 	unsigned have_ly:1;	/* some lyrics in this voice */
 	unsigned new_name:1;	/* redisplay the voice name */
 	unsigned space:1;	/* have a space before the next note (parsing) */
+	unsigned perc:1;	/* percussion */
 	short wmeasure;		/* measure duration while parsing */
 	short transpose;	/* transposition while parsing */
 	short bar_start;	/* bar type at start of staff / 0 */

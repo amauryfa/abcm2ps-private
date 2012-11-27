@@ -3194,6 +3194,8 @@ static void init_music_line(void)
 		p_voice->bar_text = 0;
 	}
 
+#if 0
+// done in parse.c
 	/* add tempo if any (only one) */
 	if ((s = info['Q' - 'A']) != 0) {
 		p_voice = &voice_tb[cursys->top_voice];
@@ -3205,6 +3207,7 @@ static void init_music_line(void)
 		last_s->extra = s;
 		info['Q' - 'A'] = 0;
 	}
+#endif
 
 	/* if initialization of a new music line, compute the spacing,
 	 * including the first (old) sequence */
@@ -4238,24 +4241,6 @@ static void set_piece(void)
 		for (s = tsnext->ts_prev; s != 0; s = s->ts_prev) {
 			if (s->voice != voice)
 				continue;
-
-			/* set the word end / start */
-			for (s2 = s; s2 != 0; s2 = s2->prev) {
-				if (s2->type == BAR)
-					break;
-				if (s2->as.type == ABC_T_NOTE) {
-					s2->sflags |= S_BEAM_END;
-					break;
-				}
-			}
-			for (s2 = s->next; s2 != 0; s2 = s2->next) {
-				if (s2->as.type == ABC_T_NOTE) {
-					s2->sflags |= S_BEAM_ST;
-					break;
-				}
-				if (s2->type == BAR)
-					break;
-			}
 			s->next = 0;
 			check_bar(s);
 			break;

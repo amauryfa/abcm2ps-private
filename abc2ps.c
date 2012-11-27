@@ -57,6 +57,7 @@ int  file_initialized;		/* for output file */
 FILE *fout;			/* output file */
 char *in_fname;			/* current input file name */
 time_t mtime;			/* last modification time of the input file */
+static time_t fmtime;		/*	"	"	of all files */
 
 int s_argc;			/* command line arguments */
 char **s_argv;
@@ -230,7 +231,7 @@ static char *read_file(char *fn, char *ext)
 		}
 		if (fsize % 8192 == 0)
 			file = realloc(file, fsize + 2);
-		time(&mtime);
+		time(&fmtime);
 	} else {
 		struct stat sbuf;
 
@@ -254,7 +255,7 @@ static char *read_file(char *fn, char *ext)
 			return 0;
 		}
 		fstat(fileno(fin), &sbuf);
-		memcpy(&mtime, &sbuf.st_mtime, sizeof mtime);
+		memcpy(&fmtime, &sbuf.st_mtime, sizeof fmtime);
 		fclose(fin);
 	}
 	file[fsize] = '\0';
@@ -324,6 +325,7 @@ static void treat_file(char *fn,
 		file_type = FE_ABC;
 		strcpy(abc_fn, tex_buf);
 		in_fname = abc_fn;
+		mtime = fmtime;
 	}
 
 	nbfiles++;
@@ -567,6 +569,10 @@ int main(int argc, char **argv)
 			case 'X':
 				svg = 2;	/* SVG/XHTML */
 				epsf = 0;
+				break;
+			default:
+				if (strchr("aBbDdeFfIjmNOsTw", c)) /* if with arg */
+					p += strlen(p) - 1;	/* skip */
 				break;
 			}
 		}

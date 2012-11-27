@@ -10,7 +10,7 @@
 % xi_   : txistu (3 holes pipe from Euskadi)
 %
 % you may try it running:
-%	abcm2ps sample -e1 -f flute.fmt -T1 -T3
+%	abcm2ps sample -e1 -F flute.fmt -T1 -T3
 
 beginps
 % -- whistle drawing functions --
@@ -344,16 +344,16 @@ beginps
 endps
 
 % all tin whistle transpositions
-tablature #1 pitch=D 28 0 63 tw_head tw_note
-tablature #2 pitch=C 28 0 63 tw_head tw_note
-tablature #3 pitch=Eb 28 0 63 tw_head tw_note
-%tablature #4 pitch=Bb, 54 0 63 tw_head tw_note
-%tablature #5 pitch=F, 54 0 63 tw_head tw_note
-%tablature #6 pitch=G, 54 0 63 tw_head tw_note
-%tablature #7 pitch=A, 54 0 63 tw_head tw_note
+tablature #1 pitch=D 35 0 63 tw_head tw_note
+tablature #2 pitch=C 35 0 63 tw_head tw_note
+tablature #3 pitch=Eb 60 0 63 tw_head tw_note
+%tablature #4 pitch=Bb, 60 0 63 tw_head tw_note
+%tablature #5 pitch=F, 35 0 63 tw_head tw_note
+%tablature #6 pitch=G, 35 0 63 tw_head tw_note
+%tablature #7 pitch=A, 35 0 63 tw_head tw_note
 
 % galoubet
-%tablature #3 pitch=C 28 0 60 gbl_tete gbl_note
+%tablature #3 pitch=C 30 0 60 gbl_tete gbl_note
 tablature #4 pitch=B,b 50 0 60 gbl_tete gbl_note
-tablature #5 pitch=G, 28 0 54 pt_tete pt_note
-tablature #6 pitch=C 28 0 46 gblc_tete gblc_note
+tablature #5 pitch=G, 30 0 54 pt_tete pt_note
+tablature #6 pitch=C 30 0 46 gblc_tete gblc_note
