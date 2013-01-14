@@ -50,8 +50,75 @@ int (*output)(FILE *out, const char *fmt, ...);
 
 int in_page;			/* filling a PostScript page */
 char *outbuf;			/* output buffer.. should hold one tune */
-char *mbf;			/* where to PUTx() */
+char *mbf;			/* where to a2b() */
 int use_buffer;			/* 1 if lines are being accumulated */
+
+/* -- cut off extension on a file identifier -- */
+static void cutext(char *fid)
+{
+	char *p;
+
+	if ((p = strrchr(fid, DIRSEP)) == 0)
+		p = fid;
+	if ((p = strrchr(p, '.')) != 0)
+		*p = '\0';
+}
+
+/* -- open the output file -- */
+static void open_fout(void)
+{
+	int i;
+	char fnm[FILENAME_MAX];
+
+	strcpy(fnm, outfn);
+	i = strlen(fnm) - 1;
+	if (i < 0) {
+		strcpy(fnm, svg ? "Out.xhtml" : OUTPUTFILE);
+	} else if (i == 0 && fnm[0] == '-') {
+		if (svg == 1) {
+			error(1, 0, "Cannot use stdout with '-v' - abort");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		if (fnm[i] == '=') {
+			char *p;
+
+			if ((p = strrchr(in_fname, DIRSEP)) == 0)
+				p = in_fname;
+			else
+				p++;
+/*fixme: should check if there is a DIRSEP at the end of fnm*/
+			strcpy(&fnm[i], p);
+			strext(fnm, svg ? "xhtml" : "ps");
+		} else if (fnm[i] == DIRSEP) {
+			strcpy(&fnm[i + 1], OUTPUTFILE);
+		}
+#if 0
+/*fixme: fnm may be a directory*/
+		else	...
+#endif
+	}
+	if (svg == 1) {
+		cutext(fnm);
+		i = strlen(fnm) - 1;
+		if (strncmp(fnm, outfnam, i) != 0)
+			nepsf = 0;
+		sprintf(&fnm[i + 1], "%03d.svg", ++nepsf);
+	} else if (strcmp(fnm, outfnam) == 0) {
+		return;				/* same output file */
+	}
+
+	close_output_file();
+	strcpy(outfnam, fnm);
+	if (i != 0 || fnm[0] != '-') {
+		if ((fout = fopen(fnm, "w")) == 0) {
+			error(1, 0, "Cannot create output file %s - abort", fnm);
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		fout = stdout;
+	}
+}
 
 /* -- convert a date -- */
 static void cnv_date(time_t *ltime)
@@ -87,6 +154,8 @@ static void init_ps(char *str)
 			-bposy);
 		marg_init();
 	} else {
+		if (fout == 0)
+			open_fout();
 		fprintf(fout, "%%!PS-Adobe-2.0\n");
 		fprintf(fout, "%%%%BoundingBox: 0 0 %.0f %.0f\n",
 			p_fmt->pagewidth,
@@ -189,9 +258,10 @@ out2:
 /* epsf is always null */
 void close_output_file(void)
 {
-	if (fout == 0)
+	if (!fout)
 		return;
-	if (multicol_start != 0) {	/* if no '%%multicol end' or filtering */
+	if (multicol_start != 0) {	/* if no '%%multicol end' */
+		error(1, 0, "No \"%%%%multicol end\"");
 		multicol_start = 0;
 		write_buffer();
 	}
@@ -225,10 +295,11 @@ void close_page(void)
 			close_fout();
 		else
 			fputs("</p>\n", fout);
-	} else
+	} else {
 		fputs("%%PageTrailer\n"
 			"grestore\n"
 			"showpage\n", fout);
+	}
 	cur_lmarg = 0;
 	cur_scale = 1.0;
 	outft = -1;
@@ -434,6 +505,10 @@ static void init_page(void)
 
 	if (svg) {
 		if (!file_initialized) {
+#if 1
+			if (fout == 0)
+				open_fout();
+#else
 			if (svg == 1 && fout == 0) {
 				int i;
 
@@ -446,6 +521,7 @@ static void init_page(void)
 					exit(EXIT_FAILURE);
 				}
 			}
+#endif
 			define_svg_symbols(in_fname,
 				cfmt.landscape ? p_fmt->pageheight : p_fmt->pagewidth,
 				cfmt.landscape ? p_fmt->pagewidth : p_fmt->pageheight);
@@ -517,73 +593,6 @@ static void init_page(void)
 		maxy -= headfooter(0, pwidth, pheight);
 	pagenum++;
 	outft = -1;
-}
-
-/* -- cut off extension on a file identifier -- */
-static void cutext(char *fid)
-{
-	char *p;
-
-	if ((p = strrchr(fid, DIRSEP)) == 0)
-		p = fid;
-	if ((p = strrchr(p, '.')) != 0)
-		*p = '\0';
-}
-
-/* -- open the output file -- */
-void open_output_file(void)
-{
-	int i;
-	char fnm[FILENAME_MAX];
-
-	strcpy(fnm, outfn);
-	i = strlen(fnm) - 1;
-	if (i < 0) {
-		strcpy(fnm, svg ? "Out.xhtml" : OUTPUTFILE);
-	} else if (i == 0 && fnm[0] == '-') {
-		if (svg == 1) {
-			error(1, 0, "Cannot use stdout with '-v' - abort");
-			exit(EXIT_FAILURE);
-		}
-	} else {
-		if (fnm[i] == '=') {
-			char *p;
-
-			if ((p = strrchr(in_fname, DIRSEP)) == 0)
-				p = in_fname;
-			else
-				p++;
-/*fixme: should check if there is a DIRSEP at the end of fnm*/
-			strcpy(&fnm[i], p);
-			strext(fnm, svg ? "xhtml" : "ps");
-		} else if (fnm[i] == DIRSEP) {
-			strcpy(&fnm[i + 1], OUTPUTFILE);
-		}
-#if 0
-/*fixme: fnm may be a directory*/
-		else	...
-#endif
-	}
-	if (svg == 1) {
-		cutext(fnm);
-		i = strlen(fnm) - 1;
-		if (strncmp(fnm, outfnam, i) != 0)
-			nepsf = 0;
-		sprintf(&fnm[i + 1], "%03d.svg", ++nepsf);
-	} else if (strcmp(fnm, outfnam) == 0) {
-		return;				/* same output file */
-	}
-
-	close_output_file();
-	strcpy(outfnam, fnm);
-	if (i != 0 || fnm[0] != '-') {
-		if ((fout = fopen(fnm, "w")) == 0) {
-			error(1, 0, "Cannot create output file %s - abort", fnm);
-			exit(EXIT_FAILURE);
-		}
-	} else {
-		fout = stdout;
-	}
 }
 
 /* -- adjust the tune title part of the output file name -- */
@@ -698,7 +707,6 @@ static void newpage(void)
 /*  subroutines to handle output buffer  */
 
 /* -- update the output buffer pointer -- */
-/* called from the PUTx() macros */
 void a2b(char *fmt, ...)
 {
 	va_list args;
@@ -717,18 +725,11 @@ void a2b(char *fmt, ...)
 	va_end(args);
 }
 
-/* -- translate down by 'h' absolute points in output buffer -- */
-void abskip(float h)
-{
-	PUT1("0 %.2f T\n", -h / cfmt.scale);
-	bposy -= h;
-}
-
 /* -- translate down by 'h' scaled points in output buffer -- */
 void bskip(float h)
 {
 	bposy -= h * cfmt.scale;
-	PUT1("0 %.2f T\n", -h);
+	a2b("0 %.2f T\n", -h);
 }
 
 /* -- clear_buffer -- */
@@ -757,6 +758,19 @@ void write_buffer(void)
 	p1 = 0;
 	p_buf = outbuf;
 	for (l = 0; l < ln_num; l++) {
+		if (ln_pos[l] > 0) {		/* if in multicol */
+			int ll;
+			float pos;
+
+			for (ll = l + 1; ll < ln_num; ll++) {
+				if (ln_pos[ll] <= 0) {
+					pos = ln_pos[ll];
+					while (--ll >= l)
+						ln_pos[ll] = pos;
+					break;
+				}
+			}
+		}
 		dp = ln_pos[l] - p1;
 		np = maxy + dp < 0 && !epsf;
 		if (np) {
@@ -807,12 +821,12 @@ void write_buffer(void)
 							p);
 					svg_output(fout, "gsave\n"
 							"%s T\n",
-						p_buf);
+							p_buf);
 					while (fgets(line, sizeof line, f))	/* copy the file */
 						svg_write(line, strlen(line));
 					svg_output(fout, "grestore\n"
 							"%s T\n",
-						p_buf);
+							p_buf);
 					fprintf(fout, "<!--End document %s-->\n",
 							p);
 				} else {
@@ -835,8 +849,8 @@ void write_buffer(void)
 		p1 = ln_pos[l];
 	}
 #if 1 //fixme:test
-	if (strlen(p_buf) != 0)
-		fprintf(stderr, "??? buffer non empty:\n%s\n", p_buf);
+	if (*p_buf != '\0')
+		fprintf(stderr, "??? buffer not empty:\n%s\n", p_buf);
 #endif
 	clear_buffer();
 	outft = outft_sav;
@@ -847,27 +861,31 @@ void write_buffer(void)
    after page break and change buffer handling mode to pass though */
 void buffer_eob(void)
 {
+	if (mbf == outbuf)
+		return;
 //fixme: should be done sooner and should be adjusted when cfmt change...
 	if (maxy == 0)
 		maxy = (cfmt.landscape ? cfmt.pagewidth : cfmt.pageheight)
 			- cfmt.topmargin - cfmt.botmargin;
-	if (bposy == 0 && mbf == outbuf)
-		return;
 	if (ln_num > 0 && mbf == ln_buf[ln_num - 1])
-		return;
+		return;				/* no data */
 	if (ln_num >= BUFFLN) {
-		int mc_sav;
+		char c, *p;
 
 		error(1, 0, "max number of buffer lines exceeded"
-			" -- check BUFFLN");
-		mc_sav = multicol_start;
+				" -- check BUFFLN");
 		multicol_start = 0;
+		p = ln_buf[ln_num - 1];
+		c = *p;				/* (avoid "buffer not empty") */
+		*p = '\0';
 		write_buffer();
-		multicol_start = mc_sav;
+		multicol_start = maxy + bposy;
+		*p = c;
+		strcpy(outbuf, p);
 		use_buffer = 0;
 	}
 	ln_buf[ln_num] = mbf;
-	ln_pos[ln_num] = bposy;
+	ln_pos[ln_num] = multicol_start == 0 ? bposy : 1;
 	ln_lmarg[ln_num] = cfmt.leftmargin;
 	if (epsf) {
 		if (cfmt.leftmargin < min_lmarg)
@@ -878,13 +896,16 @@ void buffer_eob(void)
 	ln_scale[ln_num] = cfmt.scale;
 	ln_font[ln_num] = outft;
 	ln_num++;
+
 	if (!use_buffer) {
 		write_buffer();
 		return;
 	}
-	if (maxy + bposy < 0 && !epsf && multicol_start == 0) {
-		if (tunenum > 1)
-			newpage();
+
+	if (maxy + bposy < 0
+	 && !epsf
+	 && multicol_start == 0) {
+		maxy = 0;		/* force new page */
 		write_buffer();
 		use_buffer = 0;
 	}

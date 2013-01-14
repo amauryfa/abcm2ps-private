@@ -53,10 +53,11 @@ int svg;			/* SVG (1) or XML (2 - HTML + SVG) output */
 int showerror;			/* show the errors */
 
 char outfn[FILENAME_MAX];	/* output file name */
-int  file_initialized;		/* for output file */
+int file_initialized;		/* for output file */
 FILE *fout;			/* output file */
 char *in_fname;			/* current input file name */
 time_t mtime;			/* last modification time of the input file */
+static time_t fmtime;		/*	"	"	of all files */
 
 int s_argc;			/* command line arguments */
 char **s_argv;
@@ -172,7 +173,7 @@ static char *read_file(char *fn, char *ext)
 		}
 		if (fsize % 8192 == 0)
 			file = realloc(file, fsize + 2);
-		time(&mtime);
+		time(&fmtime);
 	} else {
 		struct stat sbuf;
 
@@ -196,7 +197,7 @@ static char *read_file(char *fn, char *ext)
 			return 0;
 		}
 		fstat(fileno(fin), &sbuf);
-		memcpy(&mtime, &sbuf.st_mtime, sizeof mtime);
+		memcpy(&fmtime, &sbuf.st_mtime, sizeof fmtime);
 		fclose(fin);
 	}
 	file[fsize] = '\0';
@@ -217,21 +218,19 @@ static void include_cb(unsigned char *fn)
 static void treat_file(char *fn, char *ext)
 {
 	struct abctune *t;
-	char *file, *file2, *p;
+	char *file, *file2;
 	int file_type, l;
 	static int nbfiles;
-
-	/* initialize if not already done */
-	if (fout == 0) {
-		read_def_format();
-		if (*ext == 'a')
-			make_font_list();
-	}
 
 	if (nbfiles > 2) {
 		error(1, 0, "Too many included files");
 		return;
 	}
+
+	/* initialize if not already done */
+	frontend((unsigned char *) "\n", 0);	/* stop the %%tune/%%voice */
+	if (fout == 0)
+		read_def_format();
 
 	/* read the file into memory */
 	/* the real/full file name is in tex_buf[] */
@@ -246,7 +245,6 @@ static void treat_file(char *fn, char *ext)
 	}
 	if (!quiet)
 		fprintf(stderr, "File %s\n", tex_buf);
-	p = file;
 
 	/* convert the strings */
 	l = strlen(tex_buf);
@@ -259,10 +257,11 @@ static void treat_file(char *fn, char *ext)
 		file_type = FE_ABC;
 		strcpy(abc_fn, tex_buf);
 		in_fname = abc_fn;
+		mtime = fmtime;
 	}
 
 	nbfiles++;
-	file2 = (char *) frontend((unsigned char *) p, file_type);
+	file2 = (char *) frontend((unsigned char *) file, file_type);
 	nbfiles--;
 	free(file);
 
@@ -274,8 +273,8 @@ static void treat_file(char *fn, char *ext)
 
 	memcpy(&deco_tune, &deco_glob, sizeof deco_tune);
 	if (file_type == FE_ABC) {		/* if ABC file */
-		if (!epsf)
-			open_output_file();
+//		if (!epsf)
+//			open_output_file();
 		clrarena(1);			/* clear previous tunes */
 	}
 	t = abc_parse(file2);
@@ -483,9 +482,12 @@ int main(int argc, char **argv)
 	while (--argc > 0) {
 		argv++;
 		p = *argv;
-		if (*p != '-' || p[1] == '-' || p[1] == '\0')
+		if (*p != '-' || p[1] == '-') {
+			if (*p == '+' && p[1] == 'F')	/* +F : no default format */
+				def_fmt_done = 1;
 			continue;
-		while ((c = *++p) != '\0') {
+		}
+		while ((c = *++p) != '\0') {	/* '-xxx' */
 			switch (c) {
 			case 'E':
 				svg = 0;	/* EPS */
@@ -513,6 +515,10 @@ int main(int argc, char **argv)
 			case 'X':
 				svg = 2;	/* SVG/XHTML */
 				epsf = 0;
+				break;
+			default:
+				if (strchr("aBbDdeFfIjmNOsTw", c)) /* if with arg */
+					p += strlen(p) - 1;	/* skip */
 				break;
 			}
 		}
@@ -587,7 +593,9 @@ int main(int argc, char **argv)
 					cfmt.continueall = 0;
 					lock_fmt(&cfmt.continueall);
 					break;
-				case 'F': def_fmt_done = 1; break;
+				case 'F':
+//					 def_fmt_done = 1;
+					break;
 				case 'G':
 					cfmt.graceslurs = 1;
 					lock_fmt(&cfmt.graceslurs);
@@ -664,7 +672,6 @@ int main(int argc, char **argv)
 					return EXIT_FAILURE;
 				}
 				argv++;
-//				interpret_fmt_line(p, *argv, 1);
 				set_opt(p, *argv);
 				continue;
 			}
@@ -750,8 +757,8 @@ int main(int argc, char **argv)
 					/* flag with optional parameter */
 				case 'N':
 					if (p[1] == 0
-					&& (argc <= 1
-					 || !isdigit((unsigned) argv[1][0]))) {
+					 && (argc <= 1
+					  || !isdigit((unsigned) argv[1][0]))) {
 						pagenumbers = 2; /* old behaviour */
 						break;
 					}
@@ -786,7 +793,7 @@ int main(int argc, char **argv)
 							p++;
 					}
 
-					if (strchr("BbfjNsv", c)) {    /* check num args */
+					if (strchr("BbfjNs", c)) {	/* check num args */
 						for (j = 0; j < strlen(aaa); j++) {
 							if (!strchr("0123456789.",
 								    aaa[j])) {
@@ -804,30 +811,25 @@ int main(int argc, char **argv)
 
 					switch (c) {
 					case 'a':
-						interpret_fmt_line("maxshrink",
-								aaa, 1);
+						set_opt("maxshrink", aaa);
 						break;
 					case 'B':
-						interpret_fmt_line("barsperstaff",
-								aaa, 1);
+						set_opt("barsperstaff", aaa);
 						break;
 					case 'b':
-						interpret_fmt_line("measurefirst",
-								aaa, 1);
+						set_opt("measurefirst", aaa);
 						break;
 					case 'D':
 						styd = aaa;
 						break;
 					case 'd':
-						interpret_fmt_line("staffsep",
-								aaa, 1);
+						set_opt("staffsep", aaa);
 						break;
 					case 'F':
 						treat_file(aaa, "fmt");
 						break;
 					case 'I':
-						interpret_fmt_line("indent",
-								aaa, 1);
+						set_opt("indent", aaa);
 						break;
 					case 'j':
 						sscanf(aaa, "%d", &cfmt.measurenb);
@@ -839,8 +841,7 @@ int main(int argc, char **argv)
 						lock_fmt(&cfmt.measurebox);
 						break;
 					case 'm':
-						interpret_fmt_line("leftmargin",
-								aaa, 1);
+						set_opt("leftmargin", aaa);
 						break;
 					case 'N':
 						sscanf(aaa, "%d", &pagenumbers);
@@ -859,8 +860,7 @@ int main(int argc, char **argv)
 						strcpy(outfn, aaa);
 						break;
 					case 's':
-						interpret_fmt_line("scale",
-								aaa, 1);
+						set_opt("scale", aaa);
 						break;
 					case 'T': {
 						struct cmdtblt_s *cmdtblt;
@@ -871,8 +871,7 @@ int main(int argc, char **argv)
 						break;
 					    }
 					case 'w':
-						interpret_fmt_line("staffwidth",
-								aaa, 1);
+						set_opt("staffwidth", aaa);
 						break;
 					}
 					break;
@@ -893,6 +892,14 @@ int main(int argc, char **argv)
 
 	if (in_fname != 0)
 		treat_file(in_fname, "abc");
+	if (multicol_start != 0) {		/* lack of %%multicol end */
+		error(1, 0, "Lack of %%%%multicol end");
+		multicol_start = 0;
+		buffer_eob();
+		if (info['X' - 'A'] == 0
+		 && !epsf)
+			write_buffer();
+	}
 	if (!epsf && fout == 0) {
 		error(1, 0, "No input file specified");
 		return EXIT_FAILURE;

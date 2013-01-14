@@ -46,7 +46,7 @@ List of the format parameters
 	Compilation: none
 	Command line: -u
 	Description:
-		When true, set 'M' as the +tenuto+ decoration and do a
+		When true, set 'M' as the !tenuto! decoration and do a
 		pitch translation for the bass and alto clefs.
 
   alignbars <int>
@@ -99,6 +99,18 @@ List of the format parameters
 	Command line: -B<int>
 	Description:
 		Try to typeset with <int> bars on each line.
+
+  breaklimit <float>
+	Default: 0.7
+	Compilation: none
+	Command line: none
+	Description:
+		Set the left fraction of line width where a music line break
+		cannot occur.
+		<float> must be between 0.5 (line breaks can occur in the right
+		half line) and 1 (split at the exact calculated point).
+		This parameter may be used with 'maxshrink' to adjust the
+		automatic line breaks.
 
   breakoneoln <bool>
 	Default: 1
@@ -172,13 +184,21 @@ List of the format parameters
 		staff goes downwards. Otherwise, it goes upwards
 		or downwards according to the previous note.
 
+  cancelkey <bool>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		When set, cancel the accidentals on key signature change
+		(add neutrals).
+
   comball <bool>
 	Default: 0
 	Compilation: none
 	Command line: none
 	Description:
 		When 'combinevoices' is set, voice combination does not
-		occurs when the pitches are a second, unisson or inverted.
+		occurs when the pitches are a second, unison or inverted.
 		Setting this flag makes the combination to occur in all
 		cases.
 
@@ -187,7 +207,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		If 1, the notes of same duration belonging to voices of
+		If set, the notes of same duration belonging to voices of
 		the same staff are combined giving chords.
 
   composerfont <font> [<encoding>] [<size>]
@@ -209,9 +229,9 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		If 0, the bar number of the second repeat(s) is reset to
+		If not set, the bar number of the second repeat(s) is reset to
 		the number of the first repeat.
-		If 1, the bars are sequencially numbered.
+		If set, the bars are sequencially numbered.
 
   continueall <bool>
 	Default: 0
@@ -230,14 +250,16 @@ List of the format parameters
 		This parameter works with single voice tunes only.
 
   dateformat <text>
-	Default: "\%b \%e, \%Y \%H:\%M"
+	Default: "%b %e, %Y %H:%M"
 	Compilation: none
 	Command line: none
 	Description:
 		Define the format of the date and time.
-		The possible values of this parameter are described
-		in the manual pages of date(1) and strftime(3).
-		Note: the '%'s must be escaped as '\%'.
+		The possible values of this parameter are described in the
+		manual pages of date(1) and strftime(3).
+		Note: the '%'s must be escaped as '\%' if the is not enclosed
+		in double quotes (otherwise it is taken as the start of a
+		comment).
 
   deco <name> <c_func> <ps_func> <h> <wl> <wr> [<str>]
 	Default: none
@@ -287,6 +309,12 @@ List of the format parameters
 		It may be set only to '!' (default) or '+' (for compatibility
 		with the ABC standard 2.0).
 
+  dblrepbar <bar>
+	Default: :][:
+	Compilation: none
+	Command line: none
+	Description:
+		Define how the double repeat bars (::, :|: :||:) are drawn.
 
   dynalign <bool>
 	Default: 1
@@ -307,6 +335,7 @@ List of the format parameters
 				the presence and position of lyrics)
 			1 or 'above' above the staff
 			2 or 'below' below the staff
+			3 or 'hidden' don't print
 		When this parameter appears outside a tune or inside a tune
 		header, it applies to all voices. When inside a tune body,
 		it applies to the current voice only.
@@ -339,7 +368,7 @@ List of the format parameters
 	Description:
 		Draw flat beams.
 
-  font <font> [[<encoding>] scale]
+  font <font> [[<encoding>] <scale>]
 	Default: none
 	Compilation: none
 	Command line: none
@@ -349,13 +378,17 @@ List of the format parameters
 		specific fonts are defined later in ABC files/tunes.
 		It must be defined before any PostScript output is done,
 		generally in a format file.
+
 		When absent, <encoding> defaults to the current
 		'encoding' parameter (see above).
+
 		<scale> is the width factor to apply to the Time-Roman
 		character width. It is needed to adjust the string width
 		in case the computation with the default scale gives
 		erroneous values (if string clash, set <scale> lower than 1.0
 		- if too much space, set it greater than 1.0).
+		Note that the <scale> is not applied immediately: it is
+		applied only on particular font assignment.
 
   footer <text>
 	Default: none
@@ -418,6 +451,7 @@ List of the format parameters
 				above the staff)
 			1 or 'above' above the staff
 			2 or 'below' below the staff
+			3 or 'hidden' don't print
 		When this parameter appears outside a tune or inside a tune
 		header, it applies to all voices. When inside a tune body,
 		it applies to the current voice only.
@@ -454,6 +488,22 @@ List of the format parameters
 	Description:
 		Define the space before, inside and after the grace notes.
 
+  gstemdir <int>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		Set the direction of the stems of the grace notes.
+		<int> may be
+			0 or 'auto' for automatic position
+			1 or 'up' stem up
+			2 or 'down' stem down
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
+		This parameter may also be set by the parameter 'gstem='
+		of the K: and V: information fields.
+
   header <text>
 	Default: none
 	Compilation: none
@@ -478,12 +528,12 @@ List of the format parameters
 		Set the history font to <font> with a size <size>.
 
   hyphencont <bool>
-	Default: 0
+	Default: 1
 	Compilation: none
 	Command line: none
 	Description:
-		When a word of lyric under staff ends with a hyphen, put a
-		hyphen in the next line.
+		If set, when a word of lyric under staff ends with a hyphen,
+		put a hyphen in the next line.
 
   indent <unit>
 	Default: 0
@@ -532,6 +582,15 @@ List of the format parameters
 	Description:
 		Set the vertical space before the infoline to <unit>.
 
+  keywarn <bool>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		When set, if a key signature change occurs at the
+		beginning of a music line, a cautionary key signature
+		is added at the end of the previous line.
+
   landscape <bool>
 	Default: 0
 	Compilation: none
@@ -554,7 +613,7 @@ List of the format parameters
 		Define the character(s) which break(s) the music lines.
 		The <list of linebreak separators> is a blank separated
 		list of none, one or more of:
-			<EOL> (system End Of Line)
+			<EOL> (End Of Line of any system)
 			$
 			!
 			<none>
@@ -587,9 +646,10 @@ List of the format parameters
 	Compilation: none
 	Command line: -a<float>
 	Description:
-		Set how much to compress horizontally when staff breaks
-		are chosen automatically.
-		<float> must be between 0 and 1.
+		Set how much to compress horizontally when music line breaks
+		are automatic.
+		<float> must be between 0 (natural spacing)
+		and 1 (max shrinking).
 
   maxstaffsep <unit>
 	Default: 2000pt
@@ -646,6 +706,15 @@ List of the format parameters
 		On the command line, if a trailing 'b' is present, a box
 		is drawn around the measure numbers.
 
+  micronewps <bool>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		If set, use the new PostScript function to draw the microtoal
+		accidentals.
+		(see "Microtone" in features.txt for more information)
+
   musiconly <bool>
 	Default: 0
 	Compilation: none
@@ -665,7 +734,7 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Set the note spacing factor to <float>.
+		Set the note spacing factor to <float> (range 1..2).
 		This value is used to compute the natural space of
 		the notes. The base space of the crotchet is always
 		40 pts. When the duration of a note type is twice the
@@ -696,6 +765,7 @@ List of the format parameters
 				the staff)
 			1 or 'above' above the staff
 			2 or 'below' below the staff
+			3 or 'hidden' don't print
 		When this parameter appears outside a tune or inside a tune
 		header, it applies to all voices. When inside a tune body,
 		it applies to the current voice only.
@@ -824,12 +894,12 @@ List of the format parameters
 		its default value.
 		Note: <size> is mandatory at the first definition..
 
-  shiftunisson <bool>
+  shiftunison <bool>
 	Default: 0
 	Compilation: none
 	Command line: none
 	Description:
-		In multivoice tunes, when voices go to unisson, there
+		In multivoice tunes, when voices go to unison, there
 		is often only one head. Setting this flag keeps the
 		two notes with a shift when there is a minim (half note)
 		and a note smaller than crotchet (black note), and also
@@ -858,6 +928,13 @@ List of the format parameters
 	Description:
 		Display the breve notes in square format.
 
+  stafflines <int>
+	Default: 5
+	Compilation: none
+	Command line: none
+	Description:
+		Set the number of lines of the staff of the current voice.
+
   staffnonote <bool>
 	Default: 1
 	Compilation: none
@@ -865,6 +942,13 @@ List of the format parameters
 	Description:
 		If not set, do not display the staves which have no note
 		in the music lines.
+
+  staffscale <float>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		Set the scale of the staff of the current voice.
 
   staffsep <unit>
 	Default: 46pt
@@ -881,6 +965,22 @@ List of the format parameters
 	Description:
 		Adjust the right margin so that the staff width is <unit>.
 
+  stemdir <int>
+	Default: 0
+	Compilation: none
+	Command line: none
+	Description:
+		Set the direction of the stems.
+		<int> may be
+			0 or 'auto' for automatic position
+			1 or 'up' stem up
+			2 or 'down' stem down
+		When this parameter appears outside a tune or inside a tune
+		header, it applies to all voices. When inside a tune body,
+		it applies to the current voice only.
+		This parameter may also be set by the parameter 'stem='
+		of the K: and V: information fields.
+
   stemheight <float>
 	Default: 20.0
 	Compilation: none
@@ -895,13 +995,14 @@ List of the format parameters
 	Description:
 		Have straight flags on stems in bagpipe tunes.
 
-  stretchlast <bool>
-	Default: 0
+  stretchlast <float>
+	Default: 0.8
 	Compilation: none
 	Command line: none
 	Description:
-		Stretch the last music line of a tune when more
-		expanded than the previous line.
+		Stretch the last music line of a tune when it is
+		bigger than the <float> fraction of the page width
+		(<float> range is 0..1).
 
   stretchstaff <bool>
 	Default: 1
@@ -978,10 +1079,9 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-
-		When set, if a time signature occurs at the beginning
-		of a music line, a cautionary time signature is added
-		at the end of the previous line.
+		When set, if a time signature change occurs at the
+		beginning of a music line, a cautionary time signature
+		is added at the end of the previous line.
 
   titlecaps <bool>
 	Default: 0
@@ -1005,12 +1105,12 @@ List of the format parameters
 		Define the format of the tune title.
 		This format overrides the standard way to display the
 		tune title. Then, parameters as %%titleleft, %%infoline
-		are not used.
+		and also  %%writefields are not used.
 		The format is a set of letters, numbers, commas and
 		plus and minus signs. Unrecognized characters are ignored.
 
-		A letter gives the ABC header infomation type. It may be
-		any type range 'A' to 'Z'.
+		A letter gives the ABC header information type. It may be any
+		type range 'A' to 'Z', but 'I', 'K', 'L', 'M', 'U' and 'V'.
 
 		Alignment is defined by a number and/or a minus sign
 		following the letter. It may be:
@@ -1036,6 +1136,9 @@ List of the format parameters
 		- in the 2nd box:
 		    - in the middle: the concatenated subtitles
 		    - on the right: the notes
+
+		When <text> is empty, the default standard tune format is
+		set back.
 
   titleleft <bool>
 	Default: 0
@@ -1063,7 +1166,6 @@ List of the format parameters
 		is printed as
 			Au Clair de la lune
 			
-
   topmargin <unit>
 	Default: 1cm
 	Compilation: none
@@ -1098,6 +1200,15 @@ List of the format parameters
 			1: no value
 			2: a ratio ('p':'q')
 
+  user <char> [ = ] <decoration>
+	Default: none
+	Compilation: none
+	Command line: none
+	Description:
+		Define a user decoration.
+		This parameter is the same as the information field U:.
+		In may be used in format files to change default decorations.
+
   vocal <int>
 	Default: 0
 	Compilation: none
@@ -1109,6 +1220,7 @@ List of the format parameters
 				the staff)
 			1 or 'above' above the staff
 			2 or 'below' below the staff
+			3 or 'hidden' don't print
 		When this parameter appears outside a tune or inside a tune
 		header, it applies to all voices. When inside a tune body,
 		it applies to the current voice only.
@@ -1144,6 +1256,15 @@ List of the format parameters
 		Set the font of the voice names to <font> with
 		a size <size>.
 
+  voicescale <float>
+	Default: 1
+	Compilation: none
+	Command line: none
+	Description:
+		Set the scale of
+		- all voices when in the tune header,
+		- the current voice when found in the tune body.
+
   volume <int>
 	Default: 0
 	Compilation: none
@@ -1156,6 +1277,7 @@ List of the format parameters
 				the staff)
 			1 or 'above' above the staff
 			2 or 'below' below the staff
+			3 or 'hidden' don't print
 		When this parameter appears outside a tune or inside a tune
 		header, it applies to all voices. When inside a tune body,
 		it applies to the current voice only.
@@ -1190,9 +1312,24 @@ List of the format parameters
 List of the pseudo-comments treated while parsed
 ------------------------------------------------
 
+  abcm2ps <char>
+	Change the pseudo-comment prefix.
+	By default, pseudo-comments are line starting with two percent
+	signs ("%%"). This command redefines the second character of
+	these commands. This permits to avoid clashes with pseudo-comments
+	of other programs.
+	Example:
+
+		%%abcm2ps *
+		%*voice Mib		% the voices which name contains "Mib"
+		%*transpose -3		% are transposed a minor third lower
+		%*abcm2ps %		% restore standard pseudo-comments
+
   begintext [<option>]
-	Start printing a free text. The text appears on the next lines
-	(starting with '%%' or not). The text ends on a line containing
+	Start printing a free text.
+	The text appears on the next lines. When a line starts
+	with '%%', these characters are removed.
+	The text ends on a line containing
 		%%endtext
 	<option> may be:
 	    'obeylines':	  keep lines as they are (default)
@@ -1208,6 +1345,40 @@ List of the pseudo-comments treated while parsed
 
   center <line of text>
 	Print one line of centered text.
+
+  clef <clef_name><clef_octave><clef_line><octave_indication>
+	Insert a new clef.
+	<clef_name> may be:
+		treble (same as G2)
+		alto (same as C3)
+		tenor (same as C4)
+		bass (same as F,4)
+		perc (same as P2)
+		g (same as G')
+		G
+		c (same as C')
+		C
+		f (same as F')
+		F
+		P
+		"<user_clef_name>"
+	(<user_clef_name> is the name of a PostScript function which
+	 draws the clef glyph)
+	<clef_octave> gives the octave of the note of the clef. It has the
+	same syntax as normal notes, i.e.:
+		' (quote) one octave higher
+		, (comma) one octave lower
+	<clef_line> gives the number of the line on which the note of the
+	clef is defined.
+	<octave_indication> is either +8 or -8, in which case a '8' is drawn
+	above or below the clef. Note that this indication does not do any
+	octave transposition as in the standard K:/V: fields.
+
+	Only the clef name is mandatory.
+	There should be no space between the %%clef parameters.
+	Examples:
+		%%clef bass''	% abc2ps behaviour
+		%%clef G,-8	% clef for tenor voice
 
   EPS <eps_file>
 	Include the file <eps_file>.
@@ -1233,12 +1404,12 @@ List of the pseudo-comments treated while parsed
 	same page.
 
   newpage [<int>]
-	Continue printing on a new page and possibly restart page
+	Continue printing on a new page and optionally restart page
 	numbering from <int>.
 
   repbra <bool>
-	The repeat brackets are normally displayed as found in a voice.
-	'%%repbra 0' prevents displaying them for the current voice.
+	The repeat brackets are normally displayed as they are found in
+	a voice. %%repbra 0' prevents displaying them for the current voice.
 
   repeat [<n> [k]]
 	Try to replace a sequence by one or many repeat signs.
@@ -1339,73 +1510,14 @@ List of the pseudo-comments treated while parsed
 	For examples of tablatures with pitch, look at
 		flute.fmt
 	and try:
-		abcm2ps sample.abc -e1 -f flute.fmt -T1 -T3
+		abcm2ps sample.abc -e1 -F flute.fmt -T1 -T3
 
   text <line of text>
 	Print one line of text with the current value of '%%textoption'.
 
-  vskip <h>
-	Skip vertical space of height <h>.
-
-
-Pseudo-commands used for external formatting
---------------------------------------------
-
-  break <symbol selection> [ "," <symbol selection> ]
-	Insert a music line break after the selected symbol(s).
-	This command may appear only a %%tune sequence.
-	There may be many %%break commands in a %%tune sequence.
-
-  clip [ <start symbol> ]  "-" [ <end symbol> ]
-	Define the subset of the tune(s) to be printed.
-	<start symbol> and <end symbol> are <symbol selection>s (see below).
-	This command may appear only a %%tune sequence.
-	There may be only one %%clip command in a %%tune sequence.
-
-  select [ <tune index list> ] [ <regular expression> ]
-	Select a subset of tunes of an ABC file to be printed.
-	<tune index list> is a comma separated list of tune numbers.
-	Each selector applies to the current ABC file.
-	A tune number may be:
-	- a single index value as indicated in the 'X:' field,
-	- a range of such values.
-	  A range is indicated as <first_index> "-" [ <last_index> ].
-	  The last index may be omitted meaning 'last tune of file'.
-	The <regular expression> may have two formats:
-	- without a ':' (colon) as the second character, the regular expression
-	  applies to the content of the first 'T:' field of each tunes.
-	- with a ':', the regular expression is applied to the tune headers
-	  on their whole.
-	An empty %%select selects all the tunes of the next ABC files.
-	Command line examples:
-		abcm2ps voices -e 1,3-5 newfeatures -e5-
-		abcm2ps sample2 -eclefs voices -e 'K:C\s'
-	ABC file example:
-
-		%%select C:.*Bach
-		%%abc-include voices.abc
-		%%abc-include sample5.abc
-
-	Note: Such elections may give strange results when there are global
-	definitions in the ABC files (before and between the tunes).
-
-  tune [ <regular expression> ]
-	Select the tune(s) to which the following options will be applied.
-	These options, up to an empty line, an other '%%tune' command, or
-	the beginning of a tune, apply to the tunes which titles match
-	the <regular expression>. These options may be:
-		%%break
-		%%clip
-		%%voice
-		%%transpose
-	This command may appear only in a global definition (command line,
-	format file or file header).
-	When <regular expression> is absent, all the tune  options are erased.
-	Note: The regular expression applies to T: only
-
   transpose <int> [ "#" | "b" ]
-	Transpose the displayed music.
-	<int> is a signed number of half-tones.
+	Transpose the music.
+	<int> is a signed number of semitones.
 	When "#" or "b" is present, the new key signature(s) will have
 	sharps or flats in case of enharmonic keys.
 	When this command appears in a global definition (format file or
@@ -1420,17 +1532,108 @@ Pseudo-commands used for external formatting
 	Note 3: The transposition is always absolute (it does not depend
 	on a previous %%transpose command).
 
-  voice [ <regular expression> ]
-	Select the voice(s) to which the following options will be applied.
-	These options, up to an empty line, a '%%voice' or '%%tune'
-	command, or the beginning of a tune, apply to the voices which
-	identifiers or full names match the <regular expression>.
-	These options may be:
-		%%transpose
+  vskip <unit>
+	Skip vertical space of height <unit>.
+
+
+Pseudo-commands used for external formatting
+--------------------------------------------
+
+  break <symbol selection> [ [ "," | " " ] <symbol selection> ]*
+	Insert a music line break after the selected symbol(s).
+
+	This command may appear only a %%tune sequence.
+	There may be many %%break commands in a %%tune sequence.
+
+  clip [ <start symbol> ]  "-" [ <end symbol> ]
+	Define the subset of the tune(s) to be printed.
+
+	<start symbol> and <end symbol> are <symbol selection>s (see below).
+	The starting and ending symbols are included in the clip.
+	This command may appear only a %%tune sequence.
+	There may be only one %%clip command in a %%tune sequence.
+
+  select [ <tune index list> ] [ <regular expression> ]
+	Select a subset of tunes of an ABC file to be printed.
+
+	<tune index list> is a comma separated list of tune numbers.
+	Each selector applies to the current ABC file.
+	A tune number may be:
+	- a single index value as indicated in the 'X:' field,
+	- a range of such values.
+	  A range is indicated as <first_index> "-" [ <last_index> ].
+	  The last index may be omitted meaning 'last tune of file'.
+	The <regular expression> applies to the tune headers on their whole.
+	An empty %%select selects all the tunes of the next ABC files.
+
+	Command line examples:
+		abcm2ps voices -e 1,3-5 newfeatures -e5-
+		abcm2ps sample2 -eclefs voices -e 'K:C\s'
+
+	ABC file example:
+		%%select C:.*Bach
+		%%abc-include voices.abc
+		%%abc-include sample5.abc
+
+	Note: Such elections may give strange results when there are global
+	definitions in the ABC files (before and between the tunes).
+
+  tune [ <regular expression> ]
+	Select the tune(s) to which the following options will be applied.
+
+	The options are pseudo-comments (starting with %%), up to an other
+	'%%tune' command. The command "%%tune end" may be used to mark the
+	end of the options.
+
+	They are inserted at start of the tune(s) (after the first K:).
+	which header matches the <regular expression>.
+	When an option is %%score or %%staves, it replaces a %%score or
+	%%staves of the tune. There may be many such options, each one
+	replacing one %%staves/score of the tune.
 	This command may appear only in a global definition (command line,
 	format file or file header).
+	When <regular expression> is the same as the one of a previous %%tune,
+	all the previous tune options for this regular expression are removed.
+	When <regular expression> is absent, all the tune options of all tunes
+	are removed.
+	ABC file example:
+	  Remove the 'ossia' part from sample5.abc of the abcm2ps package
+
+		%%tune Bach
+		%%leftmargin 1cm lock
+		%%rightmargin 1cm lock
+		%%scale 0.7
+		%%staves {(1 2) (3 4)}
+		%%staves {(1 2) (3 4)}
+		%%staves {(1 2) (3 4)}
+		%%abc-include sample5.abc
+
+  voice [ <regular expression> ]
+	Select the voice(s) to which the following options will be applied.
+
+	The options are pseudo-comments (starting with %%), up to an other
+	'%%voice' or '%%tune' command. The command "%%voice end" may be used
+	to mark the end of the options for the last voice.
+	They are inserted before the first symbol of each voice which
+	identifiers or full names match the <regular expression>.
+	This command may appear only in a global definition (command line,
+	format file,r file header or %%tune option list).
+	When <regular expression> is the same as the one of a previous %%voice,
+	all the previous voice options for this regular expression are removed.
 	When <regular expression> is absent, all the global or tune related
-	voice options are erased.
+	voice options are removed.
+	ABC file example:
+	  Print 'Tridal a ra va c'halon' with 4 staves, lyrics at the top
+	  and with a 'tenor' clef.
+
+		%%select Tridal
+		%%tune Tridal
+		%%staves S A T B
+		%%voice S
+		%%vocal up
+		%%voice T
+		%%clef G,-8
+		%%abc-include voices.abc
 
   <symbol selection>
 	The <symbol selection> used in %%break and %%clip permits to identify
@@ -1439,17 +1642,20 @@ Pseudo-commands used for external formatting
 
 		<measure number> [ ":" <time numerator> "/" <time denominator> ]
 
-	<measure_number> is the measure number as it is with "%%measurenb 1"
-	or '-j1'.
+	<measure_number> is the measure number as it is displayed with
+	"%%measurenb 1"	or '-j1'.
 	Note that this number may change when changing the %%contbarnb value.
+	In case %%contbarnb is not set, the repeat sequences may be identified
+	by a letter after the measure number as "10b" (second repeat sequence).
 
 	<time numerator> and <time denominator> define the fraction of a whole
-	note which gives the time offset of the symbol inside the selected
+	note which gives the time offset of the symbol from the selected
 	measure.
-	The numerator is numbered starting from 1. The value "1" as
-	the numerator always selects the first note/rest of the measure.
+	The numerator is numbered starting from 0. The value 0 selects
+	the measure bar. To select the first note of a measure, set the
+	fraction to a small value as "5:1/64".
 
-	When the time value is ommited, the measure bar is selected.
+	When the time fraction is ommited, the measure bar is selected.
 
   <regular expression>
 	  Such expressions are a subset of Perl regular expressions:
@@ -1470,7 +1676,7 @@ Pseudo-commands used for external formatting
 		\meta	match one of the meta character: ^$().[*+?\
 
   Examples:
-	- transpose up  by two semitones all the voices which names contain
+	- transpose up by two semitones all the voices which names contain
 	  the characters "Bb":
 
 		abcm2ps tune1.abc --voice Bb --transpose 2

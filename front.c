@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 2011-2012 Jean-François Moine (http://moinejf.free.fr)
+ * Copyright (C) 2011-2013 Jean-François Moine (http://moinejf.free.fr)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,9 +29,10 @@
 
 static unsigned char *dst;
 static int offset, size, keep_comments;
-static int latin;
 static void (*include_f)(unsigned char *fn);
 static unsigned char *selection;
+static int latin, skip;
+static char prefix = '%';
 
 /*
  * translation table from the ABC draft version 2
@@ -103,6 +104,8 @@ static unsigned char *latin_tb[5] = {
 /* add text to the output buffer */
 static void txt_add(unsigned char *s, int sz)
 {
+	if (skip)
+		return;
 	if (offset + sz > size) {
 		size = (offset + sz + 8191) / 8192 * 8192;
 		if (dst == 0)
@@ -373,7 +376,7 @@ static void add_lnum(int nline)
 	txt_add(tmp, strlen((char *) tmp));
 }
 
-/* check if the current tune is to be output */
+/* check if the current tune is to be selected */
 static int tune_select(unsigned char *s)
 {
 	struct slre slre;
@@ -412,58 +415,24 @@ static int tune_select(unsigned char *s)
 			return 0;
 	}
 
-	/* if the RE does not contain ':' as the second character,
-	 * check the first title only */
-	if (sel[1] != ':') {
-		for (s += 2; ; s++) {
-			switch (*s) {
-			case '\0':
-				return 0;
-			default:
-				continue;
-			case '\n':
-			case '\r':
-				break;
-			}
-			if (s[1] == '\0' || s[2] != ':')
-				continue;
-			s++;
-			switch (*s) {
-			case 'K':
-				return 0;
-			default:
-				continue;
-			case 'T':
-				break;
-			}
-			s += 2;
-			while (*s == ' ' || *s == '\t')
-				s++;
-			p = s;
-			while (*p != '\n' && *p != '\r' && *p != '\0')
-				p++;
+	for (p = s + 2; ; p++) {
+		switch (*p) {
+		case '\0':
+			return 0;
+		default:
+			continue;
+		case '\n':
+		case '\r':
 			break;
 		}
-	} else {
-		for (p = s + 2; ; p++) {
-			switch (*p) {
-			case '\0':
-				return 0;
-			default:
-				continue;
-			case '\n':
-			case '\r':
-				break;
-			}
-			if (p[1] != 'K' || p[2] != ':')
-				continue;
-			p += 3;
-			while (*p != '\n' && *p != '\r' && *p != '\0')
-				p++;
-			if (*p != '\0')
-				p++;		/* keep the EOL for RE with '\s' */
-			break;
-		}
+		if (p[1] != 'K' || p[2] != ':')
+			continue;
+		p += 3;
+		while (*p != '\n' && *p != '\r' && *p != '\0')
+			p++;
+		if (*p != '\0')
+			p++;		/* keep the EOL for RE with '\s' */
+		break;
 	}
 //fixme: should compile only one time
 	if (!slre_compile(&slre, (char *) sel))
@@ -489,7 +458,7 @@ unsigned char *frontend(unsigned char *s,
 			int ftype)
 {
 	unsigned char *p, *q, c, *begin_end;
-	int i, l, state, str_cnv_p, histo, end_len, nline, skip;
+	int i, l, state, str_cnv_p, histo, end_len, nline;
 
 	begin_end = 0;
 	end_len = 0;
@@ -498,6 +467,9 @@ unsigned char *frontend(unsigned char *s,
 	nline = 0;
 	if (dst != 0)			/* if continuation */
 		offset--;		/* restart before the EOL */
+
+	add_lnum(0);
+	txt_add_eol();
 
 	/* if unknown encoding, check if latin1 or utf-8 */
 	if (ftype == FE_ABC
@@ -552,14 +524,49 @@ unsigned char *frontend(unsigned char *s,
 				p++;
 		}
 		nline++;
+
+		if (begin_end) {
+			if (ftype == FE_FMT) {
+				if (strncmp((char *) s, "end", 3) == 0
+				 && strncmp((char *) s + 3,
+						(char *) begin_end, end_len) == 0) {
+					begin_end = 0;
+					txt_add((unsigned char *) "%%", 2);
+					goto next;
+				}
+				if (*s == '%')
+					goto next_eol;		/* comment */
+				goto next;
+			}
+			if (*s == '%' && s[1] == prefix) {
+				q = s + 2;
+				while (*q == ' ' || *q == '\t')
+					q++;
+				if (strncmp((char *) q, "end", 3) == 0
+				 && strncmp((char *) q + 3,
+						(char *) begin_end, end_len) == 0) {
+					begin_end = 0;
+					goto next;
+				}
+			}
+			if (strncmp("ps", (char *) begin_end, end_len) == 0) {
+				if (*s == '%')
+					goto next_eol;		/* comment */
+			} else {
+				if (*s == '%' && s[1] == '%') {
+					s += 2;
+					l -= 2;
+				}
+			}
+			goto next;
+		}
+
 		if (l == 0) {			/* empty line */
 			if (skip) {
 				skip = 0;
 				txt_add_eol();
 				add_lnum(nline);
 			}
-			if (begin_end)
-				goto next_eol;
 			switch (state) {
 			case 1:
 				fprintf(stderr,
@@ -576,14 +583,10 @@ unsigned char *frontend(unsigned char *s,
 			}
 			goto next_eol;
 		}
-		if (skip) {
-			s = p;
-			continue;
-		}
 		if (histo) {			/* H: continuation */
 			if ((s[1] == ':'
 			  && (isalpha(*s) || *s == '+'))
-			 || (*s == '%' && s[1] == '%')) {
+			 || (*s == '%' && s[1] == prefix)) {
 				histo = 0;
 			} else {
 				txt_add((unsigned char *) "H:", 2);
@@ -598,17 +601,19 @@ unsigned char *frontend(unsigned char *s,
 				q++;
 			} while (*q == ' ' || *q == '\t');
 			if (*q == '%') {
-				s = q;
 				if (keep_comments)
-					txt_add(s, l);
-				else if (state != 0)
-					txt_add(s, 1);
+					txt_add(q, l - (q - s));
+				else if (state != 0)	/* inside tune */
+					txt_add(q, 1);	/* keep a single '%' */
 				goto next_eol;
 			}
 		}
 
-		if (ftype == FE_PS)
+		if (ftype == FE_PS) {
+			if (*s == '%')
+				goto next_eol;
 			goto next;
+		}
 
 		/* treat the pseudo-comments */
 		if (ftype == FE_FMT) {
@@ -616,8 +621,18 @@ unsigned char *frontend(unsigned char *s,
 				goto next_eol;
 			goto pscom;
 		}
+		if (*s == 'I' && s[1] == ':') {
+			s += 2;
+			l -= 2;
+			while (*s == ' ' || *s == '\t') {
+				s++;
+				l--;
+			}
+			txt_add((unsigned char *) "%%", 2);
+			goto info;
+		}
 		if (*s == '%') {
-			if (s[1] != '%') {		/* pure comment */
+			if (s[1] != prefix) {		/* pure comment */
 				if (keep_comments
 				 || strncmp((char *) s, "%abc", 4) == 0)
 					txt_add(s, l);
@@ -627,22 +642,17 @@ unsigned char *frontend(unsigned char *s,
 			}
 			s += 2;
 			l -= 2;
+			if (strncmp((char *) s, "abcm2ps", 7) == 0) {
+				q = s + 7;
+				while (isspace(*q))
+					q++;
+				prefix = *q;
+				goto next_eol;
+			}
 pscom:
 			while (*s == ' ' || *s == '\t') {
 				s++;
 				l--;
-			}
-			if (begin_end) {
-				if (strncmp((char *) s, "end", 3) != 0
-				 || strncmp((char *) s + 3,
-						(char *) begin_end, end_len) != 0) {
-//					if (!format)
-//						txt_add((unsigned char *) "%%", 2);
-					goto next;
-				}
-				begin_end = 0;
-				txt_add((unsigned char *) "%%", 2);
-				goto next;
 			}
 			txt_add((unsigned char *) "%%", 2);
 			if (strncmp((char *) s, "begin", 5) == 0) {
@@ -652,6 +662,7 @@ pscom:
 				end_len = q - begin_end;
 				goto next;
 			}
+info:
 			if (strncmp((char *) s, "encoding ", 9) == 0
 			 || strncmp((char *) s, "abc-charset ", 12) == 0) {
 				if (*s == 'e')
@@ -721,7 +732,7 @@ pscom:
 				include_f(s);
 				offset--;		/* remove the EOS */
 				*q = sep;
-				add_lnum(nline + 1);
+				add_lnum(nline);
 				goto next_eol;
 			}
 			if (strncmp((char *) s, "select ", 7) == 0) {
@@ -783,13 +794,8 @@ pscom:
 					txt_add_eol();	/* no empty line - minor error */
 					break;
 				}
-				if (selection != 0) {
+				if (selection)
 					skip = !tune_select(s);
-					if (skip) {
-						s = p;
-						continue;
-					}
-				}
 				state = 1;
 				break;
 			case 'T':

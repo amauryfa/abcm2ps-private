@@ -81,7 +81,6 @@ struct abcsym {
 #define ABC_S_GLOBAL 0			/* global */
 #define ABC_S_HEAD 1			/* in header (after X:) */
 #define ABC_S_TUNE 2			/* in tune (after K:) */
-#define ABC_S_EMBED 3			/* embedded header (between [..]) */
 	unsigned short colnum;	/* ABC source column number */
 	unsigned short flags;
 #define ABC_F_ERROR	0x0001		/* error around this symbol */
@@ -109,6 +108,8 @@ struct abcsym {
 #define BAGPIPE 9				/* bagpipe when >= 8 */
 			signed char nacc;	/* number  of explicit accidentals */
 						/* (-1) if no accidental */
+			signed char octave;	/* 'octave=' */
+#define NO_OCTAVE (10)				/* no 'octave=' */
 			signed char pits[8];
 			unsigned char accs[8];
 		} key;
@@ -137,6 +138,7 @@ struct abcsym {
 			char *nname;		/* nick name */
 			float scale;		/* != 0 when change */
 			unsigned char voice;	/* voice number */
+			signed char octave;	/* 'octave=' - same as in K: */
 			char merge;		/* merge with previous voice */
 			signed char stem;	/* have stems up or down (2 = auto) */
 			signed char gstem;	/* have grace stems up or down (2 = auto) */
@@ -145,11 +147,11 @@ struct abcsym {
 			signed char gchord;	/* have gchord above or below the staff */
 		} voice;
 		struct {		/* bar, mrest or mrep */
-			struct deco dc;		/* decorations */
 			int type;
 			char repeat_bar;
 			char len;		/* len if mrest or mrep */
 			char dotted;
+			struct deco dc;		/* decorations */
 		} bar;
 		struct clef_s {		/* clef (and staff!) */
 			char *name;		/* PS drawing function */
@@ -162,6 +164,7 @@ struct abcsym {
 #define PERC 3
 			char line;
 			signed char octave;
+			signed char transpose;
 			char invis;
 			char check_pitch;	/* check if old abc2ps transposition */
 		} clef;

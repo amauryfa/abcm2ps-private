@@ -1,16 +1,16 @@
 # Makefile source for abcm2ps
 
-VERSION = 7.0.1
+VERSION = 7.3.5
 
 CC = gcc
 INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 
-CPPFLAGS = -DHAVE_CONFIG_H  -DHAVE_PANGO=1 -I.
-CPPPANGO = -pthread -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/pixman-1 -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/cairo  
+CPPFLAGS = -DHAVE_CONFIG_H  -I.
+CPPPANGO = 
 CFLAGS = -g -O2 -Wall -pipe
-LDFLAGS =  -pthread -lpangocairo-1.0 -lcairo -lpangoft2-1.0 -lpango-1.0 -lfontconfig -lgobject-2.0 -lgmodule-2.0 -lgthread-2.0 -lrt -lglib-2.0 -lfreetype   -lm
+LDFLAGS =  -lm
 
 prefix = /usr/local
 exec_prefix = ${prefix}
@@ -35,7 +35,7 @@ abc2ps.o buffer.o deco.o draw.o format.o front.o music.o parse.o \
 abc2ps.o front.o: front.h
 front.o parse.o slre.o: slre.h
 subs.o: subs.c
-	$(CC) -c $(CFLAGS) $(CPPFLAGS) $(CPPPANGO) -o $@ $<
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(CPPPANGO) -c -o $@ $<
 
 abcmfe: front.c front.h slre.h
 	$(CC) $(CFLAGS) -DMAIN -o $@ $< slre.o
@@ -83,10 +83,8 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/deco.c \
 	abcm2ps-$(VERSION)/deco.abc \
 	abcm2ps-$(VERSION)/draw.c \
-	abcm2ps-$(VERSION)/fbook.fmt \
 	abcm2ps-$(VERSION)/features.txt \
 	abcm2ps-$(VERSION)/flute.fmt \
-	abcm2ps-$(VERSION)/fonts.fmt \
 	abcm2ps-$(VERSION)/format.c \
 	abcm2ps-$(VERSION)/format.txt \
 	abcm2ps-$(VERSION)/front.c \
