@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2012 Jean-François Moine
+ * Copyright (C) 1998-2013 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -828,6 +828,7 @@ void str_ft_out(char *p, int end)
 			q = p;
 			break;
 
+#if 0
 		/* is PostScript, convert the accidentals to unicode 81..85 */
 		case 0xe2:
 			if (svg || epsf == 2)
@@ -849,6 +850,7 @@ void str_ft_out(char *p, int end)
 			p += 3;
 			q = p;
 			continue;
+#endif
 		case 0xf0:
 			if (svg || epsf == 2)
 				break;
@@ -1111,10 +1113,10 @@ void write_text(char *cmd, char *s, int job)
 			if (strtx) {
 				a2b(")%s", strop);
 				strtx = 0;
+				if (job == T_JUSTIFY)
+					a2b("}def\n"
+					    "/strop/show load def str");
 			}
-			if (job == T_JUSTIFY)
-				a2b("}def\n"
-					"/strop/show load def str");
 			a2b("\n");
 			bskip(baseskip * 0.5);
 			buffer_eob();
@@ -1184,11 +1186,11 @@ void write_text(char *cmd, char *s, int job)
 	if (strtx) {
 		a2b(")%s", strop);
 		strtx = 0;
+		if (job == T_JUSTIFY)
+			a2b("}def\n"
+				"/strop/show load def str");
 	}
-	if (job == T_JUSTIFY)
-		a2b("}def\n"
-			"/strop/show load def str");
-//	    if (mbf[-1] != '\n')
+//	if (mbf[-1] != '\n')
 		a2b("\n");
 	bskip(cfmt.font_tb[TEXTFONT].size * cfmt.parskipfac);
 	buffer_eob();

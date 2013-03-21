@@ -1,7 +1,7 @@
 /*
  * Generic ABC parser.
  *
- * Copyright (C) 1998-2012 Jean-François Moine
+ * Copyright (C) 1998-2013 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996, 1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -267,7 +267,7 @@ void abc_insert(char *file_api,
 			break;			/* done */
 		if (*p == '\0')
 			break;			/* blank line --> done */
-/*fixme-insert: don't accept X: nor T:*/
+/*fixme-insert: don't accept X:*/
 		/* parse the music line */
 		if (parse_line(t, p))
 			break;
@@ -650,10 +650,11 @@ static void parse_clef(struct abcsym *s,
 	int clef = -1;
 	int transpose = 0;
 	int clef_line = 2;
+	char *warn = NULL;
 	char str[80];
 
 	str[0] = '\0';
-	if (name != 0 && strncmp(name, "clef=", 5) == 0) {
+	if (name && strncmp(name, "clef=", 5) == 0) {
 		name += 5;
 		switch (*name) {
 		case '\"':
@@ -663,21 +664,25 @@ static void parse_clef(struct abcsym *s,
 			clef = TREBLE;
 			break;
 		case 'g':
+			warn = name;
 			transpose = -7;
 		case 'G':
 			clef = TREBLE;
 			break;
 		case 'f':
+			warn = name;
 			transpose = -14;
 			clef = BASS;
 			clef_line = 4;
 			break;
 		case 'F':
-			transpose = -7;
+			if (name[1] == ',')	/* abc2.1.1 clef=F == clef=F, */
+				transpose = -7;
 			clef = BASS;
 			clef_line = 4;
 			break;
 		case 'c':
+			warn = name;
 			transpose = -7;
 		case 'C':
 			clef = ALTO;
@@ -689,6 +694,8 @@ static void parse_clef(struct abcsym *s,
 		}
 		if (clef >= 0) {
 			name++;
+			if (*name == ',' || *name== '\'')
+				warn = name;
 			while (*name == ',') {
 				transpose += 7;
 				name++;
@@ -699,7 +706,7 @@ static void parse_clef(struct abcsym *s,
 			}
 		}
 	}
-	if (name != 0 && clef < 0) {
+	if (name && clef < 0) {
 		if (!strncmp(name, "bass", 4)) {
 			clef = BASS;
 			clef_line = 4;
@@ -741,18 +748,27 @@ static void parse_clef(struct abcsym *s,
 			break;
 		}
 		if (name[1] == '8') {
-			if (*name == '-')
-				s->u.clef.octave = -1;
-			else if (*name == '+')
+			switch (*name) {
+			case '^':
+				transpose -= 7;
+			case '+':
 				s->u.clef.octave = 1;
+				break;
+			case '_':
+				transpose += 7;
+			case '-':
+				s->u.clef.octave = -1;
+				break;
+			}
 		}
 	}
 
-	if (middle != 0) {
+	if (middle) {
 		int pit, len, acc, nostem, l;
 		static char line_tb[7] =
 			{ALTO, TREBLE, ALTO, BASS, ALTO, BASS, ALTO};
 
+		warn = middle;
 		/* 'middle=<note pitch>' */
 		parse_basic_note(middle, &pit, &len, &acc, &nostem);
 
@@ -786,7 +802,7 @@ static void parse_clef(struct abcsym *s,
 	s->u.clef.transpose = transpose;
 	s->u.clef.stafflines = -1;
 	s->u.clef.staffscale = 0;
-	if (lines != 0) {
+	if (lines) {
 		int l;
 
 		l = atoi(lines);
@@ -795,7 +811,7 @@ static void parse_clef(struct abcsym *s,
 		else
 			syntax("Bad value of stafflines", lines);
 	}
-	if (scale != 0) {
+	if (scale) {
 		float sc;
 
 		sc = atof(scale);
@@ -803,6 +819,13 @@ static void parse_clef(struct abcsym *s,
 			s->u.clef.staffscale = sc;
 		else
 			syntax("Bad value of staffscale", scale);
+	}
+	if (warn) {
+		int sev_sav;
+
+		sev_sav = severity;
+		syntax("Warning: Deprecated or non-standard item", warn);
+		severity = sev_sav;
 	}
 }
 
@@ -1325,7 +1348,7 @@ char *get_str(char *d,		/* destination */
 static char *parse_tempo(char *p,
 			 struct abcsym *s)
 {
-	int l, have_error = 0;
+	int l;
 	char *q, str[80];
 
 	/* string before */
@@ -1340,13 +1363,17 @@ static char *parse_tempo(char *p,
 	 || *p == 'L' || *p == 'l') {
 		int len;
 
+		p++;
+		if (*p != '=')
+			goto inval;
 		p = parse_len(p + 1, &len);
 		if (len <= 0)
-			have_error++;
-		else
-			s->u.tempo.length[0] = len * ulen / BASE_LEN;
+			goto inval;
+		s->u.tempo.length[0] = len * ulen / BASE_LEN;
 		while (isspace((unsigned char) *p))
 			p++;
+		if (abc_vers >= (2 << 16))
+			syntax("Deprecated Q: value", p);
 	} else if (isdigit((unsigned char) *p) && strchr(p, '/') != 0) {
 		unsigned i;
 
@@ -1355,17 +1382,14 @@ static char *parse_tempo(char *p,
 			int top, bot, n;
 
 			if (sscanf(p, "%d /%d%n", &top, &bot, &n) != 2
-			 || bot <= 0) {
-				have_error++;
-				break;
-			}
+			 || bot <= 0)
+				goto inval;
 			l = (BASE_LEN * top) / bot;
 			if (l <= 0
 			 || i >= sizeof s->u.tempo.length
 					/ sizeof s->u.tempo.length[0])
-				have_error++;
-			else
-				s->u.tempo.length[i++] = l;
+				goto inval;
+			s->u.tempo.length[i++] = l;
 			p += n;
 			while (isspace((unsigned char) *p))
 				p++;
@@ -1398,7 +1422,17 @@ static char *parse_tempo(char *p,
 		s->u.tempo.str2 = alloc_f(strlen(str) + 1);
 		strcpy(s->u.tempo.str2, str);
 	}
-	return have_error ? "Invalid tempo" : 0;
+
+	if (!s->u.tempo.str1 && !s->u.tempo.str2
+	 && s->u.tempo.length[0] == 0) {
+		if (s->u.tempo.value == 0)
+			return "Empty tempo";
+		if (abc_vers >= (2 << 16))
+			syntax("Deprecated Q: value", p);
+	}
+	return 0;
+inval:
+	return "Invalid tempo";
 }
 
 /* -- get a user defined symbol (U:) -- */
@@ -2581,6 +2615,10 @@ static char *parse_note(struct abctune *t,
 		len = 1;
 		if (isdigit((unsigned char) *p)) {
 			len = strtol(p, &q, 10);
+			if (len == 0 && len > 100) {
+				syntax("Bad number of measures", p);
+				len = 1;
+			}
 			p = q;
 		}
 		s->u.bar.type = 0;
@@ -2835,11 +2873,11 @@ static void syntax(char *msg,
 	severity = 1;
 	n = q - abc_line;
 	len = strlen(abc_line);
-	if ((unsigned) n >= (unsigned) len)
+	if ((unsigned) n > (unsigned) len)
 		n = -1;
 	print_error(msg, n);
 	if (n < 0) {
-		if (q != 0)
+		if (q != 0 && *q != '\0')
 			fprintf(stderr, " (near '%s')\n", q);
 		return;
 	}

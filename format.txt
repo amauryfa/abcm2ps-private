@@ -558,7 +558,7 @@ List of the format parameters
 		before the first music line:
 			Rhythm (Area)
 
-  infoname <uppercase letter> <information name>
+  infoname <uppercase letter> [<information name>]
 	Default:
 		R "Rhythm: "
 		B "Book: "
@@ -570,10 +570,19 @@ List of the format parameters
 	Compilation: none
 	Command line: none
 	Description:
-		Define the information types and names to be printed
-		after the tunes.
-		Note: each information to be displayed may be adjusted by
-		%%writefields.
+		Define the name of the information fields which may be
+		printed after the tunes.
+		Note: For being printed, a field must be set to 'on' in a
+		%%writefields parameter and have an information name.
+		When <information name> is not present, the field name is
+		removed. This is usefull to change the field order.
+		Examples:
+
+		%%infoname G "Group: "	% display the group
+		%%writefields G 1
+
+		%%infoname N		% notes after the other fields
+		%%infoname N "Notes: "
 
   infospace <unit>
 	Default: 0
@@ -1264,6 +1273,7 @@ List of the format parameters
 		Set the scale of
 		- all voices when in the tune header,
 		- the current voice when found in the tune body.
+		The <float> value must be in range [0.6 .. 1.5].
 
   volume <int>
 	Default: 0
@@ -1303,27 +1313,48 @@ List of the format parameters
 	Compilation: none
 	Command line: -M, -x
 	Description:
-		<list> is a list of letters, each being the type of
+		<list> is an unsorted list of letters, each being the type of
 		an information field.
-		<bool> tells if the information field may be displayed
+		<bool> tells if the information field(s) may be displayed
 		or not.
 
 
 List of the pseudo-comments treated while parsed
 ------------------------------------------------
 
-  abcm2ps <char>
-	Change the pseudo-comment prefix.
-	By default, pseudo-comments are line starting with two percent
-	signs ("%%"). This command redefines the second character of
-	these commands. This permits to avoid clashes with pseudo-comments
-	of other programs.
-	Example:
+  abcm2ps <char> [<char>]*
+	Change the pseudo-comment prefix(es).
+	By default, pseudo-comments are lines starting with two percent
+	signs ("%%"). This command redefines a list of possible second
+	characters of these commands (up to 3 different characters).
+	This permits to avoid clashes with pseudo-comments of other
+	programs and also to have a simple conditional generation.
+	Example 1:
 
 		%%abcm2ps *
 		%*voice Mib		% the voices which name contains "Mib"
 		%*transpose -3		% are transposed a minor third lower
 		%*abcm2ps %		% restore standard pseudo-comments
+
+	Example 2:
+	   - tune.abc:
+		X:1
+		...
+		K:C
+		%			% default 4 staves
+		%Fstaves [(S A) (T B)]	% 2 staves
+		%Sstaves S		% Soprano only
+		%Astaves A		% Alto only
+		V:S
+		...
+		V:A
+		...
+		V:T
+		...
+		V:B
+		...
+	   - command line:
+		abcm2ps --abcm2ps %A tune.abc	# generate alto only
 
   begintext [<option>]
 	Start printing a free text.
@@ -1346,39 +1377,33 @@ List of the pseudo-comments treated while parsed
   center <line of text>
 	Print one line of centered text.
 
-  clef <clef_name><clef_octave><clef_line><octave_indication>
+  clef <clef_name>[<clef_line>][<octave_indication>]
 	Insert a new clef.
 	<clef_name> may be:
 		treble (same as G2)
 		alto (same as C3)
 		tenor (same as C4)
-		bass (same as F,4)
+		bass (same as F4)
 		perc (same as P2)
-		g (same as G')
 		G
-		c (same as C')
 		C
-		f (same as F')
 		F
 		P
+		none (to avoid clefs on the next music lines)
 		"<user_clef_name>"
 	(<user_clef_name> is the name of a PostScript function which
 	 draws the clef glyph)
-	<clef_octave> gives the octave of the note of the clef. It has the
-	same syntax as normal notes, i.e.:
-		' (quote) one octave higher
-		, (comma) one octave lower
 	<clef_line> gives the number of the line on which the note of the
-	clef is defined.
-	<octave_indication> is either +8 or -8, in which case a '8' is drawn
-	above or below the clef. Note that this indication does not do any
-	octave transposition as in the standard K:/V: fields.
-
-	Only the clef name is mandatory.
+	clef is defined. When omitted, it defaults according to the clef name:
+	line #3 for "C", line #4 for "F" and line #2 for the other clefs.
+	<octave_indication> is either
+		- "+8" or "-8", in which case a '8' is drawn above or below
+		  the clef without octave transposition.
+		- "^8" or "_8", in which case a '8' is drawn above or below
+		  the clef with octave transposition.
 	There should be no space between the %%clef parameters.
-	Examples:
-		%%clef bass''	% abc2ps behaviour
-		%%clef G,-8	% clef for tenor voice
+	Example:
+		%%clef bass	% same as K: clef=bass
 
   EPS <eps_file>
 	Include the file <eps_file>.
@@ -1414,9 +1439,9 @@ List of the pseudo-comments treated while parsed
   repeat [<n> [k]]
 	Try to replace a sequence by one or many repeat signs.
 	When placed after a bar, <n> indicates the number of measures
-	to be repeated. It may be only one or two. If <n> is one,
+	to be repeated. It may be only one or two, and 
 	<k> indicates how many times the previous measure is to be
-	repeated. If <n> is two, <k> is not used.
+	repeated.
 	When placed after a note or rest, <n> indicates the number of
 	notes and rests to be repeated, and <k> how many times this
 	repetition occurs.
@@ -1585,12 +1610,12 @@ Pseudo-commands used for external formatting
 	'%%tune' command. The command "%%tune end" may be used to mark the
 	end of the options.
 
-	They are inserted at start of the tune(s) (after the first K:).
+	The options are inserted at start of the tunes (after the first K:)
 	which header matches the <regular expression>.
 	When an option is %%score or %%staves, it replaces a %%score or
 	%%staves of the tune. There may be many such options, each one
 	replacing one %%staves/score of the tune.
-	This command may appear only in a global definition (command line,
+	%%tune may appear only in a global definition (command line,
 	format file or file header).
 	When <regular expression> is the same as the one of a previous %%tune,
 	all the previous tune options for this regular expression are removed.
@@ -1612,11 +1637,13 @@ Pseudo-commands used for external formatting
 	Select the voice(s) to which the following options will be applied.
 
 	The options are pseudo-comments (starting with %%), up to an other
-	'%%voice' or '%%tune' command. The command "%%voice end" may be used
-	to mark the end of the options for the last voice.
-	They are inserted before the first symbol of each voice which
-	identifiers or full names match the <regular expression>.
-	This command may appear only in a global definition (command line,
+	'%%voice', '%%tune' or %%score/%%staves command.
+	The command "%%voice end" may be used to mark the end of the options
+	for the last voice.
+
+	The commands are inserted before the first symbol of each voice which
+	identifier or full name match the <regular expression>.
+	%%voice may appear only in a global definition (command line,
 	format file,r file header or %%tune option list).
 	When <regular expression> is the same as the one of a previous %%voice,
 	all the previous voice options for this regular expression are removed.

@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2012 Jean-François Moine
+ * Copyright (C) 1998-2013 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,6 +25,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+#ifdef WIN32
+#define snprintf _snprintf
+#endif
 
 #include "abc2ps.h" 
 
@@ -207,6 +211,14 @@ static void init_ps(char *str)
 	output = fprintf;
 	user_ps_write();
 	define_fonts();
+	if (!epsf)
+		fprintf(fout, "/setpagedevice where\n"
+				"{ pop 1 dict\n"
+				"  dup /PageSize [ %.0f %.0f ] put\n"
+				"  setpagedevice\n"
+				"} if\n",
+			p_fmt->pagewidth,
+			p_fmt->pageheight);
 	fprintf(fout, "%%%%EndSetup\n");
 	file_initialized = 1;
 }
@@ -856,10 +868,8 @@ void write_buffer(void)
 	outft = outft_sav;
 }
 
-/* -- handle completed block in buffer -- */
-/* if the added stuff does not fit on current page, write it out
-   after page break and change buffer handling mode to pass though */
-void buffer_eob(void)
+/* -- add a block in the output buffer -- */
+void block_put(void)
 {
 	if (mbf == outbuf)
 		return;
@@ -901,7 +911,14 @@ void buffer_eob(void)
 		write_buffer();
 		return;
 	}
+}
 
+/* -- handle completed block in buffer -- */
+/* if the added stuff does not fit on current page, write it out
+   after page break and change buffer handling mode to pass though */
+void buffer_eob(void)
+{
+	block_put();
 	if (maxy + bposy < 0
 	 && !epsf
 	 && multicol_start == 0) {

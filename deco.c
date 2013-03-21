@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 2000-2012, Jean-François Moine.
+ * Copyright (C) 2000-2013, Jean-François Moine.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,6 +24,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+
+#ifdef WIN32
+#define lroundf(x) ((long) ((x) + 0.5))
+#endif
 
 #include "abc2ps.h"
 
@@ -88,7 +92,7 @@ static char *std_deco_tb[] = {
 	"dot 0 stc 5 1 1",
 	"roll 3 cpu 10 6 6",
 	"fermata 3 hld 12 7 7",
-	"emphasis 3 accent 8 4 4",
+	"emphasis 3 accent 6 4 4",
 	"lowermordent 3 lmrd 10 2 2",
 	"coda 3 coda 24 10 10",
 	"uppermordent 3 umrd 10 2 2",
@@ -390,9 +394,10 @@ static void d_near(struct deco_elt *de)
 
 	s = de->s;
 	dd = &deco_def_tb[de->t];
-	up = s->stem > 0 ? 0 : 1;
 	if (s->multi)
-		up = !up;
+		up = s->multi > 0;
+	else
+		up = s->stem < 0;
 	if (up)
 		y = s->ymx;
 	else
@@ -788,8 +793,9 @@ static unsigned char deco_build(char *text)
 	return deco;
 }
 
-/* -- set the duration of the notes of a feathered beam -- */
-static void set_feathered_beam(struct SYMBOL *s1)
+/* -- set the duration of the notes under a feathered beam -- */
+static void set_feathered_beam(struct SYMBOL *s1,
+				int accel)
 {
 	struct SYMBOL *s, *s2;
 	int n, t, tt, d, b, i;
@@ -814,7 +820,7 @@ static void set_feathered_beam(struct SYMBOL *s1)
 	a = (float) d / (n - 1);		/* delta duration */
 	tt = d * n;
 	t = 0;
-	if (s1->u == 0) {			/* !beam-accel! */
+	if (accel) {				/* !beam-accel! */
 		for (s = s1, i = n - 1;
 		     s != s2;
 		     s = (struct SYMBOL *) s->as.next, i--) {
@@ -921,8 +927,7 @@ void deco_cnv(struct deco *dc,
 				break;
 			}
 			s->sflags |= S_FEATHERED_BEAM;
-			s->u = dd->name[5] == 'r';	/* 0: accel, 1: rall */
-			set_feathered_beam(s);
+			set_feathered_beam(s, dd->name[5] == 'a');
 			break;
 		}
 		dc->t[i] = 0;			/* already treated */
@@ -1905,7 +1910,7 @@ void draw_measnb(void)
 	struct SYSTEM *sy;
 	char *showm;
 	int any_nb, staff, bar_num;
-	float x, y, w;
+	float x, y, w, font_size;
 
 	showm = cfmt.measurebox ? "showb" : "show";
 	any_nb = 0;
@@ -1918,6 +1923,10 @@ void draw_measnb(void)
 	}
 //fixme: must use the scale, otherwise bad y offset (y0 empty)
 	set_sscale(staff);
+
+	/* leave the measure numbers as unscaled */
+	font_size = cfmt.font_tb[MEASUREFONT].size;
+	cfmt.font_tb[MEASUREFONT].size /= staff_tb[staff].clef.staffscale;
 
 	s = tsfirst;				/* clef */
 	bar_num = nbar;
@@ -2037,6 +2046,8 @@ void draw_measnb(void)
 	if (any_nb)
 		a2b("\n");
 	nbar = bar_num;
+
+	cfmt.font_tb[MEASUREFONT].size = font_size;
 }
 
 /* -- get the beat from a time signature -- */
