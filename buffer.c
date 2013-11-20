@@ -41,12 +41,13 @@ static float ln_lmarg[BUFFLN];	/* left margin of buffered lines */
 static float ln_scale[BUFFLN];	/* scale of buffered lines */
 static signed char ln_font[BUFFLN];	/* font of buffered lines */
 static float cur_lmarg = 0;	/* current left margin */
-static float min_lmarg, max_rmarg;	/* for eps (-E) and svg (-g) */
+static float min_lmarg, max_rmarg;	/* margins for -E/-g */
 static float cur_scale = 1.0;	/* current scale */
 static float maxy;		/* remaining vertical space in page */
 static float bposy;		/* current position in buffered data */
-static int nepsf;		/* counter for epsf/svg output files */
+static int nepsf;		/* counter for -E/-g output files */
 static int nbpages;		/* number of pages in the output file */
+static int outbufsz;		/* size of outbuf */
 static char outfnam[FILENAME_MAX]; /* internal file name for open/close */
 static struct FORMAT *p_fmt;	/* current format while treating a new page */
 
@@ -78,12 +79,16 @@ static void open_fout(void)
 	i = strlen(fnm) - 1;
 	if (i < 0) {
 		strcpy(fnm, svg ? "Out.xhtml" : OUTPUTFILE);
+#if 1
+	} else if (i != 0 || fnm[0] != '-') {
+#else
 	} else if (i == 0 && fnm[0] == '-') {
 		if (svg == 1) {
 			error(1, 0, "Cannot use stdout with '-v' - abort");
 			exit(EXIT_FAILURE);
 		}
 	} else {
+#endif
 		if (fnm[i] == '=') {
 			char *p;
 
@@ -102,7 +107,8 @@ static void open_fout(void)
 		else	...
 #endif
 	}
-	if (svg == 1) {
+	if (svg == 1
+	 && (i != 0 || fnm[0] != '-')) {
 		cutext(fnm);
 		i = strlen(fnm) - 1;
 		if (strncmp(fnm, outfnam, i) != 0)
@@ -115,7 +121,7 @@ static void open_fout(void)
 	close_output_file();
 	strcpy(outfnam, fnm);
 	if (i != 0 || fnm[0] != '-') {
-		if ((fout = fopen(fnm, "w")) == 0) {
+		if ((fout = fopen(fnm, "w")) == NULL) {
 			error(1, 0, "Cannot create output file %s - abort", fnm);
 			exit(EXIT_FAILURE);
 		}
@@ -142,7 +148,7 @@ void marg_init(void)
 	max_rmarg = cfmt.pagewidth;
 }
 
-/* -- initialize the postscript file -- */
+/* -- initialize the postscript file (PS or EPS) -- */
 static void init_ps(char *str)
 {
 	time_t ltime;
@@ -158,7 +164,7 @@ static void init_ps(char *str)
 			-bposy);
 		marg_init();
 	} else {
-		if (fout == 0)
+		if (!fout)
 			open_fout();
 		fprintf(fout, "%%!PS-Adobe-2.0\n");
 		fprintf(fout, "%%%%BoundingBox: 0 0 %.0f %.0f\n",
@@ -180,9 +186,24 @@ static void init_ps(char *str)
 		"%%%%EndComments\n"
 		"%%CommandLine:");
 	for (i = 1; i < (unsigned) s_argc; i++) {
-		fprintf(fout,
-			strchr(s_argv[i], ' ') != 0 ? " \'%s\'" : " %s",
-			s_argv[i]);
+		char *p, *q;
+		int space;
+
+		p = s_argv[i];
+		space = strchr(p, ' ') != NULL || strchr(p, '\n') != NULL;
+		fputc(' ', fout);
+		if (space)
+			fputc('\'', fout);
+		for (;;) {
+			q = strchr(p, '\n');
+			if (!q)
+				break;
+			fprintf(fout, " %.*s\n%%", q - p, p);
+			p = q + 1;
+		}
+		fprintf(fout, "%s", p);
+		if (space)
+			fputc('\'', fout);
 	}
 	fprintf(fout, "\n\n");
 	if (epsf)
@@ -212,13 +233,9 @@ static void init_ps(char *str)
 	user_ps_write();
 	define_fonts();
 	if (!epsf)
-		fprintf(fout, "/setpagedevice where\n"
-				"{ pop 1 dict\n"
-				"  dup /PageSize [ %.0f %.0f ] put\n"
-				"  setpagedevice\n"
-				"} if\n",
-			p_fmt->pagewidth,
-			p_fmt->pageheight);
+		fprintf(fout, "/setpagedevice where{pop\n"
+			"	<</PageSize[%.0f %.0f]>>setpagedevice}if\n",
+				p_fmt->pagewidth, p_fmt->pageheight);
 	fprintf(fout, "%%%%EndSetup\n");
 	file_initialized = 1;
 }
@@ -232,7 +249,7 @@ static void init_svg(char *str)
 	if (file_initialized)
 		fprintf(stderr, "??? init_svg: file_initialized");
 #endif
-	define_svg_symbols(str,
+	define_svg_symbols(str, nepsf,
 		(p_fmt->landscape ? p_fmt->pageheight : p_fmt->pagewidth)
 				- cur_lmarg - max_rmarg + 10,
 		-bposy);
@@ -262,7 +279,7 @@ static void close_fout(void)
 out1:
 	fclose(fout);
 out2:
-	fout = 0;
+	fout = NULL;
 	file_initialized = 0;
 }
 
@@ -303,14 +320,21 @@ void close_page(void)
 	in_page = 0;
 	if (svg) {
 		svg_close();
-		if (svg == 1)
+		if (svg == 1 && fout != stdout)
 			close_fout();
 		else
 			fputs("</p>\n", fout);
 	} else {
+#if 1
+		fprintf(fout, "grestore\n"
+				"showpage\n"
+				"%%%%EndPage: %d %d\n",
+				nbpages, nbpages);
+#else
 		fputs("%%PageTrailer\n"
 			"grestore\n"
 			"showpage\n", fout);
+#endif
 	}
 	cur_lmarg = 0;
 	cur_scale = 1.0;
@@ -507,40 +531,26 @@ static float headfooter(int header,
 	return wsize;
 }
 
-/* -- initialize postscript page -- */
-/* the flag 'in_page' is always false */
+/* -- initialize the first page or a new page for svg -- */
+/* the flag 'in_page' is always false and epsf is always null */
 static void init_page(void)
 {
 	float pheight, pwidth;
 
 	p_fmt = info['X' - 'A'] == 0 ? &cfmt : &dfmt;	/* global format */
 
+	nbpages++;
 	if (svg) {
 		if (!file_initialized) {
-#if 1
-			if (fout == 0)
+			if (!fout)
 				open_fout();
-#else
-			if (svg == 1 && fout == 0) {
-				int i;
-
-				i = strlen(outfnam) - 7;
-				sprintf(&outfnam[i], "%03d.svg", ++nepsf);
-				if ((fout = fopen(outfnam, "w")) == 0) {
-					error(1, 0,
-						"Cannot create output file %s - abort",
-						outfnam);
-					exit(EXIT_FAILURE);
-				}
-			}
-#endif
-			define_svg_symbols(in_fname,
+			define_svg_symbols(in_fname, nbpages,
 				cfmt.landscape ? p_fmt->pageheight : p_fmt->pagewidth,
 				cfmt.landscape ? p_fmt->pagewidth : p_fmt->pageheight);
 			file_initialized = 1;
 			output = svg_output;
 		} else {
-			define_svg_symbols(in_fname,
+			define_svg_symbols(in_fname, nbpages,
 				cfmt.landscape ? p_fmt->pageheight : p_fmt->pagewidth,
 				cfmt.landscape ? p_fmt->pagewidth : p_fmt->pageheight);
 		}
@@ -549,7 +559,6 @@ static void init_page(void)
 		init_ps(in_fname);
 	}
 	in_page = 1;
-	nbpages++;
 	outft = -1;
 
 	if (!svg)
@@ -686,7 +695,7 @@ void write_eps(void)
 			sprintf(&outfnam[i + 1], "%03d", ++nepsf);
 		}
 		strcat(outfnam, epsf == 1 ? ".eps" : ".svg");
-		if ((fout = fopen(outfnam, "w")) == 0) {
+		if ((fout = fopen(outfnam, "w")) == NULL) {
 			error(1, 0, "Cannot open output file %s - abort",
 					outfnam);
 			exit(EXIT_FAILURE);
@@ -723,9 +732,10 @@ void a2b(char *fmt, ...)
 {
 	va_list args;
 
-	if (mbf + BSIZE > outbuf + BUFFSZ) {
+	if (mbf + BSIZE > outbuf + outbufsz) {
 		if (epsf) {
-			error(1, 0, "Possible buffer overflow - abort");
+			error(1, 0, "Output buffer overflow - increase outbufsz");
+			fprintf(stderr, "*** abort\n");
 			exit(EXIT_FAILURE);
 		}
 		error(0, 0, "Possible buffer overflow");
@@ -733,7 +743,7 @@ void a2b(char *fmt, ...)
 		use_buffer = 0;
 	}
 	va_start(args, fmt);
-	mbf += vsnprintf(mbf, outbuf + BUFFSZ - mbf, fmt, args);
+	mbf += vsnprintf(mbf, outbuf + outbufsz - mbf, fmt, args);
 	va_end(args);
 }
 
@@ -744,13 +754,21 @@ void bskip(float h)
 	a2b("0 %.2f T\n", -h);
 }
 
-/* -- clear_buffer -- */
-void clear_buffer(void)
+/* -- initialize the output buffer -- */
+void init_outbuf(int kbsz)
 {
+	if (outbuf)
+		free(outbuf);
+	outbufsz = kbsz * 1024;
+	if (outbufsz < 0x10000)
+		outbufsz = 0x10000;
+	outbuf = malloc(outbufsz);
+	if (!outbuf) {
+		error(1, 0, "Out of memory for outbuf - abort");
+		exit(EXIT_FAILURE);
+	}
 	bposy = 0;
 	ln_num = 0;
-	if (outbuf == 0)
-		outbuf = malloc(BUFFSZ);
 	mbf = outbuf;
 }
 
@@ -825,7 +843,7 @@ void write_buffer(void)
 			*p++ = '\0';
 			q = strchr(p, '\n');
 			*q = '\0';
-			if ((f = fopen(p, "r")) == 0) {
+			if ((f = fopen(p, "r")) == NULL) {
 				error(1, 0, "Cannot open EPS file '%s'", p);
 			} else {
 				if (epsf == 2 || svg) {
@@ -862,10 +880,12 @@ void write_buffer(void)
 	}
 #if 1 //fixme:test
 	if (*p_buf != '\0')
-		fprintf(stderr, "??? buffer not empty:\n%s\n", p_buf);
+		fprintf(stderr, "??? bug - buffer not empty:\n%s\n", p_buf);
 #endif
-	clear_buffer();
 	outft = outft_sav;
+	bposy = 0;
+	ln_num = 0;
+	mbf = outbuf;
 }
 
 /* -- add a block in the output buffer -- */
@@ -922,7 +942,8 @@ void buffer_eob(void)
 	if (maxy + bposy < 0
 	 && !epsf
 	 && multicol_start == 0) {
-		maxy = 0;		/* force new page */
+		if (in_page)
+			newpage();
 		write_buffer();
 		use_buffer = 0;
 	}
@@ -931,9 +952,9 @@ void buffer_eob(void)
 /* -- dump buffer if not enough place for a music line -- */
 void check_buffer(void)
 {
-	if (mbf + 5000 > outbuf + BUFFSZ) { /* assume music line < 5000 bytes */
+	if (mbf + 5000 > outbuf + outbufsz) { /* assume music line < 5000 bytes */
 		error(0, 0,
-		      "Possibly bad page breaks, BUFFSZ exceeded");
+		      "Possibly bad page breaks, outbufsz exceeded");
 		write_buffer();
 		use_buffer = 0;
 	}

@@ -1,3 +1,227 @@
+---- Version 7.6.8 - 13/11/21 ----
+
+Don't display the staves which contain only invisible rests.
+Keep the brace staff systems when '%%staffnonote 0' and
+	at least one staff has some notes.
+Have better ties when clef or staff change.
+Have better vertical offset of rests in multi-voice tunes
+	(reported by Eric Reinbold).
+Fix bad slur endpoint when above/below a tuplet.
+Have better display of mixed slurs and tuplets
+	(asked by David Lacroix).
+Accept %%bgcolor for .xhtml output.
+Adjust the offset of elements in empty staves when '%%staffnonote 0'.
+Fix bad handling of tuplets with %%combinevoices, sometimes
+	giving a program crash.
+Permit output to stdout with option '-v'.
+
+---- Version 7.6.7 - 13/11/03 ----
+
+Fix again bad <meta> tag in XHTML output
+	(reported by David Lacroix).
+
+---- Version 7.6.6 - 13/11/03 ----
+
+Add page/sequence information in the SVG headers.
+Fix bad <meta> tag in XHTML output
+	(reported by David Lacroix).
+
+---- Version 7.6.5 - 13/11/02 ----
+
+Fix bad SVG/XHTML output when '--' in the command line.
+Put program information in XHTML header only.
+
+---- Version 7.6.4 - 13/11/01 ----
+
+Add more information in svg images (program, command line,
+	title for building index).
+Set no margin for XHTML printing.
+Adjust the scale of the SVG images.
+
+---- Version 7.6.3 - 13/10/25 ----
+
+Fix loss of line break when %%postscript at start of line.
+Fix bad SVG output when 'show' before 'stroke' or 'fill'
+	(reported by David Lacroix).
+Fix bad position of elements built from PostScript code with 'ltr'
+		in SVG rendering.
+	(reported by David Lacroix).
+Update config.guess and config.sub from http://git.savannah.gnu.org/
+	(asked by Deepak C Shetty and Snehal).
+Add 'color="black"' in <svg> tag.
+Fix bad font of string starting with non-ascii character (PS output)
+	(reported by David Lacroix).
+
+---- Version 7.6.2 - 13/10/18 ----
+
+Fix bad tie when ending note is combined with previous voice
+	(reported by Brian J. Dumont).
+Fix loss of gchord/annotation when combine voices and
+		both notes have guitar chord/annotation
+	(reported by Atte André Jensen).
+Fix bad dash lines with SVG output
+	(reported by David Lacroix).
+Accept XML character references in texts.
+Fix bad glyph names of characters greater than latin2
+	(reported by David Lacroix).
+
+---- Version 7.6.1 - 13/10/16 ----
+
+Fix bad staff system when %%staves with floating voices.
+Permit unlimited PS elements in SVG rendering.
+Fix memory overflow with PS 'getinterval' in SVG rendering.
+Fix loss of tempo when tune starts with invisible symbol (n-plet, P:..).
+Don't raise errors when "%%writefields w 0" and "+:xxx" lines of w:.
+Accept a string in 'cvx' for SVG output.
+Fix tuplet number vertical offset when slur starting/ending on a same note
+	(reported by David Lacroix).
+Set a correct approximate width of the unicode characters of which
+		the ending bits are ASCII control characters
+	(reported by Mike Scott).
+Adjust the SVG output closer to PS:
+	- greater font sizes,
+	- smaller note heads,
+	- thiner staff lines and stems.
+Update documentation about %%continueall.
+
+---- Version 7.6.0 - 13/08/20 ----
+
+Add build with ninja-build and clang.
+Fix %%staves parsing problem which could give bad PS output.
+%%glyph added.
+Change PS utf-8 handling !!compatibility!!.
+
+---- Version 7.5.8 - 13/08/07 ----
+
+Fix bad offset of rests when under the duration of an upper voice
+	(reported by David Lacroix).
+Check '!' as linebreak only when <EOL> does a linebreak.
+Accept latin names of guitar chords on %%transpose.
+Fix loss of lyrics under staff when %%alignbars.
+Do %%clip without start work again.
+Fix bad PS output when many lines in program command line.
+Apply L:auto to all voices when declared in the tune header.
+Fix L:auto when duration of auto measure > M: duration.
+Add more explanations in the file format.txt
+	(thanks to Seymour Shlien).
+
+---- Version 7.5.7 - 13/07/16 ----
+
+Fix bad horizontal offset of EPS images
+	(reported by Gerhard Schacherl).
+Fix bad clef change when 2 voices on the staff and invisible rests.
+Add 'L:auto'.
+Better vertical offset of rests when many voices per staff
+	(reported by David Lacroix).
+Fix bad staff on multi-rest expansion when the voice goes later
+	to an other staff.
+Fix bad line break when asked before a bar.
+Do %%clip work again.
+Fix bad music line breaks with %%break after generation restart.
+Fix bad music line breaks with %%barperline and generation restart
+	(reported by David Lacroix).
+Add the command line option '-k'.
+Fix bad horizontal offset of stems in SVG output.
+
+---- Version 7.5.6 - 13/06/17 ----
+
+Have better horizontal spacing when music line is too much shrunk.
+Fix bad horizontal spacing when high long notes before measure bars
+	(reported by Mike Scott).
+Handle more than 2 unison notes in chords
+	(asked by Hudson Flávio Meneses Lacerda).
+Remove the shift of volume decorations which does not work well
+	(reported by Jean-Luc Zins).
+Fix crash when beam to a repeated sequence
+	(reported by Søren Bak Vestergaard).
+Fix abnormal slur when tuplet or slur over a repeated sequence
+	(reported by Søren Bak Vestergaard).
+
+---- Version 7.5.5 - 13/06/06 ----
+
+Fix bad position of shifted volume decorations
+	(reported by David Lacroix).
+Fix bad %%transpose of more than one octave down.
+Extend %%shiftunison
+	(asked by David Lacroix).
+Keep the natural accidentals when transposing K:none
+	(reported by David Lacroix).
+Fix bad handling of %%splittune
+	(reported by Gerhard Schacherl).
+Allow back text insertion commands in tune header.
+Put the measure number a bit higher when at start of line with
+	a key signature with sharps.
+Look to the next note for B stem direction when at start of bar
+	(requested by Mike Scott).
+
+---- Version 7.5.4 - 13/05/27 ----
+
+Fix abnormal note shift when inverted voices in the staff
+	since previous release.
+Accept %%ps the same as %%postscript
+	(asked by David Lacroix).
+Fix crash with grace notes since previous release
+	(reported by David Lacroix).
+Fix again bad accidentals of 2nd notes in a measure when transposing K:none
+	(reported by David Lacroix).
+
+---- Version 7.5.3 - 13/05/24 ----
+
+Fix clash of stem and note when bigger stem due to beam
+	(reported by Hudson Flávio Meneses Lacerda).
+Permit %%break in tune header (i.e. out of %%tune).
+Fix abnormal error when %%tune folowed by %%break.
+Have less width of explicit key signature with same accidentals at octave.
+Better handling of %%staffbreak.
+Fix lack of staves after %%staves and new staves.
+Fix bad line splitting with measure repeat
+	(reported by Gerhard Schacherl).
+Fix bad vertical offset of tune on auto newpage
+	(reported by Gerhard Schacherl).
+Fix the behaviour of "\n" in guitar chord since version 7.x.x
+	(reported by Gerhard Schacherl).
+Don't raise error when %%textfont in tune header.
+Have smaller stems in some cases when the voices are inverted on a staff.
+Fix loss of deco/stem position/direction when declared in V:
+	after T: / %%vskip / ...
+	(reported by Colin Hume).
+Don't set natural accidentals when transposing K:none.
+Fix bad accidentals of 2nd notes in a measure when transposing K:none
+	(reported by David Lacroix).
+Have half ties when clef or staff change
+	(reported by David Webber).
+Don't shift a voice when no overlap with the previous one.
+Don't have one head when unison and different dots
+	(reported by Hudson Flávio Meneses Lacerda).
+Center the repeat measure signs.
+Don't have any slur starting from measure repeat signs
+	(reported by Søren Bak Vestergaard).
+Have a longer tie when the ending note is shifted.
+Vertically center the rests when alone in a staff
+	(reported by Hudson Flávio Meneses Lacerda).
+Shift on the left the volume decorations (ff, pp..) when under a note
+	with a stem down
+	(asked by Hudson Flávio Meneses Lacerda).
+Fix loss of rest when %%combinevoices >= 0 and invisible 1st rest.
+Extend %%combinevoices and remove %%comball.
+Put the dot decorations on the stems
+	(asked by Hudson Flávio Meneses Lacerda).
+Have a better tie vertical offset
+	(asked by Hudson Flávio Meneses Lacerda).
+Fix loss of position/direction commands when after K: or T: inside tune
+	(reported by Hudson Flávio Meneses Lacerda).
+Fix loss of tempo when 'y' at start of tune in secondary voice
+	(reported by Hudson Flávio Meneses Lacerda).
+Don't allow text insertion commands in tune header.
+Fix bad horizontal offset of stem when unison and shifted note head
+	(reported by Hudson Flávio Meneses Lacerda).
+Fix nested tuplets vertical offset when slurs
+	(reported by Hudson Flávio Meneses Lacerda).
+Fix a crash when tune with only repeat bars
+	(reported by Colin Hume).
+Fix a crash when K:none and %%transpose
+	(reported by David Lacroix).
+
 ---- Version 7.5.2 - 13/03/22 ----
 
 Fix bad display when %%combinevoice + %%comball and imbricated chords.

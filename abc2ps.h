@@ -70,7 +70,6 @@
 #define STRL1		256	/* string length for file names */
 #define MAXSTAFF	16	/* max staves */
 #define BSIZE		512	/* buffer size for one input string */
-#define BUFFSZ		64000	/* size of output buffer */
 
 #define BREVE		(BASE_LEN * 2)	/* double note (square note) */
 #define SEMIBREVE	BASE_LEN	/* whole note */
@@ -194,6 +193,8 @@ struct SYMBOL { 		/* struct for a drawable symbol */
 #define S_NOREPBRA	0x00400000	/* don't print the repeat bracket */
 #define S_TREM1		0x00800000	/* tremolo on 1 note */
 #define S_TEMP		0x01000000	/* temporary symbol */
+#define S_SHIFTUNISON_1	0x02000000	/* %%shiftunison 1 */
+#define S_SHIFTUNISON_2	0x04000000	/* %%shiftunison 2 */
 	struct posit_s posit;	/* positions / directions */
 	signed char stem;	/* 1 / -1 for stem up / down */
 	signed char nflags;	/* number of note flags when > 0 */
@@ -258,7 +259,7 @@ struct FORMAT { 		/* struct for page layout */
 	float indent, infospace, slurheight, notespacingfactor, scale;
 	float staffsep, sysstaffsep, maxstaffsep, maxsysstaffsep, stretchlast;
 	int abc2pscompat, alignbars, aligncomposer, autoclef;
-	int barsperstaff, breakoneoln, bstemdown, cancelkey, comball;
+	int barsperstaff, breakoneoln, bstemdown, cancelkey;
 	int combinevoices, contbarnb, continueall, custos;
 	int dblrepbar, dynalign, flatbeams;
 	int infoline, gchordbox, graceslurs, gracespace, hyphencont;
@@ -299,7 +300,6 @@ struct FORMAT { 		/* struct for page layout */
 	char ndfont;		/* current index of dynamic fonts */
 	unsigned char gcf, anf, vof;	/* fonts for guitar chords,
 					 * annotations and lyrics */
-	struct posit_s posit;	/* positions / directions */
 	unsigned int fields[2];	/* info fields to print
 				 *[0] is 'A'..'Z', [1] is 'a'..'z' */
 };
@@ -390,12 +390,12 @@ struct VOICE_S {
 	struct SYMBOL *rtie;	/* note with ties before 1st repeat bar */
 	struct tblt_s *tblts[2]; /* tablatures */
 	float scale;		/* scale */
-	int time;		/* current time while parsing */
+	int time;		/* current time (parsing) */
 	struct clef_s clef;	/* current clef */
 	struct key_s key;	/* current key signature */
 	struct meter_s meter;	/* current time signature */
 	struct key_s ckey;	/* key signature while parsing */
-	struct key_s okey;	/* original key signature while parsing */
+	struct key_s okey;	/* original key signature (parsing) */
 	unsigned hy_st;		/* lyrics hyphens at start of line (bit array) */
 	unsigned ignore:1;	/* ignore this voice (%%staves) */
 	unsigned forced_clef:1;	/* explicit clef */
@@ -407,14 +407,16 @@ struct VOICE_S {
 	unsigned new_name:1;	/* redisplay the voice name */
 	unsigned space:1;	/* have a space before the next note (parsing) */
 	unsigned perc:1;	/* percussion */
-	short wmeasure;		/* measure duration while parsing */
-	short transpose;	/* transposition while parsing */
+	unsigned auto_len:1;	/* auto L: (parsing) */
+	short wmeasure;		/* measure duration (parsing) */
+	short transpose;	/* transposition (parsing) */
 	short bar_start;	/* bar type at start of staff / 0 */
 	struct posit_s posit;	/* positions / directions */
-	signed char octave;	/* octave while parsing */
+	signed char octave;	/* octave (parsing) */
 	signed char clone;	/* duplicate from this voice number */
+	signed char over;	/* overlay of this voice number */
 	unsigned char staff;	/* staff (0..n-1) */
-	unsigned char cstaff;	/* staff while parsing */
+	unsigned char cstaff;	/* staff (parsing) */
 	unsigned char slur_st;	/* slurs at start of staff */
 };
 extern struct VOICE_S voice_tb[MAXVOICE]; /* voice table */
@@ -479,7 +481,7 @@ void buffer_eob(void);
 void marg_init(void);
 void bskip(float h);
 void check_buffer(void);
-void clear_buffer(void);
+void init_outbuf(int kbsz);
 void close_output_file(void);
 void close_page(void);
 float get_bposy(void);
@@ -502,10 +504,7 @@ void draw_all_deco_head(struct SYMBOL *s, float x, float y);
 void draw_deco_near(void);
 void draw_deco_note(void);
 void draw_deco_staff(void);
-float draw_partempo(int staff,
-			float top,
-			int any_part,
-			int any_tempo);
+float draw_partempo(int staff, float top);
 void draw_measnb(void);
 void reset_deco(void);
 void set_defl(int new_defl);
@@ -536,6 +535,7 @@ void set_sscale(int staff);
 /* format.c */
 void define_fonts(void);
 int get_textopt(char *p);
+int get_font_encoding(int ft);
 void interpret_fmt_line(char *w, char *p, int lock);
 void lock_fmt(void *fmt);
 void make_font_list(void);
@@ -545,7 +545,11 @@ FILE *open_file(char *fn,
 void print_format(void);
 void set_font(int ft);
 void set_format(void);
+void set_voice_param(struct VOICE_S *p_voice, int state, char *w, char *p);
 struct tblt_s *tblt_parse(char *p);
+/* glyph.c */
+char *glyph_out(char *p);
+void glyph_add(char *p);
 /* music.c */
 void output_music(void);
 void reset_gen(void);
@@ -583,7 +587,6 @@ void str_font(int ft);
 #define A_ANNOT 5
 #define A_GCHEXP 6
 void str_out(char *p, int action);
-void str_ft_out(char *p, int end);
 void put_str(char *str, int action);
 float tex_str(char *s);
 extern char tex_buf[];	/* result of tex_str() */
@@ -596,7 +599,7 @@ void write_heading(struct abctune *t);
 void write_user_ps(void);
 void write_text(char *cmd, char *s, int job);
 /* svg.c */
-void define_svg_symbols(char *title, float w, float h);
+void define_svg_symbols(char *title, int num, float w, float h);
 int svg_output(FILE *out, const char *fmt, ...)
 #ifdef __GNUC__
 	__attribute__ ((format (printf, 2, 3)))
@@ -605,6 +608,5 @@ int svg_output(FILE *out, const char *fmt, ...)
 void svg_write(char *buf, int len);
 void svg_close();
 /* syms.c */
-void define_cmap(void);
 void define_font(char *name, int num, int enc);
 void define_symbols(void);

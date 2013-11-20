@@ -1,5 +1,5 @@
-	Features of abcm2ps 7.5.0 (J.F. Moine, February 2013)
-	=====================================================
+	Features of abcm2ps 7.6.2 (J.F. Moine, October 2013)
+	====================================================
 
 abcm2ps tries to follow the ABC standard version 2.1 (december 2011):
 
@@ -30,7 +30,7 @@ Tune body.
 	- Multiple measure overlay (as '&&') is not implemented.
 	  Use the '(& .. & .. & .. &) extension instead.
 
-Data format.
+Text strings.
 
 	- The HTML sequences are not implemented.
 
@@ -126,7 +126,7 @@ ABC Stylesheet specification.
 	- The star ('*' = floating voice) is not treated in '%%score'.
 
 	- '%%staves' coexists with '%%score'.
-	  The differences in '%%staves' are:
+	  The differences of '%%staves' are:
 		- measure bars are drawn between staves when there is
 		  no '|' between the voice names (this feature is inverted
 		  in %%score).
@@ -146,6 +146,24 @@ File structure.
 	  compatibility).
 
 Information fields.
+
+	- The field 'L:' may contain 'auto' in which case the duration of
+	  each note is adjusted to fulfill the measures.
+	  This value works when the measures are regular (fixed duration).
+	  'L:auto' may be used in each case the measure is regular in a
+	  compatible way.
+	  For instance, the three following lines give a same result:
+	  - standard ABC:
+		L:1/4
+		cccd | e2d2 | cedd | c4 |
+	  - auto L:
+		M:C				% required
+		L:auto
+		cccd | ed | cedd | c |
+	  - compatible
+		M:C				% required
+		L:auto
+		cccd | e2d2 | cedd | c4 |
 
 	- The field 'M:' may specify more complex meters with a
 	  combination of digits, parenthesis, slashes and blanks.
@@ -254,9 +272,9 @@ Tune body.
 	  indicated by '\n' or ';' in which case, the lines are of
 	  the same type (gchord or annotation).
 	  The 3 next notations are equivalent:
-		"_ann1" "_ann2" "G3" "4" G
-		"_ann1;ann2" "G3;4" G
-		"_ann1\nann2" "G3\n4" G
+		"_ann1" "_ann2" "G3" "4"
+		"_ann1;ann2" "G3;4"
+		"_ann1\nann2" "G3\n4"
 	  (annotation on 2 lines and guitar chord on 2 lines)
 	  The two next notations are NOT equivalent:
 		"_ann1" "G"
@@ -289,26 +307,27 @@ Clefs.
 
 Multiple voices.
 
-	- 'stem=auto' and 'gstem=auto' in a V: field re-enables the
-	  automatic computation of the direction of the stems (default
-	  values).
+	- 'stem=auto' in a V: field re-enables the automatic computation
+	  of the direction of the stems (default).
 
-	- 'gstem=up' or 'gstem=down' in a V: field forces the direction
-	  of the stems of the grace notes.
-
-	- For compatibility with previous abcm2ps version, V: fields may
+	- For compatibility with previous abcm2ps versions, the V: fields may
 	  contain:
 		- 'gchord=up' (default) and 'gchord=down'
 		  which forces the display of guitar chords above or
-		  below the staff,
+		  below the staff (see 'gchord' in format.txt).
+
+		- 'gstem=up' or 'gstem=down'
+		  which forces the direction of the stems of the grace notes
+		  (see 'gstemdir' in format.txt).
 
 		- 'dyn=up', 'dyn=down' or 'dyn=auto'
 		  which forces the place of the dynamic marks (above
-		  or below the staff - default is 'auto').
+		  or below the staff - default is 'auto' -
+		  see 'dynamic' in format.txt)
 
 		- 'lyrics=up', 'lyrics=down' or 'lyrics=auto'
 		  which forces the place of the lyrics (above or below
-		  the staff - default is 'auto').
+		  the staff - default is 'auto' - see 'vocal' in format.txt).
 	  (use pseudo comments instead - see format.txt)
 
 	- 'merge' in a V: field makes the voice to go on the same staff
@@ -320,16 +339,19 @@ Multiple voices.
 	- The operator '(&...&...&)' permits voice overlay on many
 	  measures. See sample3.abc for an example.
 
-Data format.
+Text strings.
 
 	- The guitar chords and annotations may contain '\#', '\b' and '\='
 	  to display accidentals.
 
-	- Strings may contain characters from '\001' to '\005' to display
-	  accidentals. For compatibility, the values '\201' to '\205'
-	  are handled the same way.
+	- The strings may contain characters from '\001' to '\005' to display
+	  accidentals. For compatibility, the values '\201' to '\205' are
+	  handled the same way.
 
 	- In quoted string, the '%' does not need to be escaped.
+
+	- The strings may contain XML character references like "&#xe9;"
+	  or "&#x1d15f;"
 
 Deprecated ABC syntax.
 

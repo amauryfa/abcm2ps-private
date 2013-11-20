@@ -30,20 +30,6 @@
 #include "abc2ps.h"
 #include "slre.h"
 
-struct STAFF_S staff_tb[MAXSTAFF];	/* staff table */
-int nstaff;				/* (0..MAXSTAFF-1) */
-struct SYMBOL *tsfirst;			/* first symbol in the time sorted list */
-
-struct VOICE_S voice_tb[MAXVOICE];	/* voice table */
-static struct VOICE_S *curvoice;	/* current voice while parsing */
-struct VOICE_S *first_voice;		/* first voice */
-struct SYSTEM *cursys;			/* current system */
-static struct SYSTEM *parsys;		/* current system while parsing */
-
-struct FORMAT dfmt;			/* current global format */
-unsigned short *micro_tb;		/* ptr to the microtone table of the tune */
-int nbar;				/* current measure number */
-
 /* options = external formatting */
 struct symsel_s {			/* symbol selection */
 	short bar;
@@ -58,18 +44,31 @@ struct voice_opt_s {			/* voice options */
 	struct voice_opt_s *next;
 	struct SYMBOL *s;		/* list of options (%%xxx) */
 };
-static struct voice_opt_s *voice_opts;
 struct tune_opt_s {			/* tune options */
 	struct tune_opt_s *next;
 	struct voice_opt_s *voice_opts;
 	struct SYMBOL *s;		/* list of options (%%xxx) */
-	struct brk_s *brks;
-	struct symsel_s clip_start, clip_end;
 };
+
+struct STAFF_S staff_tb[MAXSTAFF];	/* staff table */
+int nstaff;				/* (0..MAXSTAFF-1) */
+struct SYMBOL *tsfirst;			/* first symbol in the time sorted list */
+
+struct VOICE_S voice_tb[MAXVOICE];	/* voice table */
+static struct VOICE_S *curvoice;	/* current voice while parsing */
+struct VOICE_S *first_voice;		/* first voice */
+struct SYSTEM *cursys;			/* current system */
+static struct SYSTEM *parsys;		/* current system while parsing */
+
+struct FORMAT dfmt;			/* current global format */
+unsigned short *micro_tb;		/* ptr to the microtone table of the tune */
+int nbar;				/* current measure number */
+
+static struct voice_opt_s *voice_opts;
 static struct tune_opt_s *tune_opts, *cur_tune_opts;
-static int option_state;
-#define O_TUNE 0x01
-#define O_VOICE 0x02
+static struct brk_s *brks;
+static struct symsel_s clip_start, clip_end;
+
 
 static INFO info_glob;			/* global info definitions */
 
@@ -92,7 +91,6 @@ static void get_key(struct SYMBOL *s);
 static void get_meter(struct SYMBOL *s);
 static void get_voice(struct SYMBOL *s);
 static void get_note(struct SYMBOL *s);
-static void key_transpose(struct key_s *key);
 static struct abcsym *process_pscomment(struct abcsym *as);
 static void set_tblt(struct VOICE_S *p_voice);
 static void set_tuplet(struct SYMBOL *s);
@@ -136,7 +134,7 @@ static void mrest_expand(struct SYMBOL *s)
 
 	/* change the multi-rest (type bar) to a single rest */
 	memcpy(&dc, &s->as.u.bar.dc, sizeof dc);
-	memset(&s->as.u.note, 0, sizeof &s->as.u.note);
+	memset(&s->as.u.note, 0, sizeof s->as.u.note);
 	s->type = NOTEREST;
 	s->as.type = ABC_T_REST;
 	s->as.u.note.nhd = 0;
@@ -149,6 +147,7 @@ static void mrest_expand(struct SYMBOL *s)
 	p_voice = &voice_tb[s->voice];
 	p_voice->last_sym = s;
 	p_voice->time = s->time + dt;
+	p_voice->cstaff = s->staff;
 	s2 = s;
 	while (--nb > 0) {
 		s2 = sym_add(p_voice, BAR);
@@ -379,12 +378,11 @@ static void sort_all(void)
 	s2->voice = s->voice;
 	s2->staff = s->staff;
 	s2->time = s->time;
-	if (!s->extra) {
-		s->extra = s2;
-	} else {
+	if (s->extra) {
 		s2->next = s->extra;
 		s2->next->prev = s2;
 	}
+	s->extra = s2;
 }
 
 /* -- move the symbols with no width to the next symbol -- */
@@ -739,8 +737,8 @@ static struct SYMBOL *go_global_time(struct SYMBOL *s,
 	struct SYMBOL *s2;
 	int bar_time;
 
-	if (symsel->bar <= 1		/* special case: there is no measure 0/1 */
-	 && nbar == -1) {		/* see set_bar_num */
+	if (symsel->bar <= 1) {		/* special case: there is no measure 0/1 */
+//	 && nbar == -1) {		/* see set_bar_num */
 		if (symsel->bar == 0)
 			goto chk_time;
 		for (s2 = s; s2; s2 = s2->ts_next) {
@@ -799,9 +797,9 @@ static void do_clip(void)
 
 	/* remove the beginning of the tune */
 	s = tsfirst;
-	if (cur_tune_opts->clip_start.bar > 0
-	 || cur_tune_opts->clip_start.time > 0) {
-		s = go_global_time(s, &cur_tune_opts->clip_start);
+	if (clip_start.bar > 0
+	 || clip_start.time > 0) {
+		s = go_global_time(s, &clip_start);
 		if (!s) {
 			tsfirst = NULL;
 			return;
@@ -844,7 +842,7 @@ static void do_clip(void)
 	}
 
 	/* remove the end of the tune */
-	s = go_global_time(s, &cur_tune_opts->clip_end);
+	s = go_global_time(s, &clip_end);
 	if (!s)
 		return;
 
@@ -935,6 +933,8 @@ static void set_bar_num(void)
 			struct SYMBOL *s2;
 			int tim;
 
+//			if (s->as.flags & ABC_F_INVIS)
+//				break;
 			if (s->u != 0) {
 				bar_num = s->u;		/* (%%setbarnb) */
 				if (s->time < bar_time) {
@@ -971,23 +971,27 @@ static void set_bar_num(void)
 	}
 
 	/* do the %%clip stuff */
-	if (!cur_tune_opts)
-		return;
-	if (bar_num <= cur_tune_opts->clip_start.bar
-	 || nbar > cur_tune_opts->clip_end.bar) {
-		tsfirst = NULL;
-		return;
+	if (clip_start.bar >= 0) {
+		if (bar_num <= clip_start.bar
+		 || nbar > clip_end.bar) {
+			tsfirst = NULL;
+			return;
+		}
+		do_clip();
 	}
-	do_clip();
 
 	/* do the %%break stuff */
 	{
 		struct brk_s *brk;
+		int nbar_min;
 
-		if (nbar == 1)
-			nbar = -1;	/* see go_global_time */
-		for (brk = cur_tune_opts->brks; brk; brk = brk->next) {
-			if (brk->symsel.bar <= nbar
+//		if (nbar == 1)
+//			nbar = -1;	/* see go_global_time */
+		nbar_min = nbar;
+		if (nbar_min == 1)
+			nbar_min = -1;
+		for (brk = brks; brk; brk = brk->next) {
+			if (brk->symsel.bar <= nbar_min
 			 || brk->symsel.bar > bar_num)
 				continue;
 			s = go_global_time(tsfirst, &brk->symsel);
@@ -995,6 +999,8 @@ static void set_bar_num(void)
 				s->sflags |= S_EOLN;
 		}
 	}
+	if (cfmt.measurenb < 0)		/* if no display of measure bar */
+		nbar = bar_num;		/* update in case of more music to come */
 }
 
 /* -- generate a piece of tune -- */
@@ -1038,25 +1044,29 @@ static void gen_ly(int eob)
 		buffer_eob();
 }
 
-/* check if a note is tied to a previous one */
-static int tied_note(int pitch)
+/* for transpose purpose, check if a pitch is already in the measure
+ * in the current voice and return its accidental or (-1) */
+static int acc_same_pitch(int pitch)
 {
-	struct SYMBOL *prev;
+	struct SYMBOL *s;
 	int i;
 
-	prev = curvoice->last_sym;
-	while (prev && prev->as.type != ABC_T_NOTE)
-		prev = prev->prev;
+	for (s = curvoice->last_sym; s; s = s->prev) {
+		switch (s->as.type) {
+		case ABC_T_BAR:
+			return -1;	/* no same pitch */
+		default:
+			continue;
+		case ABC_T_NOTE:
+			break;
+		}
 
-	if (!(prev->sflags & S_TI1))
-		return 0;
-
-	for (i = 0; i <= prev->nhd; i++) {
-		if (prev->as.u.note.ti1[i]
-		 && prev->as.u.note.pits[i] == pitch)
-			return 1;
+		for (i = 0; i <= s->nhd; i++) {
+			if (s->as.u.note.pits[i] == pitch)
+				return s->as.u.note.accs[i];
+		}
 	}
-	return 0;
+	return -1;
 }
 
 /* transpose a note / chord */
@@ -1102,14 +1112,30 @@ static void note_transpose(struct SYMBOL *s)
 
 		/* accidental */
 		i1 = ((i3 + 1 + 21) / 7 + 2 - 3 + 32 * 5) % 5;
-		if ((s->as.u.note.accs[i] & 0x07) != 0) {
+		a = acc2[(unsigned) i1];
+		if (curvoice->ckey.empty != 0) {	/* key none */
+			int other_acc;
+
+			other_acc = acc_same_pitch(s->as.u.note.pits[i]);
+			switch (s->as.u.note.accs[i]) {
+			case 0:
+				if (other_acc >= 0 || a == A_NT)
+					continue;
+				break;
+			case A_NT:
+				break;
+			default:
+				if (other_acc < 0) {
+					if (a == A_NT)
+						a = 0;
+				} else {
+					if (a == other_acc)
+						a = 0;
+				}
+				break;
+			}
+		} else if (s->as.u.note.accs[i] != 0) {
 			;
-		} else if (curvoice->ckey.empty != 0) {	/* key none */
-			a = acc2[(unsigned) i1];
-			if (a == A_NT)
-				continue;
-			if (tied_note(s->as.u.note.pits[i]))
-				continue;
 		} else if (curvoice->ckey.nacc > 0) {	/* acc list */
 			i4 = cgd2cde[(unsigned) ((i3 + 16 * 7) % 7)];
 			for (j = 0; j < curvoice->ckey.nacc; j++) {
@@ -1122,7 +1148,6 @@ static void note_transpose(struct SYMBOL *s)
 		} else {
 			continue;
 		}
-		a = acc2[(unsigned) i1];
 		i1 = s->as.u.note.accs[i] & 0x07;
 		i4 = s->as.u.note.accs[i] >> 3;
 		if (i4 != 0				/* microtone */
@@ -1166,10 +1191,12 @@ static void note_transpose(struct SYMBOL *s)
 static void gch_transpose(struct SYMBOL *s)
 {
 	char *p, *q, *new_txt;
-	int l;
+	int l, latin;
 	int n, a, i1, i2, i3, i4;
-	static char note_names[] = "CDEFGAB";
-	static char *acc_name[5] = {"bb", "b", "", "#", "##"};
+	static const char note_names[] = "CDEFGAB";
+	static const char *latin_names[7] =
+			{ "Do", "Ré", "Mi", "Fa", "Sol", "La", "Si" };
+	static const char *acc_name[5] = {"bb", "b", "", "#", "##"};
 
 	p = s->as.text;
 
@@ -1185,21 +1212,68 @@ static void gch_transpose(struct SYMBOL *s)
 	}
 
 	/* main chord */
-	q = strchr(note_names, *p);
-	if (!q)
+	q = p + 1;
+	latin = 0;
+	switch (*p) {
+	case 'A':
+	case 'B':
+		n = *p - 'A' + 5;
+		break;
+	case 'C':
+	case 'E':
+	case 'G':
+		n = *p - 'C';
+		break;
+	case 'D':
+		if (p[1] == 'o') {
+			latin = 1;
+			n = 0;		/* Do */
+			break;
+		}
+		n = 1;
+		break;
+	case 'F':
+		if (p[1] == 'a')
+			latin = 1;	/* Fa */
+		n = 3;
+		break;
+	case 'L':
+		latin = 1;		/* La */
+		n = 6;
+		break;
+	case 'M':
+		latin = 1;		/* Mi */
+		n = 2;
+		break;
+	case 'R':
+		latin = 1;
+		if (p[1] != 'e')
+			latin++;	/* Ré */
+		n = 1;			/* Re */
+		break;
+	case 'S':
+		latin = 1;
+		if (p[1] == 'o') {
+			latin++;
+			n = 4;		/* Sol */
+		} else {
+			n = 6;		/* Si */
+		}
+		break;
+	default:
 		return;
+	}
+	q += latin;
 
 	/* allocate a new string */
-	/* we need only 2 extra accidentals */
-	new_txt = getarena(strlen(s->as.text) + 2);
+	new_txt = getarena(strlen(s->as.text) + 6);
 	l = p - s->as.text;
 	memcpy(new_txt, s->as.text, l);
 	s->as.text = new_txt;
 	new_txt += l;
-	p++;
+	p = q;
 
 	i2 = curvoice->ckey.sf - curvoice->okey.sf;
-	n = q - note_names;
 	i1 = cde2fcg[n];			/* fcgdaeb */
 	a = 0;
 	if (*p == '#') {
@@ -1221,7 +1295,10 @@ static void gch_transpose(struct SYMBOL *s)
 	}
 	i3 = i1 + i2 + a * 7;
 	i4 = cgd2cde[(unsigned) ((i3 + 16 * 7) % 7)];
-	*new_txt++ = note_names[i4];
+	if (!latin)
+		*new_txt++ = note_names[i4];
+	else
+		new_txt += sprintf(new_txt, "%s", latin_names[i4]);
 	i1 = ((i3 + 1 + 21) / 7 + 2 - 3 + 32 * 5) % 5;
 						/* accidental */
 	new_txt += sprintf(new_txt, "%s", acc_name[i1]);
@@ -1231,6 +1308,7 @@ static void gch_transpose(struct SYMBOL *s)
 		*new_txt++ = *p++;
 	if (*p == '/') {
 		*new_txt++ = *p++;
+//fixme: latin names not treated
 		q = strchr(note_names, *p);
 		if (q) {
 			p++;
@@ -1284,7 +1362,7 @@ static void gch_build(struct SYMBOL *s)
 	sep = '\n';
 	antype = 'g';			/* (compiler warning) */
 	for (;;) {
-		if (strchr("^_<>@", *p)) {
+		if (sep != 'n' && strchr("^_<>@", *p)) {
 			gch->font = cfmt.anf;
 			antype = *p++;
 			if (antype == '@') {
@@ -1339,21 +1417,28 @@ static void gch_build(struct SYMBOL *s)
 		}
 		gch->idx = p - s->as.text;
 		for (;;) {
-			if (*p == '\0' || *p == ';' || *p == '\n')
-				break;
-			p++;
-			if (p[-1] == '\\') {
+			switch (*p) {
+			default:
+				p++;
+				continue;
+			case '\\':
+				p++;
 				switch (*p) {
 				case 'n':
 					p[-1] = '\0';
-					*p = '\n';
-					continue;	/* (break from loop) */
+					break;		/* sep = 'n' */
 				case '\\':
 				case ';':
 					p++;
-					break;
+					continue;
 				}
+				break;
+			case '\0':
+			case ';':
+			case '\n':
+				break;
 			}
+			break;
 		}
 		sep = *p;
 		if (sep == '\0')
@@ -1783,6 +1868,10 @@ static char tx_wrong_dur[] = "Wrong duration in voice overlay";
 	if (parsys->voice[voice2].range < 0) {
 		int clone;
 
+		if (cfmt.abc2pscompat) {
+			error(1, s, "Cannot have %%%%abc2pscompat");
+			cfmt.abc2pscompat = 0;
+		}
 		clone = p_voice->clone >= 0;
 		p_voice2->id[0] = '&';
 		p_voice2->id[1] = '\0';
@@ -1840,7 +1929,7 @@ static char tx_wrong_dur[] = "Wrong duration in voice overlay";
 
 		over_bar = 1;
 		over_mxtime = p_voice->time;
-		over_voice = p_voice - voice_tb;
+		over_voice = voice;
 		time = p_voice2->time;
 		for (s = p_voice->last_sym; /*s*/; s = s->prev) {
 			if (s->type == BAR
@@ -1851,7 +1940,7 @@ static char tx_wrong_dur[] = "Wrong duration in voice overlay";
 	} else {
 		if (over_voice < 0) {
 			over_mxtime = p_voice->time;
-			over_voice = p_voice - voice_tb;
+			over_voice = voice;
 		} else if (p_voice->time != over_mxtime)
 			error(1, s, tx_wrong_dur);
 	}
@@ -2099,6 +2188,7 @@ static void get_staves(struct SYMBOL *s)
 	}
 	staves_found = maxtime;
 
+	memset(staves, 0, sizeof staves);
 	parse_staves(s, staves);
 
 	/* initialize the voices */
@@ -2148,6 +2238,11 @@ static void get_staves(struct SYMBOL *s)
 		     i++, p_staff++) {
 			flags = p_staff->flags;
 			if (!(flags & (OPEN_BRACE | OPEN_BRACE2)))
+				continue;
+			if ((flags & (OPEN_BRACE | CLOSE_BRACE))
+					== (OPEN_BRACE | CLOSE_BRACE)
+			 || (flags & (OPEN_BRACE2 | CLOSE_BRACE2))
+					== (OPEN_BRACE2 | CLOSE_BRACE2))
 				continue;
 			if (p_staff[1].flags != 0)
 				continue;
@@ -2356,7 +2451,6 @@ static void tune_filter(struct abcsym *as)
 	struct slre slre;
 	char *header, *p;
 
-	cur_tune_opts = NULL;
 	header = tune_header_rebuild(as);
 	for (opt = tune_opts; opt; opt = opt->next) {
 		struct abcsym *last_staves;
@@ -2370,7 +2464,6 @@ static void tune_filter(struct abcsym *as)
 			continue;
 
 		/* apply the options */
-		option_state = O_TUNE;
 		cur_tune_opts = opt;
 		last_staves = as->next;
 		for (s = opt->s->next; s; s = s->next) {
@@ -2399,7 +2492,7 @@ static void tune_filter(struct abcsym *as)
 			memcpy(s2, s, sizeof *s2);
 			process_pscomment((struct abcsym *) s2);
 		}
-		option_state = 0;
+		cur_tune_opts = NULL;
 	}
 	free(header);
 }
@@ -2450,9 +2543,46 @@ next_voice:
 	}
 }
 
+/* -- check if a pseudo-comment may be in the tune header -- */
+static int check_header(struct abcsym *as)
+{
+	switch (as->text[2]) {
+	case 'E':
+		if (strncmp(as->text + 3, "PS", 2) == 0)
+			return 0;
+		break;
+	case 'm':
+		if (strncmp(as->text + 3, "ulticol", 7) == 0)
+			return 0;
+		break;
+	}
+	return 1;
+}
+
+/* -- set the global definitions after the first K: or middle-tune T:'s -- */
+static void set_global_def(void)
+{
+	struct VOICE_S *p_voice;
+	int i;
+
+	for (i = MAXVOICE, p_voice = voice_tb;
+	     --i >= 0;
+	     p_voice++) {
+		if (p_voice->key.mode >= BAGPIPE
+		 && p_voice->posit.std == 0)
+			p_voice->posit.std = SL_BELOW;
+		p_voice->transpose = cfmt.transpose;
+		if (p_voice->key.empty)
+			p_voice->key.sf = 0;
+	}
+
+	/* switch to the 1st voice */
+	curvoice = &voice_tb[parsys->top_voice];
+}
+
 /* -- get the global definitions after the first K: or middle-tune T:'s -- */
-static struct abcsym *get_global(struct abcsym *as,
-		     struct abctune *t)
+static struct abcsym *get_global_def(struct abcsym *as,
+				     struct abctune *t)
 {
 	struct abcsym *as2;
 
@@ -2478,6 +2608,8 @@ static struct abcsym *get_global(struct abcsym *as,
 			}
 			break;
 		case ABC_T_PSCOM:
+			if (!check_header(as2))
+				break;
 			as = as2;
 			as->state = ABC_S_HEAD;
 			as = process_pscomment(as);
@@ -2485,6 +2617,7 @@ static struct abcsym *get_global(struct abcsym *as,
 		}
 		break;
 	}
+	set_global_def();
 	return as;
 }
 
@@ -2493,10 +2626,11 @@ static struct abcsym *get_info(struct abcsym *as,
 		     struct abctune *t)
 {
 	struct SYMBOL *s, *s2;
+	struct VOICE_S *p_voice;
 	char *p;
 	char info_type;
 	int old_lvl;
-	static char *state_txt[4] = {"global", "header", "tune", "embedded"};
+	static char *state_txt[] = {"global", "header", "tune"};
 
 	/* change arena to global or tune */
 	old_lvl = lvlarena(as->state != ABC_S_GLOBAL);
@@ -2516,8 +2650,11 @@ static struct abcsym *get_info(struct abcsym *as,
 		info['K' - 'A'] = s;		/* first K:, end of tune header */
 		tunenum++;
 
-		if (!epsf)
+		if (!epsf) {
+			if (!cfmt.oneperpage)
+				use_buffer = !cfmt.splittune;
 			bskip(cfmt.topspace);
+		}
 		write_heading(t);
 		block_put();
 
@@ -2549,35 +2686,10 @@ static struct abcsym *get_info(struct abcsym *as,
 		over_bar = 0;
 		reset_gen();
 
-		/* switch to the 1st voice */
-		curvoice = &voice_tb[parsys->top_voice];
+		as = get_global_def(as, t);
 
-#if 1
-		s2 = info['Q' - 'A'];
-		if (s2
-		 && !(cfmt.fields[0] & (1 << ('Q' - 'A'))))
+		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
 			info['Q' - 'A'] = NULL;
-#else
-		/* move the Q: at start of the music */
-		s2 = info['Q' - 'A'];
-		if (s2) {
-			if (cfmt.fields[0] & (1 << ('Q' - 'A'))) {
-				s2->type = TEMPO;
-				s2->voice = curvoice - voice_tb;
-				s2->staff = curvoice->staff;
-				s2->time = curvoice->time;
-				if (!curvoice->sym) {
-					curvoice->last_sym = s2;
-				} else {
-					s2->next = curvoice->sym;
-					s2->next->prev = s2;
-				}
-				curvoice->sym = s2;
-			}
-			info['Q' - 'A'] = NULL;
-		}
-#endif
-		as = get_global(as, t);
 
 		/* apply the filter for the voice '1' */
 		voice_filter();
@@ -2587,12 +2699,28 @@ static struct abcsym *get_info(struct abcsym *as,
 			set_tblt(first_voice);
 		break;
 	case 'L':
+		switch (as->state) {
+		case ABC_S_HEAD: {
+			int i, auto_len;
+
+			auto_len = as->u.length.base_length < 0;
+
+			for (i = MAXVOICE, p_voice = voice_tb;
+			     --i >= 0;
+			     p_voice++)
+				p_voice->auto_len = auto_len;
+			break;
+		    }
+		case ABC_S_TUNE:
+			curvoice->auto_len = as->u.length.base_length < 0;
+			break;
+		}
 		break;
 	case 'M':
 		get_meter(s);
 		break;
 	case 'P': {
-		struct VOICE_S *p_voice, *curvoice_sav;
+		struct VOICE_S *curvoice_sav;
 
 		if (as->state != ABC_S_TUNE) {
 			info['P' - 'A'] = s;
@@ -2604,7 +2732,7 @@ static struct abcsym *get_info(struct abcsym *as,
 		p_voice = &voice_tb[parsys->top_voice];
 
 		/* if not main voice and if voices are synchronized
-		 * then, misplaced P:, link in the main voice */ 
+		 * then, misplaced P: goes in the main voice */ 
 		if (curvoice != p_voice
 		 && curvoice->time == p_voice->time) {
 			curvoice_sav = curvoice;
@@ -2617,14 +2745,14 @@ static struct abcsym *get_info(struct abcsym *as,
 		break;
 	    }
 	case 'Q':
+		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
+			break;
 		if (as->state != ABC_S_TUNE) {
 			info['Q' - 'A'] = s;
 			break;
 		}
 		if (curvoice != &voice_tb[parsys->top_voice])
 			break;		/* tempo only for first voice */
-		if (!(cfmt.fields[0] & (1 << ('Q' - 'A'))))
-			break;
 		s2 = curvoice->last_sym;
 		if (s2) {			/* keep last Q: */
 			int tim;
@@ -2665,8 +2793,7 @@ static struct abcsym *get_info(struct abcsym *as,
 		}
 		voice_init();
 		reset_gen();		/* (display the time signature) */
-		curvoice = &voice_tb[parsys->top_voice];
-		as = get_global(as, t);
+		as = get_global_def(as, t);
 		break;
 	case 'U': {
 		unsigned char *deco;
@@ -2692,9 +2819,17 @@ static struct abcsym *get_info(struct abcsym *as,
 			voice_filter();
 		break;
 	case 'w':
-		if (as->state != ABC_S_TUNE
-		 || !(cfmt.fields[1] & (1 << ('w' - 'a'))))
+		if (as->state != ABC_S_TUNE)
 			break;
+		if (!(cfmt.fields[1] & (1 << ('w' - 'a')))) {
+			while (as->next) {
+				if (as->next->type != ABC_T_INFO
+				 || as->next->text[0] != '+')
+					break;
+				as = as->next;
+			}
+			break;
+		}
 		as = get_lyric(as);
 		break;
 	case 'W':
@@ -2799,6 +2934,64 @@ void identify_note(struct SYMBOL *s,
 	*p_dots = dots;
 }
 
+/* -- adjust the duration and time of symbols in a measure when L:auto -- */
+static void adjust_dur(struct SYMBOL *s)
+{
+	struct SYMBOL *s2;
+	int time, auto_time;
+
+	/* search the start of the measure */
+	s2 = curvoice->last_sym;
+	if (!s2)
+		return;
+	while (s2->type != BAR && s2->prev)
+		s2 = s2->prev;
+	time = s2->time;
+	auto_time = curvoice->time - time;
+
+	/* remove the invisible rest at start of tune */
+	if (time == 0) {
+		while (s2 && s2->dur == 0)
+			s2 = s2->next;
+		if (s2 && s2->as.type == ABC_T_REST
+		 && (s2->as.flags & ABC_F_INVIS)) {
+			time += s2->dur * curvoice->wmeasure / auto_time;
+			if (s2->prev)
+				s2->prev->next = s2->next;
+			else
+				curvoice->sym = s2->next;
+			if (s2->next)
+				s2->next->prev = s2->prev;
+			s2 = s2->next;
+		}
+	}
+	while (s2) {
+		if (s2->dur != 0) {
+			s2->dur = s2->dur * curvoice->wmeasure / auto_time;
+			s2->time = time;
+			time += s2->dur;
+			if (s2->type == NOTEREST) {
+				int i, head, dots, nflags;
+
+				for (i = 0; i <= s2->nhd; i++)
+					s2->as.u.note.lens[i] = s2->as.u.note.lens[i]
+						 * curvoice->wmeasure / auto_time;
+				identify_note(s2, s2->as.u.note.lens[0],
+						&head, &dots, &nflags);
+				s2->head = head;
+				s2->dots = dots;
+				s2->nflags = nflags;
+				if (s2->nflags <= -2)
+					s2->as.flags |= ABC_F_STEMLESS;
+				else
+					s2->as.flags &= ~ABC_F_STEMLESS;
+			}
+		}
+		s2 = s2->next;
+	}
+	curvoice->time = s->time = time;
+}
+
 /* -- measure bar -- */
 static void get_bar(struct SYMBOL *s)
 {
@@ -2807,6 +3000,8 @@ static void get_bar(struct SYMBOL *s)
 
 	if (curvoice->norepbra && s->as.u.bar.repeat_bar)
 		s->sflags |= S_NOREPBRA;
+	if (curvoice->auto_len)
+		adjust_dur(s);
 
 	bar_type = s->as.u.bar.type;
 	s3 = NULL;
@@ -2835,14 +3030,6 @@ static void get_bar(struct SYMBOL *s)
 				return;
 			}
 		}
-
-#if 0
-		/* the bar must be before any key signature */
-/*fixme:and time signature??*/
-		if ((s2->type == KEYSIG /*|| s2->type == TIMESIG*/)
-		 && (!s2->prev || s2->prev->type != BAR))
-			s3 = s2;
-#endif
 	}
 
 	/* link the bar in the voice */
@@ -2950,12 +3137,13 @@ void do_tune(struct abctune *t)
 		voice_tb[i].wmeasure = BASE_LEN;
 		voice_tb[i].scale = 1;
 		voice_tb[i].clone = -1;
+		voice_tb[i].over = -1;
 	}
 	curvoice = first_voice = voice_tb;
 	micro_tb = t->micro_tb;		/* microtone values */
 	abc2win = 0;
-	option_state = 0;
-	cur_tune_opts = NULL;
+	clip_start.bar = -1;
+	clip_end.bar = (short unsigned) ~0 >> 1;
 
 	parsys = NULL;
 	system_new();			/* create the 1st staff system */
@@ -2967,6 +3155,7 @@ void do_tune(struct abctune *t)
 			close_page();
 		} else {
 			use_buffer = !cfmt.splittune;
+
 		}
 	} else {
 		use_buffer = 1;
@@ -3053,6 +3242,9 @@ void do_tune(struct abctune *t)
 					break;
 				switch (as->next->text[0]) {
 				case 'w':
+					as = get_info(as->next, t);
+					s = (struct SYMBOL *) as;
+					continue;
 				case 'd':
 				case 's':
 					as = as->next;
@@ -3160,7 +3352,20 @@ void do_tune(struct abctune *t)
 		memcpy(&info, &info_glob, sizeof info);
 		info['X' - 'A'] = NULL;
 	}
-//	clrarena(2);				/* clear generation */
+
+	/* free the parsing resources */
+	{
+		struct brk_s *brk, *brk2;
+
+		brk = brks;
+		while (brk) {
+			brk2 = brk->next;
+			free(brk);
+			brk = brk2;
+		}
+		brks = brk;		/* (NULL) */
+	}
+//	clrarena(2);			/* clear generation */
 }
 
 /* check if a K: or M: may go to the tune key and time signatures */
@@ -3414,13 +3619,13 @@ static void key_transpose(struct key_s *key)
 	sf = (t & ~1) + (t & 1) * 7 + key->sf;
 	switch ((curvoice->transpose + 210) % 3) {
 	case 1:
-		sf = (sf + 4 + 12) % 12 - 4;		/* more sharps */
+		sf = (sf + 4 + 12 * 4) % 12 - 4;	/* more sharps */
 		break;
 	case 2:
-		sf = (sf + 7 + 12) % 12 - 7;		/* more flats */
+		sf = (sf + 7 + 12 * 4) % 12 - 7;	/* more flats */
 		break;
 	default:
-		sf = (sf + 5 + 12) % 12 - 5;		/* Db, F# or B */
+		sf = (sf + 5 + 12 * 4) % 12 - 5;	/* Db, F# or B */
 		break;
 	}
 	key->sf = sf;
@@ -3531,13 +3736,6 @@ static void get_key(struct SYMBOL *s)
 						sizeof p_voice->okey);
 			if (s->as.u.key.octave != NO_OCTAVE)
 				p_voice->octave = s->as.u.key.octave;
-			p_voice->posit = cfmt.posit;
-			if (p_voice->key.mode >= BAGPIPE
-			 && p_voice->posit.std == 0)
-				p_voice->posit.std = SL_BELOW;
-			p_voice->transpose = cfmt.transpose;
-			if (p_voice->key.empty)
-				p_voice->key.sf = 0;
 		}
 		return;
 	}
@@ -3552,7 +3750,6 @@ static void get_key(struct SYMBOL *s)
 					sizeof curvoice->ckey);
 		memcpy(&curvoice->okey, &okey,
 					sizeof curvoice->okey);
-		curvoice->posit = cfmt.posit;
 		if (curvoice->key.mode >= BAGPIPE
 		 && curvoice->posit.std == 0)
 			curvoice->posit.std = SL_BELOW;
@@ -3607,7 +3804,7 @@ static void get_meter(struct SYMBOL *s)
 	case ABC_S_GLOBAL:
 		/*fixme: keep the values and apply to all tunes?? */
 		break;
-	case ABC_S_HEAD: {
+	case ABC_S_HEAD:
 		for (i = MAXVOICE, p_voice = voice_tb;
 		     --i >= 0;
 		     p_voice++) {
@@ -3616,7 +3813,6 @@ static void get_meter(struct SYMBOL *s)
 			p_voice->wmeasure = s->as.u.meter.wmeasure;
 		}
 		break;
-	    }
 	case ABC_S_TUNE:
 		curvoice->wmeasure = s->as.u.meter.wmeasure;
 		if (is_tune_sig()) {
@@ -3903,6 +4099,20 @@ static void get_note(struct SYMBOL *s)
 			s->sflags |= S_TI1;
 	}
 
+	switch (cfmt.shiftunison) {
+	case 0:
+		break;
+	case 1:
+		s->sflags |= S_SHIFTUNISON_1;
+		break;
+	case 2:
+		s->sflags |= S_SHIFTUNISON_2;
+		break;
+	default:
+		s->sflags |= S_SHIFTUNISON_1 | S_SHIFTUNISON_2;
+		break;
+	}
+
 	/* build the guitar chords */
 	if (s->as.text)
 		gch_build(s);
@@ -3932,10 +4142,12 @@ static void ps_def(struct SYMBOL *s,
 		s->u = PSSEQ;
 		s->as.text = p;
 		s->as.flags |= ABC_F_INVIS;
+#if 0
 		if (s->prev && (s->prev->sflags & S_EOLN)) {
 			s->sflags |= S_EOLN;
 			s->prev->sflags &= ~S_EOLN;
 		}
+#endif
 		return;
 	}
 	if (file_initialized || mbf != outbuf)
@@ -3980,18 +4192,6 @@ static void free_voice_opt(struct voice_opt_s *opt)
 	}
 }
 
-/* free the breaks */
-static void free_brk(struct brk_s *brk)
-{
-	struct brk_s *brk2;
-
-	while (brk) {
-		brk2 = brk->next;
-		free(brk);
-		brk = brk2;
-	}
-}
-
 /* -- process a pseudo-comment (%% or I:) -- */
 static struct abcsym *process_pscomment(struct abcsym *as)
 {
@@ -4006,6 +4206,11 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	if (lock)
 		*q = '\0'; 
 	p = get_str(w, p, sizeof w);
+	if (as->state == ABC_S_HEAD
+	 && !check_header(as)) {
+		error(1, s, "Cannot have %%%%%s in tune header", w);
+		return as;
+	}
 	switch (w[0]) {
 	case 'b':
 		if (strcmp(w, "beginps") == 0
@@ -4033,8 +4238,9 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		if (strcmp(w, "begintext") == 0) {
 			int job;
 
-			gen_ly(1);
-			if (as->state == ABC_S_GLOBAL) {
+			if (as->state == ABC_S_TUNE) {
+				gen_ly(1);
+			} else if (as->state == ABC_S_GLOBAL) {
 				if (epsf || in_fname == 0)
 					return as;
 			}
@@ -4064,24 +4270,21 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		if (strcmp(w, "break") == 0) {
 			struct brk_s *brk;
 
-			if (!(option_state & O_TUNE)) {
-				error(1, s, "No %%%%tune before %%%%break");
+			if (as->state != ABC_S_TUNE) {
+				error(1, s, "%%%%%s ignored", w);
 				return as;
 			}
-			if (*p == '\0') {
-				free_brk(cur_tune_opts->brks);
-				cur_tune_opts->brks = NULL;
+			if (*p == '\0')
 				return as;
-			}
 			for (;;) {
 				brk = malloc(sizeof *brk);
 				p = get_symsel(&brk->symsel, p);
 				if (!p) {
-					error(1, s, "Bad selection in %%%%break");
+					error(1, s, "Bad selection in %%%%%s", w);
 					return as;
 				}
-				brk->next = cur_tune_opts->brks;
-				cur_tune_opts->brks = brk;
+				brk->next = brks;
+				brks = brk;
 				if (*p != ',' && *p != ' ')
 					break;
 				p++;
@@ -4098,33 +4301,35 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			return as;
 		}
 		if (strcmp(w, "clip") == 0) {
-			if (!(option_state & O_TUNE)) {
-				error(1, s, "No %%%%tune before %%%%clip");
+			if (!cur_tune_opts) {
+				error(1, s, "No %%%%tune before %%%%%s", w);
 				return as;
 			}
 
 			/* %%clip <symbol selection> "-" <symbol selection> */
 			if (*p != '-') {
-				p = get_symsel(&cur_tune_opts->clip_start, p);
+				p = get_symsel(&clip_start, p);
 				if (!p) {
-					error(1, s, "Bad start in %%%%clip");
+					error(1, s, "Bad start in %%%%%s", w);
 					return as;
 				}
 				if (*p != '-') {
-					error(1, s, "Lack of '-' in %%%%clip");
+					error(1, s, "Lack of '-' in %%%%%s", w);
 					return as;
 				}
 			}
 			p++;
-			p = get_symsel(&cur_tune_opts->clip_end, p);
+			p = get_symsel(&clip_end, p);
 			if (!p) {
-				error(1, s, "Bad end in %%%%clip");
+				error(1, s, "Bad end in %%%%%s", w);
 				return as;
 			}
-			if (cur_tune_opts->clip_end.bar < cur_tune_opts->clip_start.bar
-			 || (cur_tune_opts->clip_end.bar == cur_tune_opts->clip_start.bar
-			  && cur_tune_opts->clip_end.time <= cur_tune_opts->clip_start.time)) {
-				cur_tune_opts->clip_end.bar = (short unsigned) ~0 >> 1;
+			if (clip_start.bar < 0)
+				clip_start.bar = 0;
+			if (clip_end.bar < clip_start.bar
+			 || (clip_end.bar == clip_start.bar
+			  && clip_end.time <= clip_start.time)) {
+				clip_end.bar = (short unsigned) ~0 >> 1;
 			}
 			return as;
 		}
@@ -4132,6 +4337,10 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 	case 'd':
 		if (strcmp(w, "deco") == 0) {
 			deco_add(p);
+			return as;
+		}
+		if (strcmp(w, "dynamic") == 0) {
+			set_voice_param(curvoice, as->state, w, p);
 			return as;
 		}
 		break;
@@ -4152,6 +4361,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			}
 
 			/* get the bounding box */
+			x1 = x2 = 0;
 			while (fgets(line, sizeof line, fp)) {
 				if (strncmp(line, "%%BoundingBox:", 14) == 0) {
 					if (sscanf(&line[14], "%f %f %f %f",
@@ -4160,7 +4370,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 				}
 			}
 			fclose(fp);
-			if (strncmp(line, "%%BoundingBox:", 14) != 0) {
+			if (x1 == x2) {
 				error(1, s,
 				      "No bounding box in '%s'", fn);
 				return as;
@@ -4178,8 +4388,19 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			}
 			a2b("\001");	/* include file (must be the first after eob) */
 			bskip(y2 - y1);
-			a2b("%.2f %.2f%%%s\n", -x1, -y1, fn);
+			a2b("%.2f %.2f%%%s\n", x1, -y1, fn);
 			buffer_eob();
+			return as;
+		}
+		break;
+	case 'g':
+		if (strcmp(w, "gchord") == 0
+		 || strcmp(w, "gstemdir") == 0) {
+			set_voice_param(curvoice, as->state, w, p);
+			return as;
+		}
+		if (strcmp(w, "glyph") == 0) {
+			glyph_add(p);
 			return as;
 		}
 		break;
@@ -4208,7 +4429,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			} else if (strncmp(p, "new", 3) == 0) {
 				if (multicol_start == 0) {
 					error(1, s,
-					      "%%%%multicol new without start");
+					      "%%%s new without start", w);
 				} else {
 					buffer_eob();
 					bposy = get_bposy();
@@ -4223,7 +4444,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 			} else if (strncmp(p, "end", 3) == 0) {
 				if (multicol_start == 0) {
 					error(1, s,
-					      "%%%%multicol end without start");
+					      "%%%s end without start", w);
 				} else {
 					buffer_eob();
 					bposy = get_bposy();
@@ -4247,7 +4468,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 				}
 			} else {
 				error(1, s,
-				      "Unknown keyword '%s' in %%%%multicol", p);
+				      "Unknown keyword '%s' in %%%s", p, w);
 			}
 			return as;
 		}
@@ -4256,7 +4477,8 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		if (strcmp(w, "newpage") == 0) {
 			if (epsf || in_fname == 0)
 				return as;
-			generate();
+			if (as->state == ABC_S_TUNE)
+				generate();
 			buffer_eob();
 			write_buffer();
 			use_buffer = 0;
@@ -4267,8 +4489,15 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 		}
 		break;
 	case 'p':
-		if (strcmp(w, "postscript") == 0) {
+		if (strcmp(w, "ps") == 0
+		 || strcmp(w, "postscript") == 0) {
 			ps_def(s, p, 'b');
+			return as;
+		}
+		break;
+	case 'o':
+		if (strcmp(w, "ornament") == 0) {
+			set_voice_param(curvoice, as->state, w, p);
 			return as;
 		}
 		break;
@@ -4285,7 +4514,7 @@ static struct abcsym *process_pscomment(struct abcsym *as)
 irepeat:
 			if (!curvoice->last_sym) {
 				error(1, s,
-				      "%%%%repeat cannot start a tune");
+				      "%%%s cannot start a tune", w);
 				return as;
 			}
 			if (*p == '\0') {
@@ -4297,7 +4526,7 @@ irepeat:
 				 || (curvoice->last_sym->type == BAR
 					&& n > 2)) {
 					error(1, s,
-					      "Incorrect 1st value in %%%%repeat");
+					      "Incorrect 1st value in %%%s", w);
 					return as;
 				}
 				while (*p != '\0' && !isspace((unsigned char) *p))
@@ -4313,7 +4542,7 @@ irepeat:
 //					  && n == 2
 //					  && k > 1)) {
 						error(1, s,
-						      "Incorrect 2nd value in %%%%repeat");
+						      "Incorrect 2nd value in %%%s", w);
 						return as;
 					}
 				}
@@ -4351,8 +4580,9 @@ irepeat:
 		if (strcmp(w, "sep") == 0) {
 			float h2, len, lwidth;
 
-			gen_ly(0);
-			if (as->state == ABC_S_GLOBAL) {
+			if (as->state == ABC_S_TUNE) {
+				gen_ly(0);
+			} else if (as->state == ABC_S_GLOBAL) {
 				if (epsf || in_fname == 0)
 					return as;
 			}
@@ -4401,7 +4631,7 @@ irepeat:
 			else
 				staff = atoi(p) - 1;
 			if ((unsigned) staff > (unsigned) nstaff) {
-				error(1, s, "Bad staff in %%%%staff");
+				error(1, s, "Bad staff in %%%s", w);
 				return as;
 			}
 			curvoice->floating = 0;
@@ -4410,11 +4640,13 @@ irepeat:
 		}
 		if (strcmp(w, "staffbreak") == 0) {
 			if (as->state != ABC_S_TUNE)
-//			 || parsys->voice[curvoice - voice_tb].range != 0)
 				return as;
-			sym_link(s, STBRK);
 			if (isdigit(*p)) {
 				s->xmx = scan_u(p);
+				if (s->xmx <= 0) {
+					error(1, s, "Bad value in %%%s", w);
+					return as;
+				}
 				if (p[strlen(p) - 1] == 'f')
 					s->doty = 1;
 			} else {
@@ -4422,6 +4654,7 @@ irepeat:
 				if (*p == 'f')
 					s->doty = 1;
 			}
+			sym_link(s, STBRK);
 			return as;
 		}
 		if (strcmp(w, "stafflines") == 0) {
@@ -4429,7 +4662,7 @@ irepeat:
 
 			lines = atoi(p);
 			if ((unsigned) lines >= 10) {
-				error(1, s, "Bad %%%%stafflines value");
+				error(1, s, "Bad value in %%%s", w);
 				return as;
 			}
 			if (as->state != ABC_S_TUNE) {
@@ -4449,7 +4682,7 @@ irepeat:
 			scale = strtod(p, &q);
 			if (scale <= 0.5 || scale > 2
 			 || (*q != '\0' && *q != ' ')) {
-				error(1, s, "Bad %%%%staffscale value");
+				error(1, s, "Bad value in %%%s", w);
 				return as;
 			}
 			if (as->state != ABC_S_TUNE) {
@@ -4468,6 +4701,10 @@ irepeat:
 			get_staves(s);
 			return as;
 		}
+		if (strcmp(w, "stemdir") == 0) {
+			set_voice_param(curvoice, as->state, w, p);
+			return as;
+		}
 		if (strcmp(w, "sysstaffsep") == 0) {
 			if (as->state != ABC_S_TUNE)
 				break;
@@ -4480,8 +4717,9 @@ irepeat:
 			int job;
 
 center:
-			gen_ly(1);
-			if (as->state == ABC_S_GLOBAL) {
+			if (as->state == ABC_S_TUNE) {
+				gen_ly(1);
+			} else if (as->state == ABC_S_GLOBAL) {
 				if (epsf || in_fname == 0)
 					return as;
 			}
@@ -4603,7 +4841,7 @@ center:
 			struct tune_opt_s *opt, *opt2;
 
 			if (as->state != ABC_S_GLOBAL) {
-				error(1, s, "%%%%tune ignored");
+				error(1, s, "%%%%%s ignored", w);
 				return as;
 			}
 
@@ -4612,7 +4850,6 @@ center:
 				opt = tune_opts;
 				while (opt) {
 					free_voice_opt(opt->voice_opts);
-					free_brk(opt->brks);
 					opt2 = opt->next;
 					free(opt);
 					opt = opt2;
@@ -4647,7 +4884,6 @@ center:
 
 			if (opt) {
 				free_voice_opt(opt->voice_opts);
-				free_brk(opt->brks);
 				if (as2 == as) {	/* no option */
 					if (!opt2)
 						tune_opts = opt->next;
@@ -4657,7 +4893,6 @@ center:
 					return as;
 				}
 				opt->voice_opts = NULL;
-				opt->brks = NULL;
 			} else {
 				if (as2 == as)		/* no option */
 					return as;
@@ -4666,11 +4901,9 @@ center:
 				opt->next = tune_opts;
 				tune_opts = opt;
 			}
-			opt->clip_end.bar = (short unsigned) ~0 >> 1;
 
 			/* link the options */
 			opt->s = s;
-			option_state = O_TUNE;
 			cur_tune_opts = opt;
 			for ( ; as != as2; as = as->next) {
 				if (as->next->type != ABC_T_PSCOM)
@@ -4687,10 +4920,8 @@ center:
 				s->next = (struct SYMBOL *) as->next;
 				s = s->next;
 			}
-//fixme:use cur_tune_opts instead of option_state ?
 			cur_tune_opts = NULL;
-			option_state = 0;
-			return as2->prev;
+			return as;
 		}
 		break;
 	case 'u':
@@ -4703,6 +4934,10 @@ center:
 		}
 		break;
 	case 'v':
+		if (strcmp(w, "vocal") == 0) {
+			set_voice_param(curvoice, as->state, w, p);
+			return as;
+		}
 		if (strcmp(w, "voice") == 0) {
 			struct abcsym *as2;
 			struct voice_opt_s *opt, *opt2;
@@ -4714,7 +4949,7 @@ center:
 
 			/* if void %%voice, free all voice options */
 			if (*p == '\0') {
-				if (option_state & O_TUNE) {
+				if (cur_tune_opts) {
 					free_voice_opt(cur_tune_opts->voice_opts);
 					cur_tune_opts->voice_opts = NULL;
 				} else {
@@ -4727,7 +4962,7 @@ center:
 			if (strcmp(p, "end") == 0)
 				return as;	/* end of previous %%voice */
 
-			if (option_state & O_TUNE)
+			if (cur_tune_opts)
 				opt = cur_tune_opts->voice_opts;
 			else
 				opt = voice_opts;
@@ -4756,7 +4991,7 @@ center:
 			for ( ; opt; opt = opt->next) {
 				if (strcmp(opt->s->as.text, as->text) == 0) {
 					if (!opt2) {
-						if (option_state & O_TUNE)
+						if (cur_tune_opts)
 							cur_tune_opts->voice_opts = NULL;
 						else
 							voice_opts = NULL;
@@ -4772,7 +5007,7 @@ center:
 				return as;
 			opt = malloc(sizeof *opt + strlen(p));
 			memset(opt, 0, sizeof *opt);
-			if (option_state & O_TUNE) {
+			if (cur_tune_opts) {
 				opt->next = cur_tune_opts->voice_opts;
 				cur_tune_opts->voice_opts = opt;
 			} else {
@@ -4810,9 +5045,14 @@ center:
 			}
 			return as;
 		}
+		if (strcmp(w, "volume") == 0) {
+			set_voice_param(curvoice, as->state, w, p);
+			return as;
+		}
 		if (strcmp(w, "vskip") == 0) {
-			gen_ly(0);
-			if (as->state == ABC_S_GLOBAL) {
+			if (as->state == ABC_S_TUNE) {
+				gen_ly(0);
+			} else if (as->state == ABC_S_GLOBAL) {
 				if (epsf || in_fname == 0)
 					return as;
 			}
@@ -4824,18 +5064,6 @@ center:
 		break;
 	}
 	if (as->state == ABC_S_TUNE) {
-		if (strcmp(w, "dynamic") == 0
-		 || strcmp(w, "gchord") == 0
-		 || strcmp(w, "ornament") == 0
-		 || strcmp(w, "vocal") == 0
-		 || strcmp(w, "volume") == 0
-		 || strcmp(w, "stemdir") == 0
-		 || strcmp(w, "gstemdir") == 0) {
-			cfmt.posit = curvoice->posit;
-			interpret_fmt_line(w, p, lock);
-			curvoice->posit = cfmt.posit;
-			return as;
-		}
 		if (strcmp(w, "leftmargin") == 0
 		 || strcmp(w, "rightmargin") == 0
 		 || strcmp(w, "scale") == 0) {

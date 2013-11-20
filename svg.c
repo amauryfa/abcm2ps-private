@@ -42,7 +42,7 @@ struct elt_s {
 	struct elt_s *next;
 	char type;
 	union {
-		double v;
+		float v;
 		char *s;
 		struct elt_s *e;
 	} u;
@@ -53,8 +53,10 @@ struct ps_sym_s {
 	int exec;		/* current number of execution */
 };
 /* -- PostScript tiny interpreter -- */
-#define NELTS 2048	/* max number of elements */
-#define NSYMS 128	/* max number of symbols */
+//jfm test
+#define NELTS 2048	/* number of elements per block */
+//#define NSYMS 128	/* max number of symbols */
+#define NSYMS 512	/* max number of symbols */
 static struct elt_s *elts;
 static struct elt_s *stack, *free_elt;
 static struct ps_sym_s ps_sym[NSYMS];
@@ -62,11 +64,13 @@ static int n_sym;
 static int ps_error;
 static int in_cnt;			/* in [..] or {..} */
 static float cx, cy;			/* current point */
-static int in_path;
+static char *path;
+static char path_buf[256];
 
 static float xoffs, yoffs;
 
 /* graphical context */
+#define DLW 0.7			/* default line width */
 static struct gc {
 	float xscale, yscale;
 	char font_n[64];
@@ -183,7 +187,7 @@ static struct {
 #define D_pclef 10
 {	"<path id=\"pclef\" d=\"m-2.7 -2h5.4v-20h-5.4v20\" stroke=\"currentColor\" fill=\"none\" stroke-width=\"1.4\"/>\n"},
 #define D_hd 11
-{	"<ellipse id=\"hd\" rx=\"4.2\" ry=\"3.2\"\n"
+{	"<ellipse id=\"hd\" rx=\"4.1\" ry=\"2.9\"\n"
 	"	transform=\"rotate(-20)\" fill=\"currentColor\"/>\n"},
 #define D_Hd 12
 {	"<path id=\"Hd\" fill=\"currentColor\" d=\"m3 -1.6\n"
@@ -611,19 +615,57 @@ static struct {
 };
 
 /* PS functions */
+static void elts_link(struct elt_s *e)
+{
+	int i;
+
+	/* set the linkages - the first element is the link to the next block */
+	for (i = 1; i < NELTS - 1; i++) {
+		e[i].next = &e[i + 1];
+		if (e[i].type == STR)
+			free(e[i].u.s);
+		e[i].type = VAL;
+	}
+	e[NELTS - 1].next = NULL;
+}
+
+/* (re)initialize all PS elements */
+static void elts_reset(void)
+{
+	struct elt_s *e;
+
+	if (!elts)
+		elts = calloc(sizeof *elts, NELTS);
+	elts_link(elts);
+	free_elt = elts + 1;
+
+	/* link all blocks */
+	for (e = elts; e->u.e; e = e->u.e) {
+		elts_link(e->u.e);
+		e[NELTS - 1].next = e->u.e;
+	}
+}
+
 static struct elt_s *elt_new(void)
 {
 	struct elt_s *e;
 
 	e = free_elt;
 	if (!e) {
-		fprintf(stderr, "svg: Out of PS elements\n");
-		ps_error = 1;
-	} else {
-		free_elt = e->next;
-		e->next = 0;
-		e->type = VAL;
+		e = calloc(sizeof *e, NELTS);
+		if (!e) {
+			fprintf(stderr, "svg: elt_new out of memory\n");
+			ps_error = 1;
+			return e;
+		}
+		elts_link(e);
+		e->u.e = elts;
+		elts = e;
+		e++;
 	}
+	free_elt = e->next;
+	e->next = NULL;
+	e->type = VAL;
 	return e;
 }
 
@@ -644,7 +686,7 @@ static void elt_free(struct elt_s *e)
 		e2 = e->u.e;
 		e->type = VAL;
 		e->u.v = 0;
-		while (e2 != 0) {
+		while (e2) {
 			e = e2->next;
 			elt_free(e2);
 			e2 = e;
@@ -672,7 +714,7 @@ static struct elt_s *elt_dup(struct elt_s *e)
 	case BRK:
 		e = e->u.e;
 		if (!e) {
-			e2->u.e = 0;
+			e2->u.e = NULL;
 			break;
 		}
 		e3 = e2->u.e = elt_dup(e);
@@ -688,7 +730,7 @@ static struct elt_s *elt_dup(struct elt_s *e)
 			e3->next = e4;
 			e3 = e4;
 		}
-		e3->next = 0;
+		e3->next = NULL;
 		break;
 	}
 	return e2;
@@ -712,7 +754,7 @@ static void elt_dump(struct elt_s *e)
 	case BRK:
 		fprintf(stderr, type == SEQ ? " {" : " [");
 		e = e->u.e;
-		while (e != 0) {
+		while (e) {
 			elt_dump(e);
 			e = e->next;
 		}
@@ -775,7 +817,7 @@ static void push(struct elt_s *e)
 static void stack_dump(void)
 {
 	fprintf(stderr, "stack:");
-	if (stack != 0)
+	if (stack)
 		elt_lst_dump(stack);
 	else
 		fprintf(stderr, "(empty)");
@@ -790,14 +832,14 @@ static struct elt_s *pop(int type)
 	if (!e) {
 		fprintf(stderr, "svg pop: Stack empty\n");
 		ps_error = 1;
-		return 0;
+		return NULL;
 	}
 	if (e->type != type) {
 		fprintf(stderr, "svg pop: Bad element type %d != %d\n",
 			e->type, type);
 		stack_dump();
 		ps_error = 1;
-		return 0;
+		return NULL;
 	}
 	stack = e->next;
 	return e;
@@ -822,7 +864,7 @@ static char *pop_free_str(void)
 
 	e = pop(STR);
 	if (!e)
-		return 0;
+		return NULL;
 	s = e->u.s;
 	e->type = VAL;
 	e->next = free_elt;
@@ -843,13 +885,13 @@ static void cond(int type)
 	char *s;
 
 	/* special case when 1 character strings */
-	if (stack != 0 && stack->type == STR) {
+	if (stack && stack->type == STR) {
 		s = stack->u.s;
 		stack->u.v = s[1];
 		free(s);
 		stack->type = VAL;
 	}
-	if (stack != 0 && stack->next != 0 && stack->next->type == STR) {
+	if (stack && stack->next != 0 && stack->next->type == STR) {
 		s = stack->next->u.s;
 		stack->next->u.v = s[1];
 		free(s);
@@ -883,17 +925,60 @@ static void cond(int type)
 	}
 }
 
-/* -- output the symbol definitions -- */
-void define_svg_symbols(char *title, float w, float h)
+/* -- output information about the generation in the XHTML/SVG headers -- */
+static void gen_info(void)
 {
-//	struct elt_s *e;
+	unsigned i;
+	time_t ltime;
+
+	time(&ltime);
+#ifndef WIN32
+	strftime(tex_buf, TEX_BUF_SZ, "%b %e, %Y %H:%M", localtime(&ltime));
+#else
+	strftime(tex_buf, TEX_BUF_SZ, "%b %#d, %Y %H:%M", localtime(&ltime));
+#endif
+	fprintf(fout, "<!-- CreationDate: %s -->\n"
+			"<!-- CommandLine:",
+			tex_buf);
+
+	for (i = 1; i < (unsigned) s_argc; i++) {
+		char *p;
+		int space;
+
+		p = s_argv[i];
+		space = strchr(p, ' ') != NULL || strchr(p, '\n') != NULL;
+		fputc(' ', fout);
+		if (space)
+			fputc('\'', fout);
+
+		/* cannot have '--' inside comment ! */
+		if (*p == '-' && p[1] == '-') {
+			fputs("-\\", fout);
+			p++;
+		}
+		fputs(p, fout);
+		if (space)
+			fputc('\'', fout);
+	}
+	fputs(" -->\n", fout);
+}
+
+/* -- output the symbol definitions -- */
+void define_svg_symbols(char *title, int num, float w, float h)
+{
 	char *s;
 	unsigned i;
+	static const char *svg_head =
+		"<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\"\n"
+		"\txmlns:xlink=\"http://www.w3.org/1999/xlink\"\n"
+		"\txml:space='preserve' color=\"black\"\n"
+		"\twidth=\"%.2fin\" height=\"%.2fin\" viewBox=\"0 0 %.0f %.0f\">\n"
+		"<title>%s %s %d</title>\n";
 
 	xoffs = yoffs = x_rot = y_rot = 0;
 	memset(&gcur, 0, sizeof gcur);
 	gcur.xscale = gcur.yscale = 1;
-	gcur.linewidth = 1;
+	gcur.linewidth = DLW;
 	memcpy(&gold, &gcur, sizeof gold);
 	nsave = 0;
 	for (i = 0; i < sizeof def_tb / sizeof def_tb[0]; i++)
@@ -901,50 +986,52 @@ void define_svg_symbols(char *title, float w, float h)
 
 	if (svg == 2) {			/* if XHTML */
 		if (!file_initialized) {
-			if ((s = strrchr(in_fname, DIRSEP)) == 0)
+			if ((s = strrchr(in_fname, DIRSEP)) == NULL)
 				s = in_fname;
 			else
 				s++;
-#if 1
-			fprintf(fout, "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\"\n"
+			fputs("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\"\n"
 				"\"http://www.w3.org/TR/xhtml1/DTD/xhtml1.dtd\">\n"
 				"<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
 				"<head>\n"
 				"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/>\n"
+				"<meta name=\"generator\" content=\"abcm2ps-" VERSION "\"/>\n",
+				fout);
+			gen_info();
+			fprintf(fout,
+				"<style type=\"text/css\">\n"
+				"\tbody {margin:0; padding:0; border:0;");
+			if (cfmt.bgcolor != 0 && cfmt.bgcolor[0] != '\0')
+				fprintf(fout, " background-color:%s",
+						cfmt.bgcolor);
+			fprintf(fout,
+				"}\n"
+				"\t@page {margin:0;}\n"
+				"</style>\n"
 				"<title>%s</title>\n"
 				"</head>\n"
 				"<body>\n",
+				
 				s);
-#else
-			fprintf(fout, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-				"<!DOCTYPE html PUBLIC\n"
-				"	\"-//W3C//DTD XHTML 1.0 Strict//EN\"\n"
-				"	\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n"
-				"<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
-				"<head><title>%s</title></head>\n"
-				"<body>\n",
-				s);
-#endif
 		}
-		fprintf(fout, "<p>\n"
-			"<svg xmlns=\"http://www.w3.org/2000/svg\"\n"
-			"	xmlns:xlink=\"http://www.w3.org/1999/xlink\"\n"
-			"	xml:space='preserve'\n"
-			"\twidth=\"%.0f\" height=\"%.0f\">\n"
-			"<title>%s</title>\n",
-			w, h, title);
+		fputs("<p>\n", fout);
+		fprintf(fout, svg_head, w / 72, h / 72, w, h, title, "page", num);
+		if (cfmt.bgcolor != 0 && cfmt.bgcolor[0] != '\0')
+			fprintf(fout,
+				"<rect width=\"100%%\" height=\"100%%\" fill=\"%s\"/>\n",
+				cfmt.bgcolor);
 	} else {				/* -g or -v */
 		if (fout != stdout)
-			fprintf(fout, "<?xml version=\"1.0\" standalone=\"no\"?>\n"
+			fputs("<?xml version=\"1.0\" standalone=\"no\"?>\n"
 				"<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
-				"\t\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n");
-		fprintf(fout,
-			"<svg xmlns=\"http://www.w3.org/2000/svg\"\n"
-			"     xmlns:xlink=\"http://www.w3.org/1999/xlink\"\n"
-			"     xml:space='preserve'\n"
-			"\twidth=\"%.0f\" height=\"%.0f\">\n"
-			"<title>%s</title>\n",
-			w, h, title);
+				"\t\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n",
+				fout);
+		else if (svg)
+			fputs("<p>\n", fout);
+		fprintf(fout, svg_head, w / 72, h / 72, w, h, title,
+			epsf ? "tune" : "page", num);
+		fputs("<!-- Creator: abcm2ps-" VERSION " -->\n", fout);
+		gen_info();
 		if (cfmt.bgcolor != 0 && cfmt.bgcolor[0] != '\0')
 			fprintf(fout,
 				"<rect width=\"100%%\" height=\"100%%\" fill=\"%s\"/>\n",
@@ -955,26 +1042,12 @@ void define_svg_symbols(char *title, float w, float h)
 	if (file_initialized)
 		return;
 
-	if (!elts)
-		elts = calloc(sizeof *elts, NELTS);
-	for (i = 0; i < NELTS - 1; i++) {
-		elts[i].next = &elts[i + 1];
-		if (elts[i].type == STR)
-			free(elts[i].u.s);
-		elts[i].type = VAL;
-	}
-	elts[NELTS - 1].next = 0;
-	free_elt = elts;
+	elts_reset();
 	n_sym = 0;
 
 	in_cnt = 0;
-	in_path = 0;
+	path = NULL;
 	ps_error = 0;
-
-//	e = elt_new();
-//	e->type = VAL;
-//	e->u.v = 0;
-//	ps_sym_def("defl", e);
 
 	s = strdup("/defl 0 def\n"
 		   "/gsc{gsave y T .7 dup scale 0 0}def\n");
@@ -1070,7 +1143,9 @@ static void defg1(void)
 	if (gcur.rgb != 0)
 		fprintf(fout, " style=\"color:#%06x;fill:#%06x\"",
 				gcur.rgb, gcur.rgb);
-	fprintf(fout, "%s>\n", gcur.dash);
+//jfm test
+//	fprintf(fout, "%s>\n", gcur.dash);
+	fprintf(fout, ">\n");
 	g = 1;
 	memcpy(&gold, &gcur, sizeof gold);
 }
@@ -1087,12 +1162,14 @@ static void defg1(void)
  */
 static void setg(int newg)
 {
+#if 0 //path change
 	if (in_path) {
 		fputs("\"/>\n", fout);
 		fprintf(stderr, "svg setg: No stroke nor fill\n");
 //		ps_error = 1;
 		in_path = 0;
 	}
+#endif
 	if (g == 2) {
 		fputs("</text>\n", fout);
 		g = 1;
@@ -1113,21 +1190,50 @@ static void setg(int newg)
 	}
 }
 
+/* graphic path */
+static void path_print(char *fmt, ...)
+{
+	va_list args;
+	char *p;
+
+	va_start(args, fmt);
+	vsnprintf(path_buf, sizeof path_buf, fmt, args);
+	va_end(args);
+	if (!path) {
+		path = malloc(strlen(path_buf) + 1);
+		p = path;
+	} else {
+		path = realloc(path, strlen(path) + strlen(path_buf) + 1);
+		p = path + strlen(path);
+	}
+	if (!path) {
+		fprintf(stderr, "Out of memory.\n");
+		exit(EXIT_FAILURE);
+	}
+	strcpy(p, path_buf);
+}
+
 static void path_def(void)
 {
-	if (in_path)
+	if (path)
 		return;
 	setg(1);
-	in_path = 1;
-	fprintf(fout, "<path d=\"m%.2f %.2f\n",
-		xoffs + cx, yoffs - cy);
+	path_print("<path d=\"m%.2f %.2f\n", xoffs + cx, yoffs - cy);
+}
+
+static void path_end(void)
+{
+	setg(1);
+	fputs(path, fout);
+	free(path);
+	path = NULL;
 }
 
 static void def_use(int def)
 {
 	int i;
 
-	gcur.linewidth = 1;
+	gcur.linewidth = DLW;
 	setg(1);
 	if (def_tb[def].defined)
 		return;
@@ -1147,14 +1253,14 @@ static void xysym(char *op, int use)
 {
 	float x, y;
 
+	def_use(use);
 	y = yoffs - pop_free_val();
 	x = xoffs + pop_free_val();
-	def_use(use);
 	fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#%s\"/>\n",
 		x, y, op);
 }
 
-static void setxory(char *s, int v)
+static void setxory(char *s, float v)
 {
 	struct elt_s *e;
 	struct ps_sym_s *sym;
@@ -1205,7 +1311,8 @@ static void acciac(char *op)
 		x -= 5;
 		y += 4;
 	}
-	fprintf(fout, "<path d=\"M%.2f %.2fl%.2f %.2f\" stroke=\"currentColor\" fill=\"none\"/>\n",
+	fprintf(fout,
+		"<path d=\"M%.2f %.2fl%.2f %.2f\" stroke=\"currentColor\" fill=\"none\"/>\n",
 		x, y, dx, -dy);
 }
 
@@ -1215,11 +1322,11 @@ static void arp_ltr(char type)
 	float x, y, t, w;
 	int n;
 
+	def_use(D_ltr);
 	y = yoffs - pop_free_val();
 	x = xoffs + pop_free_val();
 	w = pop_free_val();
 	n = (w + 5) / 6;
-	def_use(D_ltr);
 	if (type == 'a') {
 		fprintf(fout, "<g transform=\"rotate(270)\">\n");
 		t = x;
@@ -1228,7 +1335,7 @@ static void arp_ltr(char type)
 	}
 	y -= 4;
 	while (--n >= 0) {
-		    fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#ltr\"/>\n",
+		fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#ltr\"/>\n",
 			x, y);
 			x += 6;
 	}
@@ -1242,6 +1349,7 @@ static void stem(char *op)
 	struct ps_sym_s *sym;
 	float x, y, dx, h;
 
+	gcur.linewidth = DLW;
 	setg(1);
 	h = pop_free_val();
 	if (op[0] == 's')
@@ -1255,7 +1363,8 @@ static void stem(char *op)
 	sym = ps_sym_lookup("y");
 	y = yoffs - sym->e->u.v;
 
-	fprintf(fout, "<path d=\"M%.2f %.2fv%.2f\" stroke=\"currentColor\" fill=\"none\"/>\n",
+	fprintf(fout,
+		"<path d=\"M%.2f %.2fv%.2f\" stroke=\"currentColor\" fill=\"none\"/>\n",
 		x, y, -h);
 }
 
@@ -1271,7 +1380,11 @@ static void xml_str_out(char *p)
 		case '>': r = "&gt;"; break;
 		case '\'': r = "&apos;"; break;
 		case '"': r = "&quot;"; break;
-		case '&': r = "&amp;"; break;
+		case '&':
+			if (*p == '#')
+				continue;
+			r = "&amp;";
+			break;
 		default:
 			continue;
 		}
@@ -1308,7 +1421,7 @@ static void show(char type)
 		w = pop_free_val();
 		p = tmp;
 		tmp[0] = '\0';
-		s = 0;
+		s = NULL;
 		break;
 	default:
 		x = cx;
@@ -1325,7 +1438,7 @@ static void show(char type)
 			p = tmp;
 			tmp[0] = pop_free_val();
 			tmp[1] = '\0';
-			s = 0;
+			s = NULL;
 		}
 		w = strw(p);
 		if (type == 'x') {		/* gxshow */
@@ -1369,7 +1482,7 @@ back:
 	if (type == 'x') {
 		p = p + strlen(p) + 1;		/* next string of gxshow */
 		q = strchr(p, '\t');
-		if (q != 0) {
+		if (q) {
 			*q = '\0';
 		} else {
 
@@ -1389,7 +1502,7 @@ back:
 			xoffs + cx - 2, yoffs - y - gcur.font_s + 2, w + 4, gcur.font_s + 1);
 	}
 	cx = x + w;
-	if (s != 0)
+	if (s)
 		free(s);
 }
 
@@ -1421,7 +1534,7 @@ static int seq_exec(struct elt_s *e)
 	}
 	/* (e->type == SEQ) */
 	e = e->u.e;
-	while (e != 0) {
+	while (e) {
 		switch (e->type) {
 		case STR:
 			if (strcmp(e->u.s, "exit") == 0)
@@ -1460,7 +1573,7 @@ fprintf(stderr, "%s ", op);
 stack_dump();
 #endif
 	sym = ps_sym_lookup(op);
-	if (sym != 0) {
+	if (sym) {
 		sym->exec++;
 		if (sym->exec > 2) {
 			fprintf(stderr, "svg: Too many recursions\n");
@@ -1555,16 +1668,16 @@ stack_dump();
 				a1 -= 360;
 			if (a2 >= 360)
 				a2 -= 360;
-			fputs("\t", fout);
+			path_print("\t", fout);
 			if (x1 != cx || y1 != cy)
-				fprintf(fout, "m%.2f %.2f", 
+				path_print("m%.2f %.2f", 
 					x1 - cx, -(y1 - cy));
 			if (a1 == a2) {			/* circle */
 				a2 = 180 - a1;
 				x2 = x + r * cosf(a2 * M_PI / 180);
 				y2 = y + r * sinf(a2 * M_PI / 180);
-				fprintf(fout, "a%.2f %.2f 0 0 %d %.2f %.2f"
-							"a%.2f %.2f 0 0 %d %.2f %.2f\n",
+				path_print("a%.2f %.2f 0 0 %d %.2f %.2f"
+						"a%.2f %.2f 0 0 %d %.2f %.2f\n",
 					r, r, op[3] == 'n', x2 - x1, -(y2 - y1),
 					r, r, op[3] == 'n', x1 - x2, -(y1 - y2));
 				cx = x1;
@@ -1572,7 +1685,7 @@ stack_dump();
 			} else {
 				x2 = x + r * cosf(a2 * M_PI / 180);
 				y2 = y + r * sinf(a2 * M_PI / 180);
-				fprintf(fout, "a%.2f %.2f 0 0 %d %.2f %.2f\n",
+				path_print("a%.2f %.2f 0 0 %d %.2f %.2f\n",
 					r, r, op[3] == 'n', x2 - x1, -(y2 - y1));
 				cx = x2;
 				cy = y2;
@@ -1672,7 +1785,7 @@ stack_dump();
 					x - w / 2, y - 10, w);
 			}
 			fprintf(fout,
-				"<text font-family=\"Times\" font-size=\"10\" font-style=\"italic\" font-weight=\"normal\"\n"
+				"<text font-family=\"Times\" font-size=\"12\" font-style=\"italic\" font-weight=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\">%s</text>\n",
 				x, y, s + 1);
 			free(s);
@@ -1711,10 +1824,10 @@ stack_dump();
 			return;
 		}
 		if (strcmp(op, "brace") == 0) {
+			def_use(D_brace);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			h = pop_free_val() * 0.01;
-			def_use(D_brace);
 			fprintf(fout,
 				"<g transform=\"translate(%.2f,%.2f) scale(1,%.2f)\">\n"
 				"	<use xlink:href=\"#brace\"/>\n"
@@ -1744,7 +1857,7 @@ stack_dump();
 			setg(1);
 			y = yoffs - pop_free_val() - 6;
 			x = xoffs + pop_free_val();
-			fprintf(fout, "<text x=\"%.2f\" y=\"%.2f\" font-family=\"Times\" font-size=\"25\"\n"
+			fprintf(fout, "<text x=\"%.2f\" y=\"%.2f\" font-family=\"Times\" font-size=\"30\"\n"
 				"	font-weight=\"bold\" font-style=\"italic\">,</text>\n",
 				x, y);
 			return;
@@ -1762,7 +1875,7 @@ curveto:
 			c3 = xoffs + pop_free_val();
 			c2 = yoffs - pop_free_val();
 			c1 = xoffs + pop_free_val();
-			fprintf(fout, "\tC%.2f %.2f %.2f %.2f %.2f %.2f\n",
+			path_print("\tC%.2f %.2f %.2f %.2f %.2f %.2f\n",
 				c1, c2, c3, c4, xoffs + x, yoffs - y);
 			cx = x;
 			cy = y;
@@ -1788,7 +1901,7 @@ curveto:
 		}
 		if (strcmp(op, "closepath") == 0) {
 			path_def();
-			fprintf(fout, "\tz");
+			path_print("\tz");
 			return;
 		}
 		if (strcmp(op, "composefont") == 0) {
@@ -1901,12 +2014,12 @@ curveto:
 		}
 		if (strcmp(op, "cvx") == 0) {
 			s = pop_free_str();
-			if (!s || s[0] != '/') {
+			if (!s || ((*s != '/') && (*s != '('))) {
 				fprintf(stderr, "svg cvx: No / bad string\n");
 				ps_error = 1;
 				return;
 			}
-			s[0] = '{';
+			*s = '{';
 			svg_write(s, strlen(s));
 			svg_write("}", 1);
 			free(s);
@@ -1924,7 +2037,7 @@ curveto:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"15\" font-weight=\"normal\" font-style=\"normal\"\n"
+			fprintf(fout, "<text font-family=\"Times\" font-size=\"16\" font-weight=\"normal\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\">%s</text>\n",
 				x, y, s + 1);
 			free(s);
@@ -2000,7 +2113,7 @@ curveto:
 			return;
 		}
 		if (strcmp(op, "dlw") == 0) {
-			gcur.linewidth = 1;
+			gcur.linewidth = DLW;
 			return;
 		}
 		if (strcmp(op, "dotbar") == 0) {
@@ -2040,12 +2153,12 @@ curveto:
 			return;
 		}
 		if (strcmp(op, "eofill") == 0) {
-			if (!in_path) {
+			if (!path) {
 				fprintf(stderr, "svg eofill: No path\n");
 				ps_error = 1;
 				return;
 			}
-			in_path = 0;
+			path_end();
 			fprintf(fout, "\t\" fill-rule=\"evenodd\" fill=\"currentColor\"/>\n");
 			return;
 		}
@@ -2097,19 +2210,19 @@ curveto:
 			return;
 		}
 		if (strcmp(op, "fill") == 0) {
-			if (!in_path) {
+			if (!path) {
 				fprintf(stderr, "svg fill: No path\n");
 //				ps_error = 1;
 				return;
 			}
-			in_path = 0;
+			path_end();
 			fprintf(fout, "\t\" fill=\"currentColor\"/>\n");
 			return;
 		}
 		if (strcmp(op, "findfont") == 0) {
 			s = pop_free_str();
 			if (!s
-			 || s[0] != '/'
+			 || *s != '/'
 			 || strlen(s) >= sizeof gcur.font_n) {
 				fprintf(stderr, "svg selectfont: No / bad font\n");
 				ps_error = 1;
@@ -2217,7 +2330,7 @@ curveto:
 				return;
 			case STR:
 				s = stack->u.s;
-				if (s[0] != '(') {
+				if (*s != '(') {
 					fprintf(stderr, "svg get: Not a string\n");
 					ps_error = 1;
 					return;
@@ -2260,7 +2373,7 @@ curveto:
 			count = pop_free_val();
 			n = pop_free_val();
 			s = pop_free_str();
-			if (!s || s[0] != '(') {
+			if (!s || *s != '(') {
 				fprintf(stderr, "svg getinterval: No string\n");
 				ps_error = 1;
 				return;
@@ -2275,7 +2388,7 @@ curveto:
 			if (!e)
 				return;
 			e->type = STR;
-			e->u.s = malloc(count + 1);
+			e->u.s = malloc(count + 2);
 			e->u.s[0] = '(';
 			memcpy(&e->u.s[1], &s[n + 1], count);
 			e->u.s[count + 1] = '\0';
@@ -2496,11 +2609,11 @@ lineto:
 			y = pop_free_val();
 			x = pop_free_val();
 			if (x == cx)
-				fprintf(fout, "\tv%.2f\n", cy - y);
+				path_print("\tv%.2f\n", cy - y);
 			else if (y == cy)
-				fprintf(fout, "\th%.2f\n", x - cx);
+				path_print("\th%.2f\n", x - cx);
 			else
-				fprintf(fout, "\tl%.2f %.2f\n",
+				path_print("\tl%.2f %.2f\n",
 					x - cx, cy - y);
 			cx = x;
 			cy = y;
@@ -2517,7 +2630,7 @@ lineto:
 		}
 		if (strcmp(op, "length") == 0) {
 			s = pop_free_str();
-			if (!s || s[0] != '(') {
+			if (!s || *s != '(') {
 				fprintf(stderr, "svg length: No string\n");
 				ps_error = 1;
 				return;
@@ -2583,17 +2696,12 @@ lineto:
 moveto:
 			cy = pop_free_val();
 			cx = pop_free_val();
-			if (in_path)
-				fprintf(fout, "	M%.2f %.2f\n", xoffs + cx, yoffs - cy);
-			else
-#if 1	/*fixme:test*/
-				if (g == 2) {
-					fputs("</text>\n", fout);
-					g = 1;
-				}
-#else
-				setg(1);
-#endif
+			if (path) {
+				path_print("\tM%.2f %.2f\n", xoffs + cx, yoffs - cy);
+			} else if (g == 2) {
+				fputs("</text>\n", fout);
+				g = 1;
+			}
 			return;
 		}
 		break;
@@ -2624,6 +2732,7 @@ moveto:
 			return;
 		}
 		if (strcmp(op, "mrest") == 0) {
+			def_use(D_mrest);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
 			s = pop_free_str();
@@ -2632,9 +2741,8 @@ moveto:
 				ps_error = 1;
 				return;
 			}
-			def_use(D_mrest);
 			fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#mrest\"/>\n"
-				"<text font-family=\"Times\" font-size=\"14\" font-weight=\"bold\" font-style=\"normal\"\n"
+				"<text font-family=\"Times\" font-size=\"15\" font-weight=\"bold\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\">%s</text>\n",
 				x, y, x, y - 28, s + 1);
 			free(s);
@@ -2684,7 +2792,7 @@ moveto:
 				x -= 3.5;
 			else
 				x -= 2.5;
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"10\" font-weight=\"normal\" font-style=\"normal\"\n"
+			fprintf(fout, "<text font-family=\"Times\" font-size=\"12\" font-weight=\"normal\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">8</text>\n",
 				x, y);
 			return;
@@ -2706,9 +2814,9 @@ moveto:
 		break;
 	case 'p':
 		if (strcmp(op, "pclef") == 0) {
+			def_use(D_pclef);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
-			def_use(D_pclef);
 			fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#%s\"/>\n",
 				x, y, op);
 			return;
@@ -2723,7 +2831,7 @@ moveto:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"12\" font-weight=\"bold\" font-style=\"italic\"\n"
+			fprintf(fout, "<text font-family=\"Times\" font-size=\"16\" font-weight=\"bold\" font-style=\"italic\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">%s</text>\n",
 				x, y, s + 1);
 			free(s);
@@ -2776,7 +2884,7 @@ moveto:
 				return;
 			}
 			s = pop_free_str();
-			if (!s || s[0] != '(') {
+			if (!s || *s != '(') {
 				fprintf(stderr, "svg put: No string\n");
 				ps_error = 1;
 				return;
@@ -2805,7 +2913,7 @@ rcurveto:
 			c3 = pop_free_val();
 			c2 = pop_free_val();
 			c1 = pop_free_val();
-			fprintf(fout, "\tc%.2f %.2f %.2f %.2f %.2f %.2f\n",
+			path_print("\tc%.2f %.2f %.2f %.2f %.2f %.2f\n",
 				c1, -c2, c3, -c4, x, -y);
 			cx += x;
 			cy += y;
@@ -2817,11 +2925,11 @@ rlineto:
 			y = pop_free_val();
 			x = pop_free_val();
 			if (x == 0)
-				fprintf(fout, "\tv%.2f\n", -y);
+				path_print("\tv%.2f\n", -y);
 			else if (y == 0)
-				fprintf(fout, "\th%.2f\n", x);
+				path_print("\th%.2f\n", x);
 			else
-				fprintf(fout, "\tl%.2f %.2f\n", x, -y);
+				path_print("\tl%.2f %.2f\n", x, -y);
 			cx += x;
 			cy += y;
 			return;
@@ -2830,17 +2938,12 @@ rlineto:
 rmoveto:
 			y = pop_free_val();
 			x = pop_free_val();
-			if (in_path)
-				fprintf(fout, "\tm%.2f %.2f\n", x, -y);
-			else
-#if 1	/*fixme:test*/
-				if (g == 2) {
-					fputs("</text>\n", fout);
-					g = 1;
-				}
-#else
-				setg(1);
-#endif
+			if (path) {
+				path_print("\tm%.2f %.2f\n", x, -y);
+			} else if (g == 2) {
+				fputs("</text>\n", fout);
+				g = 1;
+			}
 			cx += x;
 			cy += y;
 			return;
@@ -3004,8 +3107,13 @@ rmoveto:
 		}
 		if (strcmp(op, "rotate") == 0) {
 			setg(0);
+#if 1
+			h = 360 - pop_free_val();
+			gcur.rotate += h;
+#else
 			h = pop_free_val();
 			gcur.rotate -= h;
+#endif
 			h = h * M_PI / 180;
 			x = cx;
 			cx = x * cos(h) + cy * sin(h);
@@ -3069,7 +3177,7 @@ rmoveto:
 			w = pop_free_val();
 			s = pop_free_str();
 			if (!s
-			 || s[0] != '/'
+			 || *s != '/'
 			 || strlen(s) >= sizeof gcur.font_n) {
 				fprintf(stderr, "svg selectfont: No / bad font\n");
 				ps_error = 1;
@@ -3334,10 +3442,9 @@ rmoveto:
 			s = pop_free_str();
 			if (s != 0)
 				free(s);
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"12\" font-style=\"italic\" font-weight=\"normal\"\n"
+			fprintf(fout, "<text font-family=\"Times\" font-size=\"14\" font-style=\"italic\" font-weight=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">s<tspan\n"
-				"	font-size=\"14\" font-weight=\"bold\">f</tspan><tspan\n"
-				"	font-size=\"12\" font-weight=\"normal\">z</tspan></text>\n",
+				"	font-size=\"16\" font-weight=\"bold\">f</tspan>z</text>\n",
 				x, y);
 			return;
 		}
@@ -3362,9 +3469,9 @@ rmoveto:
 			return;
 		}
 		if (strcmp(op, "showerror") == 0) {
+			def_use(D_showerror);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
-			def_use(D_showerror);
 			fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#%s\"/>\n",
 				x, y, op);
 			return;
@@ -3382,9 +3489,9 @@ rmoveto:
 			return;
 		}
 		if (strcmp(op, "spclef") == 0) {
+			def_use(D_pclef);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
-			def_use(D_pclef);
 			fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#pclef\"/>\n",
 				x, y);
 			return;
@@ -3399,7 +3506,7 @@ rmoveto:
 			return;
 		}
 		if (strcmp(op, "staff") == 0) {
-			gcur.linewidth = 1;
+			gcur.linewidth = DLW;
 			setg(1);
 			y = yoffs - pop_free_val();
 			x = xoffs + pop_free_val();
@@ -3422,13 +3529,14 @@ rmoveto:
 			return;
 		}
 		if (strcmp(op, "stroke") == 0) {
-			if (!in_path) {
+			if (!path) {
 				fprintf(stderr, "svg: 'stroke' with no path\n");
 //				ps_error = 1;
 				return;
 			}
-			in_path = 0;
-			fprintf(fout, "\t\" stroke=\"currentColor\" fill=\"none\"/>\n");
+			path_end();
+			fprintf(fout, "\t\" stroke=\"currentColor\" fill=\"none\"%s/>\n",
+					gcur.dash);
 			return;
 		}
 		if (strcmp(op, "su") == 0
@@ -3446,7 +3554,7 @@ rmoveto:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<g font-family=\"Times\" font-size=\"17\" font-weight=\"bold\" font-style=\"normal\"\n"
+			fprintf(fout, "<g font-family=\"Times\" font-size=\"18\" font-weight=\"bold\" font-style=\"normal\"\n"
 				"	transform=\"translate(%.2f,%.2f) scale(1.2,1)\">\n"
 				"	<text x=\"0\" y=\"-7\" text-anchor=\"middle\">%s</text>\n"
 				"</g>\n",
@@ -3494,7 +3602,7 @@ rmoveto:
 		}
 		if (strcmp(op, "stringwidth") == 0) {
 			s = pop_free_str();
-			if (!s || s[0] != '(') {
+			if (!s || *s != '(') {
 				fprintf(stderr, "svg stringwidth: No string\n");
 				ps_error = 1;
 				return;
@@ -3607,7 +3715,7 @@ translate:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<g font-family=\"Times\" font-size=\"15\" font-weight=\"bold\" font-style=\"normal\"\n"
+			fprintf(fout, "<g font-family=\"Times\" font-size=\"16\" font-weight=\"bold\" font-style=\"normal\"\n"
 				"	transform=\"translate(%.2f,%.2f) scale(1.2,1)\">\n"
 				"	<text y=\"-1\" text-anchor=\"middle\">%s</text>\n"
 				"	<text y=\"-13\" text-anchor=\"middle\">%s</text>\n"
@@ -3726,11 +3834,13 @@ void svg_write(char *buf, int len)
 		return;
 
 	p = (unsigned char *) buf;
-	if (strncmp((char *) p, "%svg ", 5) == 0) { /* %%beginsvg */
+#if 0
+	if (strncmp((char *) p, "%svg ", 5) == 0) {	/* %%beginsvg */
 		fwrite(p + 5, 1, len - 5, fout);
 		fputs("\n", fout);
 		return;
 	}
+#endif
 
 	/* scan the string */
 	while (--len >= 0) {
@@ -3802,7 +3912,7 @@ void svg_write(char *buf, int len)
 			}
 			if ((char *) q != &buf[1] && q[-2] != '\n')
 				break;
-			if (strncmp((char *) q, "A ", 2) == 0) { /* annotation */
+			if (strncmp((char *) q, "A ", 2) == 0) {	/* annotation */
 				char type;
 				int row , col, h;
 				float x, y, w;
@@ -3819,6 +3929,29 @@ void svg_write(char *buf, int len)
 				}
 					fprintf(fout, "<abc type=\"%c\" row=\"%d\" col=\"%d\" x=\"%.2f\" y=\"%.2f\" width=\"%.2f\" height=\"%d\"/>\n",
 						type, row, col, xoffs + x, yoffs - y - h, w, h);
+				break;
+			}
+			if (strncmp((char *) q, " --- ", 5) == 0	/* title info */
+			 && strncmp((char *) p - 6, ") ---", 5) == 0) {
+				setg(1);
+				if (q[5] == '+') {		/* subtitle */
+					q += 8;		/* % --- + (%s) ... */
+					r = (unsigned char *) strchr((char *) q, ')');
+//					if (!r)
+//						break;
+					fprintf(fout, "<!-- subtitle: %.*s -->\n",
+							r - q, q);
+					break;
+				}
+				q = (unsigned char *) strchr((char *) q, '(');
+//				if (!q)
+//					break;
+				q++;
+				r = (unsigned char *) strchr((char *) q, ')');
+//				if (!r)
+//					break;
+				fprintf(fout, "<!-- title: %.*s -->\n",
+						r - q, q);
 				break;
 			}
 			break;
@@ -3841,11 +3974,11 @@ void svg_write(char *buf, int len)
 			len -= p - q - 1;
 			l += p - q - 1;
 			p = q;
-			r = malloc(l);
 			e = elt_new();
 			if (!e)
 				return;
 			e->type = STR;
+			r = malloc(l);
 			e->u.s = (char *) r;
 			for (;;) {
 				c = *p++;

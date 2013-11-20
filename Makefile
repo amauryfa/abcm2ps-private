@@ -1,6 +1,6 @@
 # Makefile source for abcm2ps
 
-VERSION = 7.5.2
+VERSION = 7.6.8
 
 CC = gcc
 INSTALL = /usr/bin/install -c
@@ -24,13 +24,13 @@ docdir = /usr/local/doc
 
 # unix
 OBJECTS=abc2ps.o \
-	abcparse.o buffer.o deco.o draw.o format.o front.o music.o parse.o \
+	abcparse.o buffer.o deco.o draw.o format.o front.o glyph.o music.o parse.o \
 	slre.o subs.o svg.o syms.o
 abcm2ps: $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LDFLAGS)
 
 $(OBJECTS): abcparse.h config.h Makefile
-abc2ps.o buffer.o deco.o draw.o format.o front.o music.o parse.o \
+abc2ps.o buffer.o deco.o draw.o format.o front.o glyph.o music.o parse.o \
 	subs.o svg.o syms.o: abc2ps.h
 abc2ps.o front.o: front.h
 front.o parse.o slre.o: slre.h
@@ -72,6 +72,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/abcparse.c \
 	abcm2ps-$(VERSION)/abcparse.h \
 	abcm2ps-$(VERSION)/accordion.abc \
+	abcm2ps-$(VERSION)/build.ninja \
 	abcm2ps-$(VERSION)/buffer.c \
 	abcm2ps-$(VERSION)/chinese.abc \
 	abcm2ps-$(VERSION)/configure \
@@ -89,6 +90,7 @@ DIST_FILES = \
 	abcm2ps-$(VERSION)/format.txt \
 	abcm2ps-$(VERSION)/front.c \
 	abcm2ps-$(VERSION)/front.h \
+	abcm2ps-$(VERSION)/glyph.c \
 	abcm2ps-$(VERSION)/install.sh \
 	abcm2ps-$(VERSION)/landscape.fmt \
 	abcm2ps-$(VERSION)/music.c \

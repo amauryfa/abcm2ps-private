@@ -8,14 +8,14 @@ The options may be grouped when they have no argument, but the
 last one (ex: "-lnGI20").
 
 The options may be disabled when starting with '+' or ending with '-'
-(ex: "+MT1" is the same as "-MT1-"
+(ex: "+MT1" is the same as "-MT1-").
 
 The general output format is the last found in the command line.
-It may be
-	"-E" for Encapsulated PostScript one file per tune
-	"-g" for XHTML/SVG one file per tune
-	"-v" for XHTML/SVG one file per page
-	"-X" for XHTML/SVG
+It may be:
+	"-E" for Encapsulated PostScript, one file per tune
+	"-g" for SVG, one file per tune
+	"-v" for SVG, one file per page
+	"-X" for XHTML+SVG
 	(none) for PostScript
 (see below for more information)
 
@@ -106,6 +106,12 @@ List of the options
   -j <int>[b], +j
 	See: format.txt - measurenb <int>
 
+  -k <int>
+	Set the size of the PostScript output buffer in Kibytes.
+	Setting this value to a higher value permits the
+	generation of big tunes with -E or -g.
+	The default value is 64.
+
   -l, +l
 	See: format.txt - landscape <bool>
 
@@ -133,14 +139,15 @@ List of the options
   -O [ <directory> ] [ <name> ], +O
 	Define the output file directory and/or name.
 	By default, the output file goes to the current directory
-	with a name 'Out.ps' for PS, 'Outnnn.eps' for EPS (see
-	option '-E'), 'Outnnn.svg' for SVG (see options '-g' and '-v')
-	or 'Out.xhtml' for XHTML + SVG (see option '-X').
+	with a name:
+		'Out.ps' for PS,
+		'Outnnn.eps' for EPS (see option '-E'),
+		'Outnnn.svg' for SVG (see options '-g' and '-v') or
+		'Out.xhtml' for XHTML+SVG (see option '-X').
 	When <name> is present, it replaces 'Out' in the file name.
 	If <name> is '=', it is replaced by the name of the ABC
 	source file.
-	If <name> is '-', the result is output to stdout (standard PS and
-	embeddable SVG - '-g' - only).
+	If <name> is '-', the result is output to stdout (not for EPS).
 	'+O' resets the output file directory and name to their defaults.
 
   -q
@@ -174,7 +181,7 @@ List of the options
   -v
 	Produce SVG output instead of simple PS.
 	In this mode each page goes to a different file which name
-	is 'Outnnn.svg' (see option '-O' - output to stdout is forbidden).
+	is 'Outnnn.svg' (see option '-O').
 
   -w <unit>
 	See: format.txt - staffwidth <unit>
