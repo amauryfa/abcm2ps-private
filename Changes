@@ -1,3 +1,122 @@
+---- Version 7.8.3 - 14/05/23 ----
+
+Fix too wide space between text paragraphs when not fill or justify.
+Fix crash when utf-8 and latin characters in a same file
+	(reported by Henry Bley-Vroman).
+Change internal fonts to 'serif' on SVG output.
+Forbid rest in grace note sequence.
+Fix crash when rest in grace note sequence.
+Fix direction of ties in chords with odd number of notes.
+Fix bad direction of beam stub when last note with !beambr1! / !beambr2!
+	(reported by David Lacroix).
+Fix crash when only P: or Q: in a generation sequence
+	(reported by Henry Bley-Vroman).
+
+---- Version 7.8.2 - 14/05/05 ----
+
+Fix non-function of %%voice inside %%tune since some 7.5.x
+	(reported by Gerhard Schacherl).
+Fix small internal problem with decorations.
+Fix position of accent marks (!>!)
+	(reported by Paul Rosen).
+Fix bad margins when tune inside %%multicol
+	(reported by A.B. Steen).
+Don't draw repeat brackets when bar between 2 staves.
+Fix lack of EOS in some internal strings
+	(fixed by Olivier Levon).
+Fix bad guitar chord / annotation when '\' inside.
+Fix double transposition of 2 octaves when both %%abc2pscompat
+	and octave= in K:/V:.
+Fix compilation warnings on MAC
+	(reported by Chuck Boody).
+
+---- Version 7.8.1 - 14/04/02 ----
+
+Fix bad text justication with PostScript output
+	(reported by Gerhard Schacherl).
+Fix loss of positions (decorations, lyrics..) when described in format file
+	(reported by John Taylor).
+Fix loss of tie at end of line
+	(reported by David Lacroix).
+Fix loss of vertical space above the staves (%%staffsep) since 7.6.10
+	(reported by David Lacroix).
+
+---- Version 7.8.0 - 14/03/26 ----
+
+Fix bad buffer size when blank after '-k'.
+Fix time shift when L:auto and multi-rests in 2nd voices.
+Fix bad %%abcm2ps and %%abc-charset when redefined inside previous tune.
+Fix loss of time signature when empty staff system at start of tune.
+Add 'forall', 'search' and string comparison to the mini PS interpreter
+	(asked by Chuck Boody for easynotes.fmt).
+Fix bad handling of %%abcm2ps.
+Fix bad tie when %%combinevoices and chord behind measure bar and other symbol.
+
+---- Version 7.7.2 - 14/03/07 ----
+
+Fix loss of parameters after '--abcm2ps x' in command line.
+Fix loss of lyric word when note as last music line symbol.
+Fix bad handling of multi-rests when L:auto.
+Fix bad vertical of rests when no notes in voice and clef != treble.
+Fix lack of time signature at start of line when %%timewarn.
+Fix %%stretchstaff which did not work.
+Fix %%parskipfac for non fill/justified texts.
+Fix %%infoline in some cases.
+Fix %%combinevoices 0 and the rests.
+Fix %%break which could not be put in the tune header.
+Fix bad generation when SVG output of justified text.
+Fix bad %%voice filtering.
+Remove option '-u' (abs2pscompat in command line).
+Fix bad 'M' decoration when abc2pscompat.
+Fix bad duration of notes when grace notes and L:auto.
+Fix bad behaviour of '%%gstemdir 3' when at start of n-plet
+	(reported by David Lacroix).
+
+---- Version 7.7.1 - 14/02/18 ----
+
+Fix crash when decoration at start of tune
+	(reported by Jean-Luc Zins).
+
+---- Version 7.7.0 - 14/02/17 ----
+
+Fix bad indentation when new name of a voice appearing later in the
+	music line.
+Fix bad rest offset when in 2nd voice and longer than notes of 1st voice.
+Fix bad tie when combinevoices and chord behind measure bar.
+Change again the behaviour of %%staffnonote.
+Set correct vertical space for elements of invisible staves.
+Don't output errors when w: found in ignored voice (not in %%staves).
+Add option 'opposite' in %%gstemdir
+	(requested by David Lacroix).
+Fix documentation about the default value of %%staffnonote.
+Add line number in more 'Too many words..' error messages.
+Fix compilation warning.
+
+---- Version 7.6.10 - 14/01/23 ----
+
+Fix crash with rests in previous release
+	(reported by David Lacroix).
+
+---- Version 7.6.9 - 14/01/23 ----
+
+Change the function name to 'fraction of tone' instead of 'fraction of
+	semitone' when no 'microscale=', but '%%micronewps 1'
+	!!compatibility!!.
+Add line number when 'Too many words in lyric line' error
+	(reported by Seymour Shlien).
+Fix bad PS functions when K: with explicit list of microtone accidentals.
+Include glyphs for microscale=4.
+Set %%micronewps when 'microscale=' in K: or V:.
+Fix erroneous 'bad tie' when tie at end of line and clef change
+	in the upper voice.
+Do %%tablature work again.
+Fix clash of rest with notes when rest between notes since 7.6.8
+	(reported by David Lacroix).
+Change the behaviour of %%staffnonote
+	(asked by Atte André Jensen and Steve West).
+Fix crash when last music line contains only invisible rests
+	and %%cfmt.measurenb >= 0.
+
 ---- Version 7.6.8 - 13/11/21 ----
 
 Don't display the staves which contain only invisible rests.

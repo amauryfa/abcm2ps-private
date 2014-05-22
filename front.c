@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 2011-2013 Jean-François Moine (http://moinejf.free.fr)
+ * Copyright (C) 2011-2014 Jean-François Moine (http://moinejf.free.fr)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -463,6 +463,8 @@ unsigned char *frontend(unsigned char *s,
 {
 	unsigned char *p, *q, c, *begin_end;
 	int i, l, state, str_cnv_p, histo, end_len, nline;
+	char prefix_sav[4];
+	int latin_sav;
 
 	begin_end = 0;
 	end_len = 0;
@@ -568,12 +570,15 @@ unsigned char *frontend(unsigned char *s,
 			goto next;
 		}
 
+		if (skip) {
+			if (l != 0)
+				goto next_eol;
+			skip = 0;
+			txt_add_eol();
+			add_lnum(nline);
+		}
+
 		if (l == 0) {			/* empty line */
-			if (skip) {
-				skip = 0;
-				txt_add_eol();
-				add_lnum(nline);
-			}
 			switch (state) {
 			case 1:
 				fprintf(stderr,
@@ -586,6 +591,8 @@ unsigned char *frontend(unsigned char *s,
 				/* fall thru */
 			case 2:
 				state = 0;
+				strcpy(prefix, prefix_sav);
+				latin = latin_sav;
 				break;
 			}
 			goto next_eol;
@@ -649,16 +656,23 @@ unsigned char *frontend(unsigned char *s,
 			}
 			s += 2;
 			l -= 2;
-			if (strncmp((char *) s, "abcm2ps", 7) == 0) {
-				s += 7;
+			if (strncmp((char *) s, "abcm2ps ", 8) == 0) {
+				s += 8;
+				l -= 8;
 				while (*s == ' ' || *s == '\t') {
 					s++;
 					l--;
 				}
-				if (l > sizeof prefix - 1)
-					l = sizeof prefix - 1;
-				memcpy(prefix, s, l);
-				prefix[l] = '\0';
+				for (i = 0; i < sizeof prefix - 1; i++) {
+					if (*s == ' ' || *s == '\t'
+					 || --l < 0)
+						break;
+					prefix[i] = *s++;
+				}
+				if (i == 0)
+					prefix[i++] = '%';
+				prefix[i] = '\0';
+				txt_add((unsigned char *) "%", 1);
 				goto next_eol;
 			}
 pscom:
@@ -767,9 +781,9 @@ info:
 					if (strncmp((char *) q - 5, " lock", 5) == 0)
 						q -= 5;
 				}
-				if (selection != 0) {
+				if (selection) {
 					free(selection);
-					selection = 0;
+					selection = NULL;
 				}
 				if (q != s) {
 					unsigned char sep;
@@ -813,7 +827,11 @@ info:
 				}
 				if (selection)
 					skip = !tune_select(s);
-				state = 1;
+				if (!skip) {
+					state = 1;
+					strcpy(prefix_sav, prefix);
+					latin_sav = latin;
+				}
 				break;
 			case 'U':
 				break;

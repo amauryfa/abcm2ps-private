@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2013 Jean-François Moine
+ * Copyright (C) 1998-2014 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -92,7 +92,7 @@ static struct u_ps {
 /* -- print message for internal error and maybe stop -- */
 void bug(char *msg, int fatal)
 {
-	error(1, 0, "Internal error: %s.", msg);
+	error(1, NULL, "Internal error: %s.", msg);
 	if (fatal) {
 		fprintf(stderr, "Emergency stop.\n\n");
 		exit(EXIT_FAILURE);
@@ -148,7 +148,7 @@ float scan_u(char *str)
 		if (!strncasecmp(str + nch, "pt", 2))
 			return a PT;
 	}
-	error(1, 0, "Unknown unit value \"%s\"", str);
+	error(1, NULL, "Unknown unit value \"%s\"", str);
 	return 20 PT;
 }
 
@@ -251,7 +251,7 @@ float tex_str(char *s)
 				else
 					i = sscanf(s, "#%ld;%n", &v, &j);
 				if (i != 1) {
-					error(0, 0, "Bad XML char reference");
+					error(0, NULL, "Bad XML char reference");
 					break;
 				}
 				if (v < 0x80) {	/* convert to UTF-8 */
@@ -326,7 +326,7 @@ float tex_str(char *s)
 	}
 	*d = '\0';
 	if (maxlen <= 0)
-		error(0, 0, "Text too large - ignored part: '%s'", s);
+		error(0, NULL, "Text too large - ignored part: '%s'", s);
 	return w;
 }
 
@@ -349,10 +349,10 @@ void pg_init(void)
 
 	context = pango_font_map_create_context(
 			pango_cairo_font_map_get_default());
-	if (context != NULL)
+	if (context)
 		layout = pango_layout_new(context);
-	if (layout == NULL) {
-		error(0, 0, "pango disabled\n");
+	if (!layout) {
+		error(0, NULL, "pango disabled\n");
 		cfmt.pango = 0;
 	} else {
 		pango_layout_set_wrap(layout, PANGO_WRAP_WORD);
@@ -416,7 +416,7 @@ static void pg_line_output(PangoLayoutLine *line)
 				continue;
 			if (c & PANGO_GLYPH_UNKNOWN_FLAG) {
 				c &= ~PANGO_GLYPH_UNKNOWN_FLAG;
-				error(0, 0, "char %04x not treated\n", c);
+				error(0, NULL, "char %04x not treated\n", c);
 				continue;
 			}
 
@@ -424,7 +424,7 @@ static void pg_line_output(PangoLayoutLine *line)
 					c,		// PangoGlyph = index
 					FT_LOAD_NO_SCALE);
 			if (ret != 0) {
-				error(0, 0, "freetype error %d\n", ret);
+				error(0, NULL, "freetype error %d\n", ret);
 			} else if (FT_HAS_GLYPH_NAMES(face)) {
 				if (FT_Get_Postscript_Name(face) != fontname) {
 					fontname = FT_Get_Postscript_Name(face);
@@ -460,7 +460,7 @@ static void str_font_change(int start,
 	f = &cfmt.font_tb[curft];
 	fnum = f->fnum;
 	if (f->size == 0) {
-		error(0, 0, "Font \"%s\" with a null size - set to 8",
+		error(0, NULL, "Font \"%s\" with a null size - set to 8",
 			fontnames[fnum]);
 		f->size = 8;
 	}
@@ -645,7 +645,7 @@ static void pg_para_output(int job)
 				x += glyph_info->geometry.width;
 				if (g & PANGO_GLYPH_UNKNOWN_FLAG) {
 					g &= ~PANGO_GLYPH_UNKNOWN_FLAG;
-					error(0, 0, "char %04x not treated\n", g);
+					error(0, NULL, "char %04x not treated\n", g);
 					continue;
 				}
 
@@ -698,7 +698,7 @@ static void pg_para_output(int job)
 }
 
 /* output of filled / justified text */
-static void pg_write_text(char *s, int job, float baseskip)
+static void pg_write_text(char *s, int job, float parskip)
 {
 	char *p;
 
@@ -717,7 +717,7 @@ static void pg_write_text(char *s, int job, float baseskip)
 			str_set_font(tex_buf);
 			if (pg_str->len > 0)
 				pg_para_output(job);
-			bskip(baseskip * 0.5);
+			bskip(parskip);
 			buffer_eob();
 			s = ++p;
 			continue;
@@ -1020,7 +1020,7 @@ void write_text(char *cmd, char *s, int job)
 #ifdef HAVE_PANGO
 	int do_pango;
 #endif
-	float baseskip, strw;
+	float lineskip, parskip, strw;
 	char *p;
 	struct FONTSPEC *f;
 
@@ -1028,8 +1028,9 @@ void write_text(char *cmd, char *s, int job)
 	strlw = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 		- cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale;
 
-	f = &cfmt.font_tb[defft];
-	baseskip = f->size * cfmt.lineskipfac;
+	f = &cfmt.font_tb[TEXTFONT];
+	lineskip = f->size * cfmt.lineskipfac;
+	parskip = f->size * cfmt.parskipfac;
 
 	/* follow lines */
 	switch (job) {
@@ -1060,27 +1061,26 @@ void write_text(char *cmd, char *s, int job)
 			if (*p != '\0')
 				*p++ = '\0';
 			if (*s == '\0') {
-				bskip(baseskip * 0.5);
+				bskip(parskip);
 				buffer_eob();
+			} else {
+				bskip(lineskip);
+				switch (job) {
+				case A_LEFT:
+					a2b("0 0 M");
+					break;
+				case A_CENTER:
+					a2b("%.1f 0 M", strlw * 0.5);
+					break;
+				default:
+					a2b("%.1f 0 M", strlw);
+					break;
+				}
+				put_str(s, job);
 			}
-			bskip(baseskip);
-			switch (job) {
-			case A_LEFT:
-				a2b("0 0 M");
-				break;
-			case A_CENTER:
-				a2b("%.1f 0 M", strlw * 0.5);
-				break;
-			default:
-				a2b("%.1f 0 M", strlw);
-				break;
-			}
-			put_str(s, job);
 			s = p;
 		}
-		bskip(baseskip * 0.5);
-		buffer_eob();
-		return;
+		goto skip;
 	}
 
 	/* fill or justify lines */
@@ -1089,20 +1089,18 @@ void write_text(char *cmd, char *s, int job)
 	if (do_pango == 1)
 		do_pango = !is_latin((unsigned char *) s);
 	if (do_pango) {
-		pg_write_text(s, job, baseskip);
-		bskip(cfmt.font_tb[TEXTFONT].size * cfmt.parskipfac);
-		buffer_eob();
-		return;
+		pg_write_text(s, job, parskip);
+		goto skip;
 	}
 #endif
-	curft = defft;
+//	curft = defft;
 	nw = 0;					/* number of words */
 	strw = 0;				/* have gcc happy */
 	while (*s != '\0') {
 		float lw;
 
 		if (nw == 0) {			/* if new paragraph */
-			bskip(baseskip);
+			bskip(lineskip);
 			a2b("0 0 M");
 			if (job == T_FILL) {
 				strop = "show";
@@ -1121,7 +1119,7 @@ void write_text(char *cmd, char *s, int job)
 					    "/strop/show load def str");
 			}
 			a2b("\n");
-			bskip(baseskip * 0.5);
+			bskip(parskip);
 			buffer_eob();
 			nw = 0;
 			while (isspace((unsigned char) *s))
@@ -1151,20 +1149,25 @@ void write_text(char *cmd, char *s, int job)
 		if (strw + lw > strlw) {
 			str_end(1);
 			if (job == T_JUSTIFY) {
+				int n;
+
+				n = nw - 1;
+				if (n <= 0)
+					n = 1;
 				if (svg || epsf == 2)
 					a2b("}def\n"
 						"%.1f jshow"
-						" str",
+						"/strop/show load def str",
 						strlw);
 				else
 					a2b("}def\n"
 						"strw"
 						"/w %.1f w sub %d div def"
 						"/strop/jshow load def str",
-						strlw, nw);
+						strlw, n);
 			}
 			a2b("\n");
-			bskip(cfmt.font_tb[curft].size * cfmt.lineskipfac);
+			bskip(lineskip);
 			a2b("0 0 M");
 			if (job == T_JUSTIFY) {
 				a2b("/str{");
@@ -1192,7 +1195,8 @@ void write_text(char *cmd, char *s, int job)
 	}
 //	if (mbf[-1] != '\n')
 		a2b("\n");
-	bskip(cfmt.font_tb[TEXTFONT].size * cfmt.parskipfac);
+skip:
+	bskip(parskip);
 	buffer_eob();
 }
 
@@ -1387,7 +1391,7 @@ static char buf[STRL1];
 	}
 	if (title != info['T' - 'A']
 	 || !(cfmt.fields[0] & (1 << ('X' - 'A'))))
-		title = 0;
+		title = NULL;
 	if (!q
 	 && !title
 	 && !cfmt.titlecaps)
@@ -1397,13 +1401,13 @@ static char buf[STRL1];
 	if (title
 	 && *r != '\0') {
 		if (strlen(p) + strlen(r) + 3 >= sizeof buf) {
-			error(1, 0, "Title or X: too long");
+			error(1, NULL, "Title or X: too long");
 			return p;
 		}
 		b += sprintf(b, "%s.  ", r);
 	} else {
 		if (strlen(p) >= sizeof buf) {
-			error(1, 0, "Title too long");
+			error(1, NULL, "Title too long");
 			return p;
 		}
 	}
@@ -1660,7 +1664,7 @@ void write_heading(struct abctune *t)
 	lwidth = ((cfmt.landscape ? cfmt.pageheight : cfmt.pagewidth)
 		- cfmt.leftmargin - cfmt.rightmargin) / cfmt.scale;
 
-	if (cfmt.titleformat != 0 && cfmt.titleformat[0] != '\0') {
+	if (cfmt.titleformat && cfmt.titleformat[0] != '\0') {
 		write_headform(lwidth);
 		bskip(cfmt.musicspace);
 		return;
@@ -1677,7 +1681,7 @@ void write_heading(struct abctune *t)
 	rhythm = (first_voice->key.mode >= BAGPIPE
 			&& !cfmt.infoline
 			&& (cfmt.fields[0] & (1 << ('R' - 'A'))))
-					? info['R' - 'A'] : 0;
+					? info['R' - 'A'] : NULL;
 	if (rhythm) {
 		str_font(COMPOSERFONT);
 		a2b("0 %.1f M ",
@@ -1685,16 +1689,14 @@ void write_heading(struct abctune *t)
 		put_inf(rhythm);
 		down1 -= cfmt.font_tb[COMPOSERFONT].size;
 	}
-	area = author = 0;
-	if (cfmt.fields[0] & (1 << ('A' - 'A'))) {
-		if (t->abc_vers != (2 << 16))
-			area = info['A' - 'A'];
-		else
-			author = info['A' - 'A'];
-	}
+	area = author = NULL;
+	if (t->abc_vers != (2 << 16))
+		area = info['A' - 'A'];
+	else
+		author = info['A' - 'A'];
 	composer = (cfmt.fields[0] & (1 << ('C' - 'A'))) ? info['C' - 'A'] : NULL;
 	origin = (cfmt.fields[0] & (1 << ('O' - 'A'))) ? info['O' - 'A'] : NULL;
-	if (composer || origin || author) {
+	if (composer || origin || author || cfmt.infoline) {
 		float xcomp;
 		int align;
 
@@ -1742,8 +1744,7 @@ void write_heading(struct abctune *t)
 				bskip(down2 - down1);
 		}
 
-		if (cfmt.fields[0] & (1 << ('R' - 'A')))
-			rhythm = rhythm ? 0 : info['R' - 'A'];
+		rhythm = rhythm ? NULL : info['R' - 'A'];
 		if ((rhythm || area) && cfmt.infoline) {
 
 			/* if only one of rhythm or area then do not use ()'s
@@ -1760,7 +1761,7 @@ void write_heading(struct abctune *t)
 	}
 
 	/* parts */
-	if (info['P' - 'A'] != 0
+	if (info['P' - 'A']
 	 && (cfmt.fields[0] & (1 << ('P' - 'A')))) {
 		down1 = cfmt.partsspace + cfmt.font_tb[PARTSFONT].size - down1;
 		if (down1 > 0)
@@ -1821,7 +1822,7 @@ void user_ps_write(void)
 			char line[BSIZE];
 
 			if ((f = fopen(p + 1, "r")) == NULL) {
-				error(1, 0, "Cannot open PS file '%s'",
+				error(1, NULL, "Cannot open PS file '%s'",
 					&t->text[1]);
 			} else {
 				while (fgets(line, sizeof line, f))	/* copy the file */

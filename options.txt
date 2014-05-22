@@ -138,13 +138,17 @@ List of the options
 
   -O [ <directory> ] [ <name> ], +O
 	Define the output file directory and/or name.
+	The directory must end with the directory separator
+	('/' for unix/windows, '\' for mac).
 	By default, the output file goes to the current directory
-	with a name:
+	with the name:
 		'Out.ps' for PS,
 		'Outnnn.eps' for EPS (see option '-E'),
 		'Outnnn.svg' for SVG (see options '-g' and '-v') or
 		'Out.xhtml' for XHTML+SVG (see option '-X').
-	When <name> is present, it replaces 'Out' in the file name.
+	'nnn' being a sequence number.
+	When <name> is present, it is the name of the file, or it
+	replaces 'Out' in the file name.
 	If <name> is '=', it is replaced by the name of the ABC
 	source file.
 	If <name> is '-', the result is output to stdout (not for EPS).
@@ -171,9 +175,6 @@ List of the options
 	Up to 4 such commands may be defined.
 	Ex: '-T1flute +T2'
 	See: format.txt - tablature
-
-  -u
-	See: format.txt - abc2pscompat <bool>
 
   -V
 	Show the version number.

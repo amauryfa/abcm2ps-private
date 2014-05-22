@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2013 Jean-François Moine
+ * Copyright (C) 1998-2014 Jean-François Moine
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -500,7 +500,7 @@ static struct {
 	"	c5 -8.5 5.5 4.5 10 -2\n"
 	"	c-5 8.5 -5.5 -4.5 -10 2\"/>\n"},
 #define D_stc 64
-{	"<circle id=\"stc\" fill=\"currentColor\" cx=\"1.2\" cy=\"-3\" r=\"1.2\"/>\n"},
+{	"<circle id=\"stc\" fill=\"currentColor\" cx=\"0\" cy=\"-3\" r=\"1.2\"/>\n"},
 #define D_sld 65
 {	"<path id=\"sld\" fill=\"currentColor\" d=\"\n"
 	"	m-7.2 4.8\n"
@@ -882,24 +882,51 @@ static char *pop_free_str(void)
 static void cond(int type)
 {
 	float v;
-	char *s;
+	char *s, *s2;
+
+	if (!stack || !stack->next) {
+		fprintf(stderr, "svg: Stack underflow in condition\n");
+		ps_error = 1;
+		return;
+	}
+
+	/* string compare */
+	if (stack->type == STR && stack->next->type == STR) {
+		s = pop_free_str();
+		s2 = stack->u.s;
+		switch (type) {
+		case C_EQ:
+			stack->u.v = strcmp(s2, s) == 0;
+			break;
+		case C_NE:
+			stack->u.v = strcmp(s2, s) != 0;
+			break;
+		default:
+			fprintf(stderr, "svg: String condition not treated\n");
+			break;
+		}
+		free(s);
+		free(s2);
+		stack->type = VAL;
+		return;
+	}
 
 	/* special case when 1 character strings */
-	if (stack && stack->type == STR) {
+	if (stack->type == STR) {
 		s = stack->u.s;
 		stack->u.v = s[1];
 		free(s);
 		stack->type = VAL;
 	}
-	if (stack && stack->next != 0 && stack->next->type == STR) {
+	if (stack->next->type == STR) {
 		s = stack->next->u.s;
 		stack->next->u.v = s[1];
 		free(s);
 		stack->next->type = VAL;
 	}
 	v = pop_free_val();
-	if (!stack || stack->type != VAL) {
-		fprintf(stderr, "svg: Bad value for condition\n");
+	if (stack->type != VAL) {
+		fprintf(stderr, "svg: Bad type for condition\n");
 		ps_error = 1;
 		return;
 	}
@@ -985,7 +1012,7 @@ void define_svg_symbols(char *title, int num, float w, float h)
 		def_tb[i].defined = 0;
 
 	if (svg == 2) {			/* if XHTML */
-		if (!file_initialized) {
+		if (file_initialized <= 0) {
 			if ((s = strrchr(in_fname, DIRSEP)) == NULL)
 				s = in_fname;
 			else
@@ -1001,7 +1028,7 @@ void define_svg_symbols(char *title, int num, float w, float h)
 			fprintf(fout,
 				"<style type=\"text/css\">\n"
 				"\tbody {margin:0; padding:0; border:0;");
-			if (cfmt.bgcolor != 0 && cfmt.bgcolor[0] != '\0')
+			if (cfmt.bgcolor && cfmt.bgcolor[0] != '\0')
 				fprintf(fout, " background-color:%s",
 						cfmt.bgcolor);
 			fprintf(fout,
@@ -1016,30 +1043,33 @@ void define_svg_symbols(char *title, int num, float w, float h)
 		}
 		fputs("<p>\n", fout);
 		fprintf(fout, svg_head, w / 72, h / 72, w, h, title, "page", num);
-		if (cfmt.bgcolor != 0 && cfmt.bgcolor[0] != '\0')
-			fprintf(fout,
-				"<rect width=\"100%%\" height=\"100%%\" fill=\"%s\"/>\n",
-				cfmt.bgcolor);
-	} else {				/* -g or -v */
-		if (fout != stdout)
-			fputs("<?xml version=\"1.0\" standalone=\"no\"?>\n"
-				"<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
-				"\t\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n",
-				fout);
-		else if (svg)
-			fputs("<p>\n", fout);
+//		if (cfmt.bgcolor && cfmt.bgcolor[0] != '\0')
+//			fprintf(fout,
+//				"<rect width=\"100%%\" height=\"100%%\" fill=\"%s\"/>\n",
+//				cfmt.bgcolor);
+	} else {				/* -g, -v or -z */
+//		if (svg != 3) {
+		if (epsf != 3) {
+			if (fout != stdout)
+				fputs("<?xml version=\"1.0\" standalone=\"no\"?>\n"
+					"<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n"
+					"\t\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">\n",
+					fout);
+			else if (svg)
+				fputs("<p>\n", fout);
+		}
 		fprintf(fout, svg_head, w / 72, h / 72, w, h, title,
 			epsf ? "tune" : "page", num);
 		fputs("<!-- Creator: abcm2ps-" VERSION " -->\n", fout);
 		gen_info();
-		if (cfmt.bgcolor != 0 && cfmt.bgcolor[0] != '\0')
+		if (cfmt.bgcolor && cfmt.bgcolor[0] != '\0')
 			fprintf(fout,
 				"<rect width=\"100%%\" height=\"100%%\" fill=\"%s\"/>\n",
 				cfmt.bgcolor);
 	}
 
 	/* if new page, done */
-	if (file_initialized)
+	if (file_initialized > 0)
 		return;
 
 	elts_reset();
@@ -1070,14 +1100,14 @@ static void selfont(int back)
 	} else {
 		fprintf(fout, " font-family=\"%.*s\" font-size=\"%.2f\"",
 			(int) (p - gcur.font_n), gcur.font_n, gcur.font_s);
-		if (strstr(gcur.font_n, "Bold") != 0) {
+		if (strstr(gcur.font_n, "Bold") != NULL) {
 			fprintf(fout, " font-weight=\"bold\"");
 			flags = 1;
 		}
-		if (strstr(gcur.font_n, "Italic") != 0) {
+		if (strstr(gcur.font_n, "Italic") != NULL) {
 			fprintf(fout, " font-style=\"italic\"");
 			flags |= 2;
-		} else if (strstr(gcur.font_n, "Oblique") != 0) {
+		} else if (strstr(gcur.font_n, "Oblique") != NULL) {
 			fprintf(fout, " font-style=\"oblique\"");
 			flags |= 2;
 		}
@@ -1085,11 +1115,11 @@ static void selfont(int back)
 	if (!back)
 		return;
 	if (!(flags & 1)
-	 && strstr(gold.font_n, "Bold") != 0)
+	 && strstr(gold.font_n, "Bold") != NULL)
 		fprintf(fout, " font-weight=\"normal\"");
 	if (!(flags & 2)
-	 && (strstr(gold.font_n, "Italic") != 0
-	  || strstr(gold.font_n, "Oblique") != 0))
+	 && (strstr(gold.font_n, "Italic") != NULL
+	  || strstr(gold.font_n, "Oblique") != NULL))
 		fprintf(fout, " font-style=\"normal\"");
 }
 
@@ -1374,7 +1404,7 @@ static void xml_str_out(char *p)
 	char *q, *r;
 
 	q = p;
-	for (q = p; *p != 0;) {
+	for (q = p; *p != '\0';) {
 		switch (*p++) {
 		case '<': r = "&lt;"; break;
 		case '>': r = "&gt;"; break;
@@ -1785,7 +1815,7 @@ stack_dump();
 					x - w / 2, y - 10, w);
 			}
 			fprintf(fout,
-				"<text font-family=\"Times\" font-size=\"12\" font-style=\"italic\" font-weight=\"normal\"\n"
+				"<text font-family=\"serif\" font-size=\"12\" font-style=\"italic\" font-weight=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\">%s</text>\n",
 				x, y, s + 1);
 			free(s);
@@ -1857,7 +1887,7 @@ stack_dump();
 			setg(1);
 			y = yoffs - pop_free_val() - 6;
 			x = xoffs + pop_free_val();
-			fprintf(fout, "<text x=\"%.2f\" y=\"%.2f\" font-family=\"Times\" font-size=\"30\"\n"
+			fprintf(fout, "<text x=\"%.2f\" y=\"%.2f\" font-family=\"serif\" font-size=\"30\"\n"
 				"	font-weight=\"bold\" font-style=\"italic\">,</text>\n",
 				x, y);
 			return;
@@ -1935,7 +1965,7 @@ curveto:
 				ps_error = 1;
 				return;
 			}
-			while (e2 != 0) {
+			while (e2) {
 				e3 = e2->next;
 				push(e2);
 				e2 = e3;
@@ -2037,7 +2067,7 @@ curveto:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"16\" font-weight=\"normal\" font-style=\"normal\"\n"
+			fprintf(fout, "<text font-family=\"serif\" font-size=\"16\" font-weight=\"normal\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\">%s</text>\n",
 				x, y, s + 1);
 			free(s);
@@ -2134,7 +2164,7 @@ curveto:
 				return;
 			}
 			e = elt_dup(stack);
-			if (e != 0)
+			if (e)
 				push(e);
 			return;
 		}
@@ -2291,12 +2321,66 @@ curveto:
 			elt_free(e);
 			return;
 		}
+		if (strcmp(op, "forall") == 0) {
+			struct elt_s *e3;
+			unsigned char *p;
+
+			e = pop(SEQ);			/* proc */
+			if (!e)
+				return;
+			e2 = stack;			/* array/string */
+			if (!e2) {
+				fprintf(stderr, "svg forall: Stack empty\n");
+				ps_error = 1;
+				return;
+			}
+			stack = e2->next;
+			switch (e2->type) {
+			case STR:
+				p = (unsigned char *) &e2->u.s[1];
+				while (*p != '\0') {
+					e3 = elt_new();
+					if (!e3)
+						return;
+					e3->u.v = *p++;
+					push(e3);
+					if (seq_exec(e) != 0)
+						break;
+				}
+				break;
+			case BRK:
+				for (e3 = e2->u.e; e3; e3 = e3->next) {
+					struct elt_s *e4;
+
+					e4 = elt_dup(e3);
+					push(e4);
+					if (seq_exec(e) != 0)
+						break;
+				}
+				break;
+			default:
+				fprintf(stderr, "svg forall: Bad any\n");
+				ps_error = 1;
+				return;
+			}
+			elt_free(e);
+			elt_free(e2);
+			return;
+		}
 		if (strcmp(op, "ft0") == 0) {
 			xysym(op, D_ft0);
 			return;
 		}
 		if (strcmp(op, "ft1") == 0) {
 			xysym(op, D_ft1);
+			return;
+		}
+		if (strcmp(op, "ft4") == 0) {
+			n = pop_free_val();
+			if (n == 1)
+				xysym(op, D_ft1);
+			else
+				xysym(op, D_ft513);
 			return;
 		}
 		if (strcmp(op, "ft513") == 0) {
@@ -2346,7 +2430,7 @@ curveto:
 				return;
 			}
 			e = stack->u.e;
-			e2 = 0;
+			e2 = NULL;
 			while (--n >= 0) {
 				if (!e)
 					break;
@@ -2742,7 +2826,7 @@ moveto:
 				return;
 			}
 			fprintf(fout, "<use x=\"%.2f\" y=\"%.2f\" xlink:href=\"#mrest\"/>\n"
-				"<text font-family=\"Times\" font-size=\"15\" font-weight=\"bold\" font-style=\"normal\"\n"
+				"<text font-family=\"serif\" font-size=\"15\" font-weight=\"bold\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\" text-anchor=\"middle\">%s</text>\n",
 				x, y, x, y - 28, s + 1);
 			free(s);
@@ -2792,7 +2876,7 @@ moveto:
 				x -= 3.5;
 			else
 				x -= 2.5;
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"12\" font-weight=\"normal\" font-style=\"normal\"\n"
+			fprintf(fout, "<text font-family=\"serif\" font-size=\"12\" font-weight=\"normal\" font-style=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">8</text>\n",
 				x, y);
 			return;
@@ -2831,7 +2915,7 @@ moveto:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"16\" font-weight=\"bold\" font-style=\"italic\"\n"
+			fprintf(fout, "<text font-family=\"serif\" font-size=\"16\" font-weight=\"bold\" font-style=\"italic\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">%s</text>\n",
 				x, y, s + 1);
 			free(s);
@@ -3173,6 +3257,53 @@ rmoveto:
 			gcur.font_s = w;
 			return;
 		}
+		if (strcmp(op, "search") == 0) {
+			char *p;
+
+			e = pop(STR);			/* seek */
+			e2 = pop(STR);			/* string */
+			if (!e || !e2
+			 || e->u.s[0] != '(' || e2->u.s[0] != '(') {
+				fprintf(stderr, "svg search: No string\n");
+				ps_error = 1;
+				return;
+			}
+			p = strstr(&e2->u.s[1], &e->u.s[1]);
+			if (p) {
+				struct elt_s *e3;
+				int l1, l2, l3;
+
+				l1 = p - e2->u.s;
+				l2 = strlen(e->u.s);
+				l3 = strlen(e2->u.s) - l2 - l1 + 2;
+				e3 = elt_new();
+				if (!e3)
+					return;
+				e3->type = STR;
+				e3->u.s = malloc(l3);
+				e3->u.s[0] = '(';
+				memcpy(&e3->u.s[1],
+					&e2->u.s[l1 + l2 - 2],
+					l3 - 1);
+				e3->u.s[l1 + l2 - 1] = '\0';
+				push(e3);
+				push(e);
+				e2->u.s[l1] = '\0';
+				push (e2);
+				e = elt_new();
+				if (!e)
+					return;
+				e->type = VAL;
+				e->u.v = 1;
+			} else {
+				push(e2);
+				free(e->u.s);
+				e->type = VAL;
+				e->u.v = 0;
+			}
+			push(e);
+			return;
+		}
 		if (strcmp(op, "selectfont") == 0) {
 			w = pop_free_val();
 			s = pop_free_str();
@@ -3229,7 +3360,7 @@ rmoveto:
 				}
 				p += sprintf(p, "%d,", (int) e->u.v);
 				e = e->next;
-			} while (e != 0);
+			} while (e);
 			p--;
 			sprintf(p, "\"");
 			return;
@@ -3440,9 +3571,9 @@ rmoveto:
 			y = yoffs - pop_free_val() - 5;
 			x = xoffs + pop_free_val() - 7;
 			s = pop_free_str();
-			if (s != 0)
+			if (s)
 				free(s);
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"14\" font-style=\"italic\" font-weight=\"normal\"\n"
+			fprintf(fout, "<text font-family=\"serif\" font-size=\"14\" font-style=\"italic\" font-weight=\"normal\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">s<tspan\n"
 				"	font-size=\"16\" font-weight=\"bold\">f</tspan>z</text>\n",
 				x, y);
@@ -3554,7 +3685,7 @@ rmoveto:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<g font-family=\"Times\" font-size=\"18\" font-weight=\"bold\" font-style=\"normal\"\n"
+			fprintf(fout, "<g font-family=\"serif\" font-size=\"18\" font-weight=\"bold\" font-style=\"normal\"\n"
 				"	transform=\"translate(%.2f,%.2f) scale(1.2,1)\">\n"
 				"	<text x=\"0\" y=\"-7\" text-anchor=\"middle\">%s</text>\n"
 				"</g>\n",
@@ -3586,6 +3717,14 @@ rmoveto:
 		}
 		if (strcmp(op, "sh1") == 0) {
 			xysym(op, D_sh1);
+			return;
+		}
+		if (strcmp(op, "sh4") == 0) {
+			n = pop_free_val();
+			if (n == 1)
+				xysym(op, D_sh1);
+			else
+				xysym(op, D_sh513);
 			return;
 		}
 		if (strcmp(op, "sh513") == 0) {
@@ -3688,7 +3827,7 @@ translate:
 			setg(1);
 			y = yoffs - pop_free_val() - 2;
 			x = xoffs + pop_free_val() - 4;
-			fprintf(fout, "<text font-family=\"Times\" font-size=\"16\" font-weight=\"bold\" font-style=\"italic\"\n"
+			fprintf(fout, "<text font-family=\"serif\" font-size=\"16\" font-weight=\"bold\" font-style=\"italic\"\n"
 				"	x=\"%.2f\" y=\"%.2f\">tr</text>\n",
 				x, y);
 			return;
@@ -3715,7 +3854,7 @@ translate:
 				ps_error = 1;
 				return;
 			}
-			fprintf(fout, "<g font-family=\"Times\" font-size=\"16\" font-weight=\"bold\" font-style=\"normal\"\n"
+			fprintf(fout, "<g font-family=\"serif\" font-size=\"16\" font-weight=\"bold\" font-style=\"normal\"\n"
 				"	transform=\"translate(%.2f,%.2f) scale(1.2,1)\">\n"
 				"	<text y=\"-1\" text-anchor=\"middle\">%s</text>\n"
 				"	<text y=\"-13\" text-anchor=\"middle\">%s</text>\n"
@@ -3876,7 +4015,7 @@ void svg_write(char *buf, int len)
 				return;
 
 			/* create a container with elements in direct order */
-			e->u.e = 0;
+			e->u.e = NULL;
 			if (c == '}') {
 				e->type = SEQ;
 				c = '{';
@@ -3940,7 +4079,7 @@ void svg_write(char *buf, int len)
 //					if (!r)
 //						break;
 					fprintf(fout, "<!-- subtitle: %.*s -->\n",
-							r - q, q);
+							(int) (r - q), q);
 					break;
 				}
 				q = (unsigned char *) strchr((char *) q, '(');
@@ -3951,7 +4090,7 @@ void svg_write(char *buf, int len)
 //				if (!r)
 //					break;
 				fprintf(fout, "<!-- title: %.*s -->\n",
-						r - q, q);
+						(int) (r - q), q);
 				break;
 			}
 			break;
@@ -4106,8 +4245,8 @@ void svg_close(void)
 	setg(0);
 	fputs("</svg>\n", fout);
 	e = stack;
-	if (e != 0) {
-		stack = 0;
+	if (e) {
+		stack = NULL;
 		fprintf(stderr, "svg close: stack not empty ");
 		elt_lst_dump(e);
 		fprintf(stderr, "\n");
@@ -4115,6 +4254,6 @@ void svg_close(void)
 			e2 = e->next;
 			elt_free(e);
 			e = e2;
-		} while (e != 0);
+		} while (e);
 	}
 }
