@@ -238,6 +238,9 @@ void unlksym(struct SYMBOL *s)
 		}
 	} else {
 		s->next->prev = s->prev;
+//		if (s->type == NOTEREST
+//		 && !(s->sflags & S_BEAM_END))
+//			s->next->sflags |= S_BEAM_ST;
 		if (s->extra) {
 			struct SYMBOL *g;
 
@@ -297,8 +300,12 @@ static int may_combine(struct SYMBOL *s)
 	}
 	if (s->gch && s2->gch)
 		return 0;
-	if (s->as.type == ABC_T_REST)
+	if (s->as.type == ABC_T_REST) {
+		if (s2->as.type  == ABC_T_REST
+		 && (s->as.flags & ABC_F_INVIS) && !(s2->as.flags & ABC_F_INVIS))
+			return 0;
 		return 1;
+	}
 	if (s2->ly
 	 || (s2->sflags & (S_SL1 | S_SL2))
 	 || s2->as.u.note.slur_st != 0
@@ -369,10 +376,10 @@ again:
 #undef COMBINEV
 	nhd += nhd2 + 1;
 	s->nhd = nhd;
-/*fixme:should recalculate yav*/
-	s->ymx = 3 * (s->pits[nhd] - 18) + 4;
-
 	sort_pitch(s, 1);		/* sort the notes by pitch */
+	s->ymx = 3 * (s->pits[nhd] - 18) + 4;
+	s->ymn = 3 * (s->pits[0] - 18) - 4;
+	s->yav = (s->ymx + s->ymn) / 2;
 
 	/* force the tie directions */
 	type = s->as.u.note.ti1[0];
@@ -2226,20 +2233,74 @@ static struct SYMBOL *set_lines(struct SYMBOL *first,	/* first symbol */
 		xmin = s->x + wwidth / nlines * cfmt.breaklimit;
 		xmax = s->x + lwidth;
 		for ( ; s != last; s = s->ts_next) {
-			if (s->type != BAR)
-				continue;
 			x = s->x;
 			if (x == 0)
 				continue;
-			if (x < xmin) {
-				s2 = s;
+			if (x > xmax)
+				break;
+			if (s->type != BAR)
 				continue;
-			}
-			if (x <= xmax)
+			if (x > xmin)
 				goto cut_here;
-			break;
+			s2 = s;			// keep the last bar
 		}
 
+#if 1
+		bar_time = s2->time;
+
+		/* try to cut on a crotchet */
+		if (s) {
+		    for (;;) {			/* go back */
+			s = s->ts_prev;
+			x = s->x;
+			if (x == 0)
+				continue;
+			if ((s->time - bar_time) % CROTCHET == 0) {
+				for (s = s->ts_prev ; ; s = s->ts_prev) {
+					if (s->x != 0)
+						break;
+				}
+				goto cut_here;
+			}
+			if (s->x < xmin)
+				break;
+		    }
+		}
+
+		/* try to avoid to cut a beam */
+		s = s2;				/* restart from the last bar */
+		beam = 0;
+		for ( ; s != last; s = s->ts_next) {
+			if ((s->sflags & (S_BEAM_ST | S_BEAM_END))
+						== S_BEAM_ST) {
+				beam++;
+				continue;
+			}
+			if ((s->sflags & (S_BEAM_ST | S_BEAM_END))
+						== S_BEAM_END)
+				beam--;
+			if (beam != 0)
+				continue;
+			x = s->x;
+			if (x != 0 && x >= xmin) {
+				if (x > xmax)
+					break;
+				for (s = s->ts_prev ; ; s = s->ts_prev) {
+					if (s->x != 0)
+						break;
+				}
+				goto cut_here;
+			}
+		}
+
+		/* no good place, cut here */
+		for (s = s->ts_prev ; ; s = s->ts_prev) {
+//			if (!s)
+//				return s;
+			if (s->x != 0)
+				break;
+		}
+#else
 		/* try to avoid to cut a beam */
 		beam = 0;
 		bar_time = s2->time;
@@ -2250,15 +2311,6 @@ static struct SYMBOL *set_lines(struct SYMBOL *first,	/* first symbol */
 			if (x != 0 && x >= xmin) {
 				if (x > xmax)
 					break;
-#if 0
-				if (beam <= 0) {
-					for (s = s->ts_prev ; ; s = s->ts_prev) {
-						if (s->x != 0)
-							break;
-					}
-					goto cut_here;
-				}
-#endif
 				if (!s2)
 					s2 = s;
 			}
@@ -2302,6 +2354,7 @@ static struct SYMBOL *set_lines(struct SYMBOL *first,	/* first symbol */
 		s = s->next;
 		if (!s)
 			return s;
+#endif
 cut_here:
 		if (s->sflags & S_NL) {		/* already set here - advance */
 			error(0, s, "Line split problem - "
@@ -2333,6 +2386,20 @@ static void cut_tune(float lwidth, float indent)
 	/* adjust the line width according to the starting clef
 	 * and key signature */
 /*fixme: may change in the tune*/
+#if 1
+	struct VOICE_S *p_voice;
+
+	s = tsfirst;
+	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
+		i = p_voice - voice_tb;
+		if (cursys->voice[i].range >= 0)
+			break;
+	}
+	lwidth -= 12 + 10			// clef.wl
+		+ 12 - 10			// clef.wr
+		+ 3				// key.wl
+		+ p_voice->key.sf * 5.5;	// key.wr
+#else
 	for (s = tsfirst; s; s = s->ts_next) {
 		if (s->shrink == 0)
 			continue;
@@ -2340,6 +2407,7 @@ static void cut_tune(float lwidth, float indent)
 			break;
 		lwidth -= s->shrink;
 	}
+#endif
 	if (cfmt.custos && !first_voice->next)
 		lwidth -= 12;
 	if (cfmt.continueall) {
@@ -2482,7 +2550,7 @@ static void set_pitch(struct SYMBOL *last_s)
 	dur = BASE_LEN;
 	for (s = tsfirst; s != last_s; s = s->ts_next) {
 		struct SYMBOL *g;
-		int np, m, pav;
+		int np, m;
 
 		for (g = s->extra ; g; g = g->next) {
 			if (g->type == FMTCHG && g->u == REPEAT) {
@@ -2560,12 +2628,13 @@ static void set_pitch(struct SYMBOL *last_s)
 				for (m = np; m >= 0; m--)
 					s->pits[m] += delta;
 			}
-			pav = 0;
-			for (m = np; m >= 0; m--)
-				pav += s->pits[m];
-			s->yav = 3 * pav / (np + 1) - 3 * 18;
+//			pav = 0;
+//			for (m = np; m >= 0; m--)
+//				pav += s->pits[m];
+//			s->yav = 3 * pav / (np + 1) - 3 * 18;
 			s->ymx = 3 * (s->pits[np] - 18) + 4;
 			s->ymn = 3 * (s->pits[0] - 18) - 4;
+			s->yav = (s->ymx + s->ymn) / 2;
 // test rest offset
 			if (s->as.type != ABC_T_NOTE)
 				s->y = s->yav / 6 * 6;
@@ -2727,7 +2796,8 @@ if (staff > nst) {
 							s->multi = -1;
 
 						/* special case for unison */
-						if (s->ts_prev->time == s->time
+						if (s->ts_prev
+						 && s->ts_prev->time == s->time
 						 && s->ts_prev->staff == s->staff
 						 && s->pits[s->nhd] == s->ts_prev->pits[0]
 						 && (s->sflags & (S_BEAM_ST | S_BEAM_END))
@@ -3539,7 +3609,7 @@ static void set_global(void)
 			case BAR:
 				if (!(s->sflags & S_BEAM_ON))
 					start_flag = 1;
-				if (!s->next
+				if (!s->next && s->prev
 				 && s->prev->as.type == ABC_T_NOTE
 				 && s->prev->dur >= BREVE)
 					s->prev->head = H_SQUARE;
@@ -4554,8 +4624,9 @@ static void set_piece(void)
 
 	/* initialize the music line */
 	init_music_line();
-	if (!empty[nstaff])
-		insert_meter = 0;
+//	if (!empty[nstaff])
+	if (!empty[cursys->nstaff])
+		insert_meter &= ~1;	// no more meter
 
 	/* if last music line, nothing more to do */
 	if (!tsnext)
@@ -4950,8 +5021,9 @@ void output_music(void)
 
 //fixme:initmusic_line			<- pb repeat bars...
 //	init_music_line();
-		indent = set_indent(0);
 		set_piece();
+		indent = set_indent(0);
+//		set_piece();		<- pb new voice after %%staves
 //fixme:initmusic_line			<- pb repeat bars...
 //		init_music_line();
 
@@ -4966,8 +5038,10 @@ void output_music(void)
 		if (showerror)
 			error_show();
 		bskip(line_height);
-		if (indent != 0)
+		if (indent != 0) {
 			a2b("%.2f 0 T\n", -indent);
+			insert_meter &= ~2;	// no more indentation
+		}
 		update_clefs();
 		tsfirst = tsnext;
 		gen_init();

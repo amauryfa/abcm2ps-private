@@ -1,10 +1,79 @@
+---- Version 7.8.9 - 14/10/14 ----
+
+Fix crash when %%combinevoices on beamed notes since 7.8.7
+	(reported by David Lacroix).
+Fix bad start/stop of ties since 7.8.4.
+Fix possible crash with %%alignbars.
+Fix crash when tune starting with grace note in the middle voice
+	of a 3-voices staff.
+
+---- Version 7.8.8 - 14/08/29 ----
+
+Fix loss of indentation since 7.8.4
+	(reported by David Lacroix).
+Fix bad stem direction in lowest voice when invisible and visible rests
+		at a same time in a measure since 7.8.4
+	(reported by Eric Reinbold).
+Fix crash when multi-rest at start of a second voice of a staff.
+
+---- Version 7.8.7 - 14/08/09 ----
+
+Fix crash when %%combinevoices and different beaming.
+Always remove the invisible rests at start of tune when L:auto.
+Fix some compilation warnings
+	(reported by Daniel Branning).
+Fix bad split of tune into music lines (imported from 8.1.5)
+	(reported by Stephen West).
+Fix bad horizontal offset of rests alone in a measure
+	(reported by Stephen West).
+
+---- Version 7.8.6 - 14/07/17 ----
+
+Fix lack of source last character in syntax errors.
+Fix double information about the titles/subtitles in the PostScript
+	output for (external) index generation since 7.8.5
+	(reported by Tim Macdonald).
+Fix double interpretation of '.' in "!p!.(c"
+	(reported by David Lacroix).
+Fix the size of font of the page header/footer, broken in 7.8.5
+	(reported by Francis Stevens).
+
+---- Version 7.8.5 - 14/07/01 ----
+
+Add more information about the titles/subtitles in the PostScript
+	output for (external) index generation
+	(asked by Tim Macdonald).
+Add Δ (delta) in the known glyphs
+	(asked by Chuck Boody).
+Fix some bad 'Line overfull' messages when automatic line break.
+Fix bad interval between staff systems according to %%staffsep
+	(reported by Eric Reinbold and David Lacroix).
+Fix bad %%header/%%footer vertical offsets.
+Don't put the last music line on a new page when page overflow on W:.
+
+---- Version 7.8.4 - 14/06/18 ----
+
+Fix clash of voice name with staff when new voice after %%staves.
+Fix bad indentation when more staves further in the tune.
+Set the ties closer to the notes.
+Fix bad handling of '|' when first character in w:
+	(reported by Alex Scheutzow).
+Check the floating voices in %%score/%%staves.
+Fix bad stem direction when %%combinevoices.
+Fix crash when measure bar numbering and less notes in the upper staff
+	(reported by : J.Joao Almeida).
+Fix too big syntax error messages
+	(reported by David Lacroix).
+Fix bad horizontal offset of full rests in voice overlay
+	(reported by J.C.L.).
+
 ---- Version 7.8.3 - 14/05/23 ----
 
 Fix too wide space between text paragraphs when not fill or justify.
 Fix crash when utf-8 and latin characters in a same file
 	(reported by Henry Bley-Vroman).
 Change internal fonts to 'serif' on SVG output.
-Forbid rest in grace note sequence.
+Forbid rests in grace note sequences.
 Fix crash when rest in grace note sequence.
 Fix direction of ties in chords with odd number of notes.
 Fix bad direction of beam stub when last note with !beambr1! / !beambr2!

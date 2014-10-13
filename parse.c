@@ -1612,20 +1612,9 @@ static struct abcsym *get_lyric(struct abcsym *as)
 	}
 
 	/* treat all w: lines */
-	s = curvoice->lyric_start;
-	if (!s) {
-		s = curvoice->sym;
-		if (!s) {
-			error(1, s, "w: without music");
-			return as;
-		}
-	} else if (s->ly) {		/* prev music line ended with a note */
-		s = s->next;
-	}
-	curvoice->lyric_start = s;
-	s2 = s;				/* for #line in error messages */
 	cont = 0;
 	ln = -1;
+	s2 = s = NULL;				// have gcc happy
 	for (;;) {
 		if (!cont) {
 			if (ln >= MAXLY) {
@@ -1635,6 +1624,14 @@ static struct abcsym *get_lyric(struct abcsym *as)
 			ln++;
 			s2 = s;
 			s = curvoice->lyric_start;
+			if (!s)
+				s = curvoice->sym;
+			else
+				s = s->next;
+			if (!s) {
+				error(1, s, "w: without music");
+				return as;
+			}
 		} else {
 			cont = 0;
 		}
@@ -1824,9 +1821,10 @@ ly_next:
 
 	/* the next lyrics will go into the next notes */
 ly_upd:
-	s = next_lyric_note(s);
-	if (s)
-		error(1, s, "Not enough words for lyric line");
+//fixme: no error with abc-2.1
+	if (next_lyric_note(s))
+		error(0, s, "Not enough words for lyric line");
+	// fill the w: with 'blank syllabes'
 	curvoice->lyric_start = curvoice->last_sym;
 	return as;
 }
@@ -2036,7 +2034,8 @@ static void parse_staves(struct SYMBOL *s,
 			flags_st |= OPEN_PARENTH;
 			break;
 		case '*':
-			flags |= FL_VOICE;
+			if (brace && !parenth && !(flags & (OPEN_BRACE | OPEN_BRACE2)))
+				flags |= FL_VOICE;
 			break;
 		default:
 			if (!isalnum((unsigned char) *p) && *p != '_') {
@@ -2113,6 +2112,7 @@ static void parse_staves(struct SYMBOL *s,
 						flags |= CLOSE_BRACE;
 					else
 						flags |= CLOSE_BRACE2;
+					flags &= ~FL_VOICE;
 					flags_st >>= 8;
 					p++;
 					continue;
@@ -2684,20 +2684,21 @@ static struct abcsym *get_info(struct abcsym *as,
 		s2 = info['T' - 'A'];
 		p = &s2->as.text[2];
 		if (*p != '\0') {
-			a2b("%% --- %s (%s) ---\n"
-				"%% --- font ",
-				&info['X' - 'A']->as.text[2], p);
+			a2b("%% --- font ");
 			outft = -1;
 			set_font(TITLEFONT);		/* font in comment */
 			a2b("\n");
 			outft = -1;
-			if (cfmt.pdfmark)
+		}
+		if (cfmt.pdfmark) {
+			if (*p != '\0')
 				put_pdfmark(p);
-			for (s2 = s2->next; s2; s2 = s2->next) {
-				p = &s2->as.text[2];
-				a2b("%% --- + (%s) ---\n", p);
-				if (cfmt.pdfmark > 1)
-					put_pdfmark(p);
+			if (cfmt.pdfmark > 1) {
+				for (s2 = s2->next; s2; s2 = s2->next) {
+					p = &s2->as.text[2];
+					if (*p != '\0')
+						put_pdfmark(p);
+				}
 			}
 		}
 
@@ -2970,8 +2971,6 @@ static void adjust_dur(struct SYMBOL *s)
 		s2 = s2->prev;
 	time = s2->time;
 	auto_time = curvoice->time - time;
-	if (curvoice->wmeasure == auto_time)
-		return;				/* already good duration */
 
 	/* remove the invisible rest at start of tune */
 	if (time == 0) {
@@ -2989,6 +2988,9 @@ static void adjust_dur(struct SYMBOL *s)
 			s2 = s2->next;
 		}
 	}
+	if (curvoice->wmeasure == auto_time)
+		return;				/* already good duration */
+
 	for (; s2; s2 = s2->next) {
 		int i, head, dots, nflags;
 
@@ -3221,6 +3223,8 @@ void do_tune(struct abctune *t)
 	/* scan the tune */
 	for (as = t->first_sym; as; as = as->next) {
 		s = (struct SYMBOL *) as;
+		if (as->flags & ABC_F_LYRIC_START)
+			curvoice->lyric_start = curvoice->last_sym;
 		switch (as->type) {
 		case ABC_T_INFO:
 			as = get_info(as, t);
@@ -3235,8 +3239,6 @@ void do_tune(struct abctune *t)
 				s->as.flags |= ABC_F_SPACE;
 			}
 			get_note(s);
-			if (as->flags & ABC_F_LYRIC_START)
-				curvoice->lyric_start = s;
 			break;
 		case ABC_T_BAR:
 			if (over_bar)
@@ -4654,7 +4656,7 @@ irepeat:
 				return as;
 			if (isdigit(*p)) {
 				s->xmx = scan_u(p);
-				if (s->xmx <= 0) {
+				if (s->xmx < 0) {
 					error(1, s, "Bad value in %%%s", w);
 					return as;
 				}
@@ -5099,7 +5101,8 @@ center:
 			parsys->voice[i].staff = i;
 			parsys->voice[i].range = i;
 		}
-		voice_tb[i - 1].next = NULL;
+		i--;
+		voice_tb[i].next = NULL;
 		nstaff = i;
 	}
 	return as;

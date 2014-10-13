@@ -185,7 +185,7 @@ static int calculate_beam(struct BEAM *bm,
 			s = sym_dup(s2);
 			s->next = s2->next;
 			if (s->next)
-				s->next->prev = s;;
+				s->next->prev = s;
 			s2->next = s;
 			s->prev = s2;
 			s->ts_next = s2->ts_next;
@@ -1187,31 +1187,21 @@ static char *rest_tb[NFLAGS_SZ] = {
 	/* if rest alone in the measure, center */
 	x = s->x + s->shhd[0] * cur_scale;
 	if (s->dur == voice_tb[s->voice].meter.wmeasure) {
-		struct SYMBOL *prev;
+		struct SYMBOL *s2;
 
-		if (s->next)
-			x = s->next->x;
+		/* don't use next/prev: there is no bar in voice averlay */
+		s2 = s->ts_next;
+		while (s2 && s2->time != s->time + s->dur)
+			s2 = s2->ts_next;
+		if (s2)
+			x = s2->x;
 		else
 			x = realwidth;
-		prev = s->prev;
-		if (!prev) {
-			prev = s;
-		} else if (prev->type != BAR && !(s->sflags & S_SECOND)) {
-			for (prev = prev->ts_next; ; prev = prev->ts_next) {
-				switch (prev->type) {
-				case CLEF:
-				case KEYSIG:
-				case TIMESIG:
-				case FMTCHG:
-					continue;
-				default:
-					break;
-				}
-				prev = prev->ts_prev;
-				break;
-			}
-		}
-		x = (x + prev->x) * .5;
+		s2 = s;
+		while (!(s2->sflags & S_SEQST))
+			s2 = s2->ts_prev;
+		s2 = s2->ts_prev;
+		x = (x + s2->x) * .5;
 
 		/* center the associated decorations */
 		if (s->as.u.note.dc.n > 0)
@@ -2998,36 +2988,35 @@ static void draw_note_ties(struct SYMBOL *k1,
 		p1 = k1->pits[m1];
 		m2 = mhead2[i];
 		p2 = k2->pits[m2];
-		if ((k1->as.u.note.ti1[m1] & 0x03) == SL_ABOVE)
-			s = 1;
-		else
-			s = -1;
+		s = (k1->as.u.note.ti1[m1] & 0x03) == SL_ABOVE ? 1 : -1;
 
 		x1 = k1->x;
 		sh = k1->shhd[m1];		/* head shift */
 		if (s > 0) {
-			if (m1 < k1->nhd && k1->pits[m1] + 1 == k1->pits[m1 + 1])
+			if (m1 < k1->nhd && p1 + 1 == k1->pits[m1 + 1])
 				if (k1->shhd[m1 + 1] > sh)
 					sh = k1->shhd[m1 + 1];
 		} else {
-			if (m1 > 0 && k1->pits[m1] == k1->pits[m1 - 1] + 1)
+			if (m1 > 0 && p1 == k1->pits[m1 - 1] + 1)
 				if (k1->shhd[m1 - 1] > sh)
 					sh = k1->shhd[m1 - 1];
 		}
-		x1 += sh;
+//		x1 += sh;
+		x1 += sh * 0.6;
 
 		x2 = k2->x;
 		sh = k2->shhd[m2];
 		if (s > 0) {
-			if (m2 < k2->nhd && k2->pits[m2] + 1 == k2->pits[m2 + 1])
+			if (m2 < k2->nhd && p2 + 1 == k2->pits[m2 + 1])
 				if (k2->shhd[m2 + 1] < sh)
 					sh = k2->shhd[m2 + 1];
 		} else {
-			if (m2 > 0 && k2->pits[m2] == k2->pits[m2 - 1] + 1)
+			if (m2 > 0 && p2 == k2->pits[m2 - 1] + 1)
 				if (k2->shhd[m2 - 1] < sh)
 					sh = k2->shhd[m2 - 1];
 		}
-		x2 += sh;
+//		x2 += sh;
+		x2 += sh * 0.6;
 
 		staff = k1->staff;
 		switch (job) {
@@ -3068,39 +3057,31 @@ static void draw_note_ties(struct SYMBOL *k1,
 			break;
 		}
 		if (x2 - x1 > 20) {
-			x1 += 2;
-			x2 -= 2;
+			x1 += 3.5;
+			x2 -= 3.5;
 		}
 
 		y = 3 * (p - 18);
 		if (job != 1 && job != 3) {
-			if (k1->nhd != 0) {
-				x1 += 4.5;
-				y += ((p & 1) ? 2 : 0) * s;
-			} else {
-				y += ((p & 1) ? 6 : 4) * s;
-			}
+			if (p & 1)
+				y += 2 * s;
 			if (s > 0) {
-				if (k1->nflags > -2 && k1->stem > 0
-				 && k1->nhd == 0)
-					x1 += 4.5;
+//				if (k1->nflags > -2 && k1->stem > 0
+//				 && k1->nhd == 0)
+//					x1 += 4.5;
 				if (!(p & 1) && k1->dots > 0)
 					y = 3 * (p - 18) + 6;
 			}
 		}
 //		if (job != 2) {
 		 else {
-			if (k2->nhd != 0) {
-				x2 -= 4.5;
-				y += ((p & 1) ? 2 : 0) * s;
-			} else {
-				y += ((p2 & 1) ? 7 : 4) * s;
-			}
-			if (s < 0) {
-				if (k2->nflags > -2 && k2->stem < 0
-				 && k2->nhd == 0)
-					x2 -= 4.5;
-			}
+			if (p & 1)
+				y += 2 * s;
+//			if (s < 0) {
+//				if (k2->nflags > -2 && k2->stem < 0
+//				 && k2->nhd == 0)
+//					x2 -= 4.5;
+//			}
 //			if (job != 0)
 //				y1 = y2;
 //		} else {
@@ -4345,8 +4326,8 @@ static float set_staff(void)
 	/* draw the parts and tempo indications if any */
 	y += draw_partempo(staff, y);
 
-	staffsep = cfmt.staffsep * 0.5;
-	maxsep = cfmt.maxstaffsep * 0.5;
+	staffsep = cfmt.staffsep * 0.5 +
+			staff_tb[staff].topbar * staff_tb[staff].clef.staffscale;
 	if (y < staffsep)
 		y = staffsep;
 	staff_tb[staff].y = -y;
@@ -4358,11 +4339,10 @@ static float set_staff(void)
 			staff_tb[staff].empty = 1;
 			continue;
 		}
-		if (sy->staff[prev_staff].sep != 0) {
+		if (sy->staff[prev_staff].sep != 0)
 			staffsep = sy->staff[prev_staff].sep;
-		} else {
+		else
 			staffsep = cfmt.sysstaffsep;
-		}
 		if (sy->staff[prev_staff].maxsep != 0)
 			maxsep = sy->staff[prev_staff].maxsep;
 		else
