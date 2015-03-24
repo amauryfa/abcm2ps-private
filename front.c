@@ -464,7 +464,7 @@ unsigned char *frontend(unsigned char *s,
 	unsigned char *p, *q, c, *begin_end;
 	int i, l, state, str_cnv_p, histo, end_len, nline;
 	char prefix_sav[4];
-	int latin_sav;
+	int latin_sav = 0;		/* have C compiler hppy */
 
 	begin_end = 0;
 	end_len = 0;
@@ -735,6 +735,7 @@ info:
 			 && (strncmp((char *) s, "format ", 7) == 0
 			  || strncmp((char *) s, "abc-include ", 12) == 0)) {
 				unsigned char sep;
+				int skip_sav;
 
 				if (*s == 'f')
 					s += 7;
@@ -746,7 +747,6 @@ info:
 				while (*q != '\0'
 				    && *q != '%'
 				    && *q != '\n'
-				    && *q != '\n'
 				    && *q != '\r')
 					q++;
 				while (q[-1] == ' ')
@@ -755,7 +755,9 @@ info:
 				*q = '\0';
 				offset--;		/* remove one % */
 				dst[offset - 1] = '\0';	/* replace the other % by EOS */
+				skip_sav = skip;
 				include_f(s);
+				skip = skip_sav;
 				offset--;		/* remove the EOS */
 				*q = sep;
 				add_lnum(nline);

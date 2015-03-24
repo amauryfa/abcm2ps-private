@@ -3,7 +3,7 @@
  *
  * This file is part of abcm2ps.
  *
- * Copyright (C) 1998-2014 Jean-François Moine
+ * Copyright (C) 1998-2015 Jean-François Moine
  * Adapted from abc2ps, Copyright (C) 1996,1997 Michael Methfessel
  *
  * This program is free software; you can redistribute it and/or modify
@@ -661,12 +661,26 @@ static void draw_beams(struct BEAM *bm)
 			for (;;) {
 				if (s == s2)
 					break;
+#if 1
+				if (s->next->type == NOTEREST) {
+					if (s->next->sflags & S_TREM1) {
+						if (s->next->nflags - s->next->u < i)
+							break;
+					} else if (s->next->nflags < i) {
+						break;
+					}
+				}
+				if ((s->next->sflags & S_BEAM_BR1)
+				 || ((s->next->sflags & S_BEAM_BR2) && i > 2))
+					break;
+#else
 				if ((s->next->type == NOTEREST
-				 && s->next->nflags < i)
+				 && s->next->nflags - s->next->u < i)
 				  || (s->next->sflags & S_BEAM_BR1)
 				  || ((s->next->sflags & S_BEAM_BR2)
 					 && i > 2))
 					break;
+#endif
 				s = s->next;
 			}
 			k2 = s;
@@ -4557,8 +4571,9 @@ float draw_systems(float indent)
 			break;
 		default:
 //fixme:does not work for "%%staves K: M: $" */
-			if (cursys->staff[staff].empty)
-				s->as.flags |= ABC_F_INVIS;
+//removed for K:/M: in empty staves
+//			if (cursys->staff[staff].empty)
+//				s->as.flags |= ABC_F_INVIS;
 			break;
 		}
 	}
@@ -4750,10 +4765,11 @@ void draw_all_symb(void)
 	struct VOICE_S *p_voice;
 
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
-#if 1 /*fixme:test*/
+#if 0 /* no: did display the rests when "%%staffnonote 0" */
 		if (!p_voice->sym)
 #else
-		if (staff_tb[p_voice->staff].empty || !p_voice->sym)
+		if (!p_voice->sym
+		 || staff_tb[p_voice->staff].empty)
 #endif
 			continue;
 		draw_symbols(p_voice);
