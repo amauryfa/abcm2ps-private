@@ -35,7 +35,7 @@ static struct deco_elt {
 #define DE_VAL	0x01		/* put extra value if 1 */
 #define DE_UP	0x02		/* above the staff */
 #define DE_BELOW 0x08		/* below the staff */
-#define DE_GRACE 0x10		/* in grace note */
+//#define DE_GRACE 0x10		/* in grace note */
 #define DE_INV 0x20		/* invert the glyph */
 #define DE_LDST 0x40		/* start of long decoration */
 #define DE_LDEN 0x80		/* end of long decoration */
@@ -75,6 +75,9 @@ static draw_f *func_tb[] = {
 	d_cresc,	/* 7 */
 	d_gliss,	/* 8 - glissendo */
 };
+static const short f_near = (1 << 0) | (1 << 1) | (1 << 2);
+static const short f_note = (1 << 3) | (1 << 4) | (1 << 5) | (1 << 8);
+static const short f_staff = (1 << 6) | (1 << 7);
 
 /* postscript function table */
 static char *ps_func_tb[128];
@@ -370,7 +373,7 @@ static void d_cresc(struct deco_elt *de)
 	if (de1 && de1->prev && de1->prev->s == s
 	 && ((de->flags ^ de1->prev->flags) & DE_UP) == 0) {
 		dd2 = &deco_def_tb[de1->prev->t];
-		if (dd2->func >= 6) {
+		if (f_staff & (1 << dd2->func)) {
 			x2 = de1->prev->x + de1->prev->v + 4;
 			if (x2 > x)
 				x = x2;
@@ -388,7 +391,7 @@ static void d_cresc(struct deco_elt *de)
 		if (de->next && de->next->s == s
 		 && ((de->flags ^ de->next->flags) & DE_UP) == 0) {
 			dd2 = &deco_def_tb[de->next->t];
-			if (dd2->func >= 6)	/* if dynamic mark */
+			if (f_staff & (1 << dd2->func))	/* if dynamic mark */
 				x2 -= 5;
 		}
 		dx = x2 - x - 4;
@@ -433,7 +436,7 @@ static void d_gliss(struct deco_elt *de2)
 	s1 = de1->s;
 
 	de1->x = s1->x + s1->xmx;
-	de2->x = s2->x - (s2->wl != 0 ? s2->wl : 4);	// no wl for grace notes
+	de2->x = s2->x - (s2->wl != 0 ? s2->wl : 5);	// no wl for grace notes
 
 	if (s1->y > s2->y) {
 		de1->y = s1->y - 2;
@@ -514,7 +517,7 @@ static void d_pf(struct deco_elt *de)
 	if (de->prev && de->prev->s == s
 	 && ((de->flags ^ de->prev->flags) & DE_UP) == 0) {
 		dd2 = &deco_def_tb[de->prev->t];
-		if (dd2->func >= 6) {	/* if dynamic mark */
+		if (f_staff & (1 << dd2->func)) {	/* if dynamic mark */
 			x2 = de->prev->x + de->prev->v + 4;
 			if (x2 > x)
 				x = x2;
@@ -1268,7 +1271,8 @@ void draw_all_deco(void)
 
 		/* center the dynamic marks between two staves */
 /*fixme: KO when deco on other voice and same direction*/
-		if (dd->func >= 6 && !cfmt.dynalign
+		if ((f_staff & (1 << dd->func))
+		 && !cfmt.dynalign
 		 && (((de->flags & DE_UP) && staff > 0)
 		  || (!(de->flags & DE_UP) && staff < nstaff))) {
 			if (de->flags & DE_UP)
@@ -1308,7 +1312,8 @@ void draw_all_deco(void)
 		set_scale(de->s);
 		set_defl(de->defl);
 		if (de->flags & DE_VAL) {
-			if (dd->func != 2 || voice_tb[de->s->voice].scale != 1)
+			if (dd->func != 2
+			 || voice_tb[de->s->voice].scale != 1)
 				putx(de->v);
 			else
 				putf(de->v);
@@ -1450,7 +1455,7 @@ static void deco_create(struct SYMBOL *s,
 		if ((ideco = dc->tm[k].t) == 0)
 			continue;
 		dd = &deco_def_tb[ideco];
-		if (dd->func < 3) {		/* if near the note */
+		if (f_near & (1 << dd->func)) {	/* if near the note */
 			if (s->multi > 0
 			 || (s->multi == 0 && s->stem < 0)) {
 				d_tb[--j] = dd;
@@ -1513,8 +1518,8 @@ static void deco_create(struct SYMBOL *s,
 		de->s = s;
 		de->t = dd - deco_def_tb;
 		de->staff = s->staff;
-		if (s->flags & ABC_F_GRACE)
-			de->flags = DE_GRACE;
+//		if (s->flags & ABC_F_GRACE)
+//			de->flags = DE_GRACE;
 		if (dd->flags & DE_LDST) {
 			de->flags |= DE_LDST;
 		} else if (dd->flags & DE_LDEN) {
@@ -1524,7 +1529,7 @@ static void deco_create(struct SYMBOL *s,
 		if (cfmt.setdefl && s->stem >= 0)
 			de->defl |= DEF_STEMUP;
 
-		if (dd->func >= 3)	/* if not near the note */
+		if (!(f_near & (1 << dd->func))) /* if not near the note */
 			continue;
 //		if (s->abc_type != ABC_T_NOTE) {
 //			error(1, s,
@@ -1644,7 +1649,7 @@ void draw_deco_note(void)
 			de2->defl &= ~DEF_NOST;
 		}
 		f = dd->func;
-		if (f < 3 || f >= 6)
+		if (!(f_note & (1 << f)))
 			continue;	/* not tied to the note */
 		if (f == 4)
 			de->flags |= DE_BELOW;
@@ -1872,7 +1877,7 @@ void draw_deco_staff(void)
 		struct deco_def_s *dd;
 
 		dd = &deco_def_tb[de->t];
-		if (dd->func < 6)		/* if not tied to the staff */
+		if (!(f_staff & (1 << dd->func))) /* if not tied to the staff */
 			continue;
 		func_tb[dd->func](de);
 		if (dd->ps_func < 0)
@@ -1894,7 +1899,7 @@ void draw_deco_staff(void)
 
 		dd = &deco_def_tb[de->t];
 		if (dd->ps_func < 0
-		 || dd->func < 6)
+		 || !(f_staff & (1 << dd->func)))
 			continue;
 		if (cfmt.dynalign) {
 			if (de->flags & DE_UP)

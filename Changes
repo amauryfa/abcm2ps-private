@@ -1,3 +1,9 @@
+---- Version 8.11.4 - 16/04/10 ----
+
+Fix bad glissendo
+Fix bad generation of "::" when at end of source line since 8.10.1
+	(reported by Rob Lindauer)
+
 ---- Version 8.11.3 - 16/04/09 ----
 
 Fix loss of measure bars when %%score with less staves
