@@ -436,14 +436,19 @@ static void d_gliss(struct deco_elt *de2)
 	s1 = de1->s;
 
 	de1->x = s1->x + s1->xmx;
-	de2->x = s2->x - (s2->wl != 0 ? s2->wl : 5);	// no wl for grace notes
+	if (s1->dots)
+		de1->x += 3;
+//	de2->x = s2->x - (s2->wl != 0 ? s2->wl : 5);	// no wl for grace notes
+	de2->x = s2->x - 2 -
+		(s2->u.note.notes[0].shac ?
+			(s2->u.note.notes[0].shac + 3) : hw_tb[s2->head]);
 
 	if (s1->y > s2->y) {
-		de1->y = s1->y - 2;
-		de2->y = s2->y + 2;
+		de1->y = s1->y - 1;
+		de2->y = s2->y + 1;
 	} else if (s1->y < s2->y) {
-		de1->y = s1->y + 2;
-		de2->y = s2->y - 2;
+		de1->y = s1->y + 1;
+		de2->y = s2->y - 1;
 	}
 }
 

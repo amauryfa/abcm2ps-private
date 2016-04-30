@@ -1,3 +1,15 @@
+---- Version 8.11.5 - 16/05/01 ----
+
+Adjust the endpoints of the glissendo
+Fix loss of tie on new repeat when previous note is tied
+Fix bad end of repeat bracket after %%score with change of voice role 
+Fix bad colors when %%voicecolor and %%voicescale
+	(reported by Guido Gonzato)
+Fix array overflow in draw_keysig()
+	(reported by Hanno Böck)
+New command line option '-p'
+	(patch from Stephen Beitzel)
+
 ---- Version 8.11.4 - 16/04/10 ----
 
 Fix bad glissendo

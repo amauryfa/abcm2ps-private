@@ -32,6 +32,8 @@ float space_tb[NFLAGS_SZ] = {
 	40,				/* crotchet */
 	56.6, 80, 113, 150
 };
+// width of note heads indexed by s->head
+float hw_tb[] = {4.5, 5, 6, 8};
 static int smallest_duration;
 
 /* upper and lower space needed by rests */
@@ -1016,21 +1018,7 @@ static void set_width(struct SYMBOL *s)
 	case NOTEREST:
 
 		/* set the note widths */
-		switch (s->head) {
-		case H_SQUARE:
-			wlnote = 8;
-			break;
-		case H_OVAL:
-			wlnote = 6;
-			break;
-		case H_EMPTY:
-			wlnote = 5;
-			break;
-		default:
-			wlnote = 4.5;
-			break;
-		}
-		s->wr = wlnote;
+		s->wr = wlnote = hw_tb[s->head];
 
 		/* room for shifted heads and accidental signs */
 		if (s->xmx > 0)
@@ -3384,7 +3372,8 @@ static void set_rb(struct VOICE_S *p_voice)
 
 	s = p_voice->sym;
 	while (s) {
-		if (s->type != BAR || !(s->sflags & S_RBSTART)) {
+		if (s->type != BAR || !(s->sflags & S_RBSTART)
+		 || (s->sflags & S_NOREPBRA)) {
 			s = s->next;
 			continue;
 		}
@@ -3522,7 +3511,7 @@ static void set_global(void)
 	/* set the pitches, the words (beams) and the repeat brackets */
 	for (p_voice = first_voice; p_voice; p_voice = p_voice->next) {
 		set_words(p_voice);
-		if (!p_voice->second && !p_voice->norepbra)
+//		if (!p_voice->second && !p_voice->norepbra)
 			set_rb(p_voice);
 	}
 
