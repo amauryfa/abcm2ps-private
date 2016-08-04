@@ -166,6 +166,7 @@ struct note {		/* note head */
 	char sl2;		/* number of slur ends */
 	char ti1;		/* flag to start tie here */
 	char hlen;		/* length of the head string */
+	char invisible;		/* alternate note head */
 	float shhd;		/* horizontal head shift (#pts if space) */
 	float shac;		/* horizontal accidental shift */
 	char *head;		/* head */

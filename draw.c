@@ -1595,7 +1595,7 @@ static void draw_basic_note(float x,
 	char hd[32];
 
 	staffb = staff_tb[s->staff].y;		/* bottom of staff */
-	y = 3 * (s->pits[m] - 18);	/* note height on staff */
+	y = 3 * (s->pits[m] - 18);		/* note height on staff */
 	shhd = note->shhd * cur_scale;
 
 	if (s->flags & ABC_F_INVIS)
@@ -1637,10 +1637,9 @@ static void draw_basic_note(float x,
 	}
 
 	/* draw the head */
-//	if (no_head) {
-//		p = "xydef";
-//	} else 
-	if ((p = note->head) != NULL) {
+	if (note->invisible) {
+		p = "xydef";
+	} else if ((p = note->head) != NULL) {
 		snprintf(hd, sizeof hd, "%.*s", note->hlen, p);
 		p = hd;
 		a2b("2 copy xydef ");		/* set x y */

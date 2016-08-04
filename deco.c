@@ -1449,9 +1449,11 @@ static void deco_create(struct SYMBOL *s,
 			de->defl |= DEF_STEMUP;
 
 		/* set the coordinates of the decoration */
-		if (m >= 0) {		/* head decoration */
+		if (m >= 0) {			/* head decoration */
 			de->x = s->x;
-			de->y = 3 * (s->u.note.notes[m].pit - 18);
+			de->y = 3 * (s->pits[m] - 18);
+			if (dd->func == 9)	/* alternate note head */
+				s->u.note.notes[m].invisible = 1;
 			continue;
 		}
 		if (!(f_near & (1 << dd->func))) /* if not near the note */

@@ -1,3 +1,7 @@
+---- Version 8.12.1 - 2016-08-05 ----
+
+Fix bad alternate heads since 8.12.0
+
 ---- Version 8.12.0 - 2016-08-05 ----
 
 Handle glissendo on chords
