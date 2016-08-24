@@ -797,6 +797,7 @@ void draw_sym_near(void);
 void draw_all_symb(void);
 float draw_systems(float indent);
 void output_ps(struct SYMBOL *s, int color);
+struct SYMBOL *prev_scut(struct SYMBOL *s);
 void putf(float f);
 void putx(float x);
 void puty(float y);

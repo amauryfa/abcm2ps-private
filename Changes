@@ -1,3 +1,17 @@
+---- Version 8.12.2 - 2016-08-24 ----
+
+Handle long decorations on second repeats
+	(reported by Timm Reasbeck)
+Add 4th parameter to %%tuplet ('where')
+	(asked by Ben)
+Treat back the long decorations in overlayed voices ending
+		on a measure bar
+	(reported by David Lacroix)
+Fix 'ghosts' at top of page when justified or centered text in page
+	(fixed by Hudson Lacerda)
+Fix bad scale with '-s' when %%scale inside ABC
+	(reported by Hudson Lacerda)
+
 ---- Version 8.12.1 - 2016-08-05 ----
 
 Fix bad alternate heads since 8.12.0

@@ -529,8 +529,9 @@ static char *yn[2] = {"no","yes"};
 				break;
 			    }
 			case 3:			/* tuplets */
-				printf("%d %d %d\n",
-					cfmt.tuplets >> 8,
+				printf("%d %d %d %d\n",
+					cfmt.tuplets >> 12,
+					(cfmt.tuplets >> 8) & 0x0f,
 					(cfmt.tuplets >> 4) & 0x0f,
 					cfmt.tuplets & 0x0f);
 				break;
@@ -1110,6 +1111,12 @@ void interpret_fmt_line(char *w,		/* keyword */
 			return;
 		}
 		if (strcmp(w, "scale") == 0) {
+			for (fd = format_tb; fd->name; fd++)
+				if (strcmp("pagescale", fd->name) == 0)
+					break;
+			if (fd->lock)
+				return;
+			fd->lock = lock;
 			f = strtod(p, &q);
 			if (*q != '\0' && *q != ' ')
 				goto bad;
@@ -1145,7 +1152,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 	for (fd = format_tb; fd->name; fd++)
 		if (strcmp(w, fd->name) == 0)
 			break;
-	if (fd->name == 0)
+	if (!fd->name)
 		return;
 
 	i = strlen(p);
@@ -1153,6 +1160,7 @@ void interpret_fmt_line(char *w,		/* keyword */
 		p[i - 5] = '\0';
 		lock = 1;
 	}
+
 	if (lock)
 		fd->lock = 1;
 	else if (fd->lock)
@@ -1213,12 +1221,14 @@ void interpret_fmt_line(char *w,		/* keyword */
 		break;
 	case FORMAT_I:
 		if (fd->subtype == 3) {		/* tuplets */
-			unsigned i1, i2, i3;
+			unsigned i1, i2, i3, i4 = 0;
 
 			if (sscanf(p, "%d %d %d", &i1, &i2, &i3) != 3
-			 || i1 > 2 || i2 > 2 || i3 > 2)
+			 || sscanf(p, "%d %d %d %d", &i1, &i2, &i3, &i4) != 4)
 				goto bad;
-			cfmt.tuplets = (i1 << 8) | (i2 << 4) | i3;
+			if (i1 > 2 || i2 > 2 || i3 > 2 || i4 > 2)
+				goto bad;
+			cfmt.tuplets = (i1 << 12) | (i2 << 8) | (i3 << 4) | i4;
 			break;
 		}
 		if (fd->subtype == 5) {		/* gracespace */

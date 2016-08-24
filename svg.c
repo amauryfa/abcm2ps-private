@@ -1497,7 +1497,7 @@ static void glisq(void)
 
 	def_use(D_ltr);
 	y1 = gcur.yoffs - pop_free_val();
-	x1 = gcur.xoffs + pop_free_val() + 8;
+	x1 = gcur.xoffs + pop_free_val() + 1;
 	y2 = gcur.yoffs - pop_free_val();
 	x2 = gcur.xoffs + pop_free_val();
 	a = atan((y2 - y1) / (x2 - x1)) / M_PI * 180;
@@ -2653,7 +2653,7 @@ curveto:
 
 			setg(1);
 			y = gcur.yoffs - pop_free_val();
-			x = gcur.xoffs + pop_free_val() + 10;
+			x = gcur.xoffs + pop_free_val() + 2;
 			y2 = gcur.yoffs - pop_free_val();
 			x2 = gcur.xoffs + pop_free_val();
 			fprintf(fout, "<path class=\"stroke\" stroke-width=\"1\"\n"
