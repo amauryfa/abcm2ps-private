@@ -1563,11 +1563,12 @@ static void ll_deco(void)
 		de->s = prev_scut(de2->s);
 		de->t = dd->ld_start;
 		de->flags = DE_LDST;
+		de->defl = DEF_NOST;
 		de->x = de->s->x;	//de2->s->x - de2->s->wl - 4;
 		de->y = de2->s->y;
 		de->m = de2->m;
 		de2->start = de;
-		de2->defl &= ~DEF_NOST;
+//		de2->defl &= ~DEF_NOST;
 		if (de2 == tail)
 			break;
 	}

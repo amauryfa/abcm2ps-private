@@ -1,8 +1,15 @@
+---- Version 8.12.3 - 2016-08-25 ----
+
+Fix bad shape of cresc/dimin on next line after continuation
+	(reported by David Lacroix)
+Fix bad scan of %%tuplets
+	(reported by David Lacroix)
+
 ---- Version 8.12.2 - 2016-08-24 ----
 
 Handle long decorations on second repeats
 	(reported by Timm Reasbeck)
-Add 4th parameter to %%tuplet ('where')
+Add 4th parameter to %%tuplets ('where')
 	(asked by Ben)
 Treat back the long decorations in overlayed voices ending
 		on a measure bar
